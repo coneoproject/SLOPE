@@ -7,6 +7,8 @@
 #ifndef _PARLOOP_H_
 #define _PARLOOP_H_
 
+#include <vector>
+
 #include "descriptors.h"
 
 /*
@@ -22,6 +24,6 @@ typedef struct {
 
 } loop_t;
 
-typedef std::list<loop_t*> loop_list;
+typedef std::vector<loop_t*> loop_list;
 
 #endif

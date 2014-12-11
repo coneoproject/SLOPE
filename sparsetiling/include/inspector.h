@@ -22,6 +22,7 @@ typedef struct {
 
 } inspector_t;
 
+enum insp_info {INSP_OK, INSP_ERR};
 
 /*
  * Initialize a new inspector
@@ -35,6 +36,21 @@ typedef struct {
  * an inspector data structure
  */
 inspector_t* insp_init (loop_list* loops, int baseLoop, int tileSize);
+
+/*
+ * Inspect a sequence of parloops and compute a tiled scheduling
+ *
+ * input:
+ * insp: the main inspector data structure, already defined over a range of parloops
+ * seed: start point of the tiling (a number between 0 and the number of
+ *       parloops spanned by the inspector)
+ *
+ * output:
+ * on return from the function, insp will contain a list of tiles, each tile
+ * characterized by a list of iterations that are supposed to be executed, for each
+ * crossed parloop
+ */
+insp_info insp_run (inspector_t* insp, int seed);
 
 /*
  * Destroy an inspector

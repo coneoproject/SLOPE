@@ -13,6 +13,8 @@
 
 #include <list>
 
+#include "stdlib.h"
+
 /* Define the ways a dataset can be accessed */
 enum am_t {READ, WRITE, RW, INC};
 
