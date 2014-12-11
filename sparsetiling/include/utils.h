@@ -7,6 +7,11 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#include <stdint.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+
 #include <iostream>
 
 /*
@@ -25,5 +30,15 @@
 #else
 #   define ASSERT(condition, message) do { } while (false)
 #endif
+
+/*
+ * Timing function
+ */
+inline double time_stamp()
+{
+  struct timespec tv;
+  clock_gettime(CLOCK_MONOTONIC, &tv);
+  return tv.tv_sec + (tv.tv_nsec) / (1000.0*1000.0*1000.0);
+}
 
 #endif

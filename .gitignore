@@ -3,3 +3,4 @@ obj
 bin
 .env
 *.swp
+new_grid.dat
