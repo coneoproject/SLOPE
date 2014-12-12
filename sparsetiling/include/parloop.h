@@ -18,7 +18,7 @@ typedef struct {
   /* name/identifier of the parloop */
   char* loopName;
   /* size of the iteration set */
-  int setSize;
+  set_t* set;
   /* list of maps used to execute the kernel in this loop */
   desc_list* descriptors;
 

@@ -9,13 +9,15 @@
 #include "inspector.h"
 #include "utils.h"
 #include "partitioner.h"
+#include "coloring.h"
 
 using namespace std;
 
-inspector_t* insp_init (int tileSize)
+inspector_t* insp_init (int tileSize, insp_strategy strategy)
 {
   inspector_t* insp = (inspector_t*) malloc (sizeof(inspector_t));
 
+  insp->strategy = strategy;
   insp->tileSize = tileSize;
   insp->loops = (loop_list*) malloc (sizeof(loop_list*));
 
@@ -25,14 +27,14 @@ inspector_t* insp_init (int tileSize)
   return insp;
 }
 
-insp_info insp_add_parloop (inspector_t* insp, char* loopName, int setSize,
+insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
                             desc_list* descriptors)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
   loop_t* loop = (loop_t*) malloc (sizeof(loop_t));
   loop->loopName = loopName;
-  loop->setSize = setSize;
+  loop->set = set;
   loop->descriptors = descriptors;
 
   insp->loops->push_back(loop);
@@ -47,6 +49,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   insp->seed = seed;
 
   // aliases
+  insp_strategy strategy = insp->strategy;
   loop_list* loops = insp->loops;
   int tileSize = insp->tileSize;
 
@@ -56,6 +59,16 @@ insp_info insp_run (inspector_t* insp, int seed)
   // partition the iteration set of the base loop
   map_t* itset2tile = partition (baseLoop, tileSize);
   insp->itset2tile = itset2tile;
+
+  // color the base loop's sets
+  switch (strategy) {
+    case SEQUENTIAL: case MPI:
+      color_sequential (baseLoop);
+      break;
+    case OMP: case OMP_MPI:
+      color_kdistance (baseLoop);
+      break;
+  }
 
   return INSP_OK;
 }
@@ -69,8 +82,8 @@ void insp_print (inspector_t* insp, insp_verbose level)
   map_t* itset2tile = insp->itset2tile;
   int seed = insp->seed;
   int tileSize = insp->tileSize;
-  int itsetSize = (itset2tile) ? itset2tile->inSetSize : 0;
-  int nTiles = (itset2tile) ? itset2tile->outSetSize : 0;
+  int itsetSize = (itset2tile) ? itset2tile->inSet->size : 0;
+  int nTiles = (itset2tile) ? itset2tile->outSet->size : 0;
   int* itset2tileMap = (itset2tile) ? itset2tile->indMap : NULL;
 
   // set verbosity level

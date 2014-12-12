@@ -9,7 +9,7 @@
 map_t* partition (loop_t* loop, int tileSize)
 {
   // aliases
-  int setSize = loop->setSize;
+  int setSize = loop->set->size;
 
   int* indMap = (int*) malloc (sizeof(int)*setSize);
 
@@ -25,5 +25,6 @@ map_t* partition (loop_t* loop, int tileSize)
     indMap[i] = partID;
   }
 
-  return map (setSize, nParts + (reminderTileSize > 0) ? 1 : 0, indMap, setSize);
+  set_t* tileSet = set ("tiles", nParts + ((reminderTileSize > 0) ? 1 : 0));
+  return map (loop->set, tileSet, indMap, setSize);
 }

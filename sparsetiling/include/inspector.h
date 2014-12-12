@@ -9,10 +9,17 @@
 
 #include "parloop.h"
 
+enum insp_strategy {SEQUENTIAL, OMP, MPI, OMP_MPI};
+enum insp_info {INSP_OK, INSP_ERR};
+enum insp_verbose {LOW = 20, MEDIUM = 40, HIGH};
+
+
 /*
  * The inspector main data structure.
  */
 typedef struct {
+  /* tiling strategy: can be for sequential, openmp, or mpi execution */
+  insp_strategy strategy;
   /* the base loop index */
   int seed;
   /* initial partitioning of the base loop */
@@ -24,19 +31,17 @@ typedef struct {
 
 } inspector_t;
 
-enum insp_info {INSP_OK, INSP_ERR};
-enum insp_verbose {LOW = 20, MEDIUM = 40, HIGH};
-
 /*
  * Initialize a new inspector
  *
  * input:
  * tileSize: average tile size after partitioning of the base loop's iteration set
+ * strategy: tiling strategy (SEQUENTIAL, OMP - openmp, MPI, OMP_MPI)
  *
  * output:
  * an inspector data structure
  */
-inspector_t* insp_init (int tileSize);
+inspector_t* insp_init (int tileSize, insp_strategy strategy);
 
 /*
  * Add a parloop to the inspector
@@ -44,14 +49,14 @@ inspector_t* insp_init (int tileSize);
  * input:
  * insp: the inspector data structure
  * loopName: identifier name of the parloop
- * setSize: size of the iteration set
+ * set: iteration set of the parloop
  * descriptors: list of access descriptors used by the parloop. Each descriptor
- *              specifies what and how a dataset is accessed.
+ *              specifies what and how a set is accessed.
  *
  * output:
  * the inspector is updated with a new loop the tiles will have to cross
  */
-insp_info insp_add_parloop (inspector_t* insp, char* loopName, int setSize,
+insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
                             desc_list* descriptors);
 
 /*

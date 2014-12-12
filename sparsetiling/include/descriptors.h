@@ -3,7 +3,6 @@
  *
  * Define data structure and simple functions to handle:
  * - sets
- * - datasets
  * - maps
  * - access modes
  */
@@ -15,17 +14,27 @@
 
 #include <stdlib.h>
 
-/* Define the ways a dataset can be accessed */
+/* Define the ways a set can be accessed */
 enum am_t {READ, WRITE, RW, INC};
+
+/*
+ * Represent a set
+ */
+typedef struct {
+  /* identifier name of the set */
+  char* setName;
+  /* size of the set */
+  int size;
+} set_t;
 
 /*
  * Represent a mapping
  */
 typedef struct {
-  /* size of the input iteration set */
-  int inSetSize;
-  /* size of the output iteration set */
-  int outSetSize;
+  /* input iteration set */
+  set_t* inSet;
+  /* output iteration set */
+  set_t* outSet;
   /* indirect map from input to output iteration sets */
   int* indMap;
   /* size of indMap */
@@ -34,14 +43,12 @@ typedef struct {
 
 /*
  * Represent an access descriptor, which binds three things:
- * - a dataset (represented as a string)
- * - the map used to access the dataset
- * - the way the dataset is accessed (READ, WRITE, RW, INC)
+ * - a set (represented as a string)
+ * - the map used to access the set
+ * - the way the set is accessed (READ, WRITE, RW, INC)
  */
 typedef struct {
-  /* dataset accessed */
-  char* ds;
-  /* map used to access ds */
+  /* map used to access a certain set */
   map_t* map;
   /* access mode */
   am_t mode;
@@ -54,11 +61,11 @@ typedef std::list<descriptor_t*> desc_list;
 /*
  * Initialize a map
  */
-inline map_t* map(int inSetSize, int outSetSize, int* indMap, int mapSize)
+inline map_t* map(set_t* inSet, set_t* outSet, int* indMap, int mapSize)
 {
   map_t* map = (map_t*) malloc (sizeof(map_t));
-  map->inSetSize = inSetSize;
-  map->outSetSize = outSetSize;
+  map->inSet = inSet;
+  map->outSet = outSet;
   map->indMap = indMap;
   map->mapSize = mapSize;
   return map;
@@ -75,10 +82,9 @@ inline void map_free(map_t* map)
 /*
  * Initialize an access descriptor
  */
-inline descriptor_t* desc(char* ds, map_t* map, am_t mode)
+inline descriptor_t* desc(map_t* map, am_t mode)
 {
   descriptor_t* desc = (descriptor_t*) malloc (sizeof(descriptor_t));
-  desc->ds = ds;
   desc->map = map;
   desc->mode = mode;
   return desc;
@@ -90,6 +96,25 @@ inline descriptor_t* desc(char* ds, map_t* map, am_t mode)
 inline void map_free(descriptor_t* desc)
 {
   free(desc);
+}
+
+/*
+ * Initialize a set
+ */
+inline set_t* set(char* setName, int size)
+{
+  set_t* set = (set_t*) malloc (sizeof(set_t));
+  set->setName = setName;
+  set->size = size;
+  return set;
+}
+
+/*
+ * Destroy a set
+ */
+inline void set_free(set_t* set)
+{
+  free(set);
 }
 
 
