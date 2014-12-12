@@ -41,4 +41,10 @@ inline double time_stamp()
   return tv.tv_sec + (tv.tv_nsec) / (1000.0*1000.0*1000.0);
 }
 
+/*
+ * Generic utility functions
+ */
+#define MAX(A, B)     (A > B) ? A : B
+#define MIN(A, B)     (A < B) ? A : B
+
 #endif

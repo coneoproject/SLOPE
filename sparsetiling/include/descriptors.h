@@ -13,7 +13,7 @@
 
 #include <list>
 
-#include "stdlib.h"
+#include <stdlib.h>
 
 /* Define the ways a dataset can be accessed */
 enum am_t {READ, WRITE, RW, INC};
@@ -49,10 +49,12 @@ typedef struct {
 
 typedef std::list<descriptor_t*> desc_list;
 
+#define DIRECT NULL
+
 /*
  * Initialize a map
  */
-inline map_t* map_init(int inSetSize, int outSetSize, int* indMap, int mapSize)
+inline map_t* map(int inSetSize, int outSetSize, int* indMap, int mapSize)
 {
   map_t* map = (map_t*) malloc (sizeof(map_t));
   map->inSetSize = inSetSize;
@@ -73,7 +75,7 @@ inline void map_free(map_t* map)
 /*
  * Initialize an access descriptor
  */
-inline descriptor_t* desc_init(char* ds, map_t* map, am_t mode)
+inline descriptor_t* desc(char* ds, map_t* map, am_t mode)
 {
   descriptor_t* desc = (descriptor_t*) malloc (sizeof(descriptor_t));
   desc->ds = ds;
