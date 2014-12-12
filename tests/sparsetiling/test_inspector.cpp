@@ -47,6 +47,7 @@ int main ()
 
   const int tileSize = 4;
   inspector_t* insp = insp_init(tileSize, SEQUENTIAL);
+
   insp_add_parloop (insp, "pl0", edges, &pl0Desc);
   insp_add_parloop (insp, "pl1", cells, &pl1Desc);
   insp_add_parloop (insp, "pl2", edges, &pl2Desc);

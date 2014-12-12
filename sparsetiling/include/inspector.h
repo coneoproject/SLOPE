@@ -8,11 +8,11 @@
 #define _INSPECTOR_H_
 
 #include "parloop.h"
+#include "tile.h"
 
 enum insp_strategy {SEQUENTIAL, OMP, MPI, OMP_MPI};
 enum insp_info {INSP_OK, INSP_ERR};
 enum insp_verbose {LOW = 20, MEDIUM = 40, HIGH};
-
 
 /*
  * The inspector main data structure.
@@ -23,11 +23,13 @@ typedef struct {
   /* the base loop index */
   int seed;
   /* initial partitioning of the base loop */
-  map_t* itset2tile;
+  map_t* iter2tile;
   /* initial tile size */
   int tileSize;
   /* list of loops spanned by a tile */
   loop_list* loops;
+  /* list of tiles */
+  tile_list* tiles;
 
 } inspector_t;
 
