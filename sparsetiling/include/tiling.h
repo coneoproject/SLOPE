@@ -7,7 +7,7 @@
 #ifndef _TILING_H_
 #define _TILING_H_
 
-#include <vector>
+#include <set>
 
 #include "descriptors.h"
 #include "parloop.h"
@@ -17,20 +17,23 @@
  */
 typedef struct {
   /* iteration set */
-  int itsetSize;
+  int itSetSize;
   /* tiling of the iteration set */
   int* iter2tile;
-  /* number of tiles */
-  int nTiles;
   /* coloring of the iteration set */
   int* iter2color;
-  /* number of colors */
-  int nColors;
-  /* offsets in the two maps */
-  int* offsets;
 } iter2tc_t;
 
-typedef std::vector<iter2tc_t*> projection_list;
+/*
+ * A projection_t can be implemented by any container provided that the semantics
+ * of the container is such that its elements are unique.
+ */
+
+inline bool operator<(const iter2tc_t &a, const iter2tc_t &b)
+{
+  return a.itSetSize < b.itSetSize;
+}
+typedef std::set<iter2tc_t> projection_t;
 
 /*
  * Bind iterations to tile IDs and colors.
@@ -38,7 +41,7 @@ typedef std::vector<iter2tc_t*> projection_list;
  * Note: the caller loses ownership of iter2tile and iter2color after calling
  * this function. Access to these two maps becomes therefore undefined.
  */
-iter2tc_t* make_iter2tc (map_t* iter2tile, map_t* iter2color);
+iter2tc_t* iter2tc_init (int itSetSize, int* iter2tile, int* iter2color);
 
 /*
  * Destroy an iter2tc_t
@@ -65,7 +68,7 @@ void iter2tc_free (iter2tc_t* iter2tc);
  *   a list of iteration-sets to tile-color mappings, which represents the
  *   projection of tiling loop_{i} necessary for tiling loop_{i+1}
  */
-projection_list* project_forward (loop_t* tiledLoop, iter2tc_t tilingInfo);
+projection_t* project_forward (loop_t* tiledLoop, iter2tc_t tilingInfo);
 
 /*
  * Project tiling and coloring of an iteration set to the other sets that are
@@ -82,7 +85,7 @@ projection_list* project_forward (loop_t* tiledLoop, iter2tc_t tilingInfo);
  *   a list of iteration-sets to tile-color mappings, which represents the
  *   projection of tiling loop_{i} necessary for tiling loop_{i-1}
  */
-projection_list* project_backward (loop_t* tiledLoop, iter2tc_t tilingInfo);
+projection_t* project_backward (loop_t* tiledLoop, iter2tc_t tilingInfo);
 
 /*
  * Tile a parloop when going forward along the loop chain.

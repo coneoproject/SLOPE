@@ -7,8 +7,6 @@
 #include "inspector.h"
 #include "common.hpp"
 
-using namespace std;
-
 int main ()
 {
   const int nLoops = 3;

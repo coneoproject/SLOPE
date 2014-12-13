@@ -23,8 +23,10 @@ typedef struct {
   insp_strategy strategy;
   /* the base loop index */
   int seed;
-  /* initial partitioning and coloring of the base loop */
-  iter2tc_t* iter2tc;
+  /* partitioning of the base loop */
+  map_t* iter2tile;
+  /* coloring of the base loop */
+  map_t* iter2color;
   /* average tile size */
   int avgTileSize;
   /* list of loops spanned by a tile */

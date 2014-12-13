@@ -19,10 +19,12 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
 
   insp->strategy = strategy;
   insp->avgTileSize = avgTileSize;
-  insp->loops = (loop_list*) malloc (sizeof(loop_list*));
+  insp->loops = (loop_list*) malloc (sizeof(loop_list));
 
   insp->seed = -1;
-  insp->iter2tc = NULL;
+  insp->iter2tile = NULL;
+  insp->iter2color = NULL;
+  insp->tiles = NULL;
 
   return insp;
 }
@@ -76,10 +78,9 @@ insp_info insp_run (inspector_t* insp, int seed)
       break;
   }
 
-  iter2tc_t* iter2tc = make_iter2tc (iter2tile, iter2color);
-
   // track information essential for tiling, execution, and debugging
-  insp->iter2tc = iter2tc;
+  insp->iter2tile = iter2tile;
+  insp->iter2color = iter2color;
   insp->tiles = tiles;
 
   return INSP_OK;
@@ -91,28 +92,27 @@ void insp_print (inspector_t* insp, insp_verbose level)
 
   // aliases
   loop_list* loops = insp->loops;
-  iter2tc_t* iter2tc = insp->iter2tc;
+  map_t* iter2tile = insp->iter2tile;
+  map_t* iter2color = insp->iter2color;
   tile_list* tiles = insp->tiles;
   int seed = insp->seed;
   int avgTileSize = insp->avgTileSize;
   int nTiles = tiles->size();
-  int itsetSize = (iter2tc) ? iter2tc->itsetSize : 0;
-  int* iter2tileMap = (iter2tc) ? iter2tc->iter2tile : NULL;
-  int* iter2colorMap = (iter2tc) ? iter2tc->iter2color : NULL;
+  int itSetSize = loops->at(seed)->set->size;
 
   // set verbosity level
   int verbosityItSet, verbosityTiles;;
   switch (level) {
     case LOW:
-      verbosityItSet = MIN(LOW, itsetSize);
+      verbosityItSet = MIN(LOW, itSetSize);
       verbosityTiles = nTiles / 2;
       break;
     case MEDIUM:
-      verbosityItSet = MIN(MEDIUM, itsetSize);
+      verbosityItSet = MIN(MEDIUM, itSetSize);
       verbosityTiles = nTiles;
       break;
     case HIGH:
-      verbosityItSet = itsetSize;
+      verbosityItSet = itSetSize;
       verbosityTiles = nTiles;
   }
 
@@ -125,19 +125,19 @@ void insp_print (inspector_t* insp, insp_verbose level)
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  if (iter2tc) {
+  if (iter2tile && iter2color) {
     cout << endl << "Printing partioning of the base loop's iteration set:" << endl;
     cout << "  Iteration  |  Tile |  Color" << endl;
     for (int i = 0; i < verbosityItSet; i++) {
       cout << "         " << i
-           << "   |   " << iter2tileMap[i]
-           << "   |   " << iter2colorMap[i] << endl;
+           << "   |   " << iter2tile->indMap[i]
+           << "   |   " << iter2color->indMap[i] << endl;
     }
-    if (verbosityItSet < itsetSize) {
+    if (verbosityItSet < itSetSize) {
       cout << "..." << endl;
-      cout << "         " << itsetSize -1
-           << "   |   " << iter2tileMap[itsetSize -1]
-           << "   |   " << iter2colorMap[itsetSize -1] << endl;
+      cout << "         " << itSetSize - 1
+           << "   |   " << iter2tile->indMap[itSetSize - 1]
+           << "   |   " << iter2color->indMap[itSetSize - 1] << endl;
     }
   }
   else {
