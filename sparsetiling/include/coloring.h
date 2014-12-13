@@ -6,15 +6,18 @@
 #ifndef _COLORING_H_
 #define _COLORING_H_
 
-#include "inspector.h"
+#include "descriptors.h"
+#include "parloop.h"
 
 /*
  * Assign increasing colors to the various tiles.
  *
- * Input:
- * loop: the loop whose datasets are beign colored
+ * @param iter2tile
+ *   map from iteration set to tiles
+ * @return
+ *   a map from iteration set to colors
  */
-void color_sequential (loop_t* loop);
+map_t* color_sequential (map_t* iter2tile);
 
 /*
  * Assign colors to the tiles such that two tiles within a distance of k steps
@@ -23,9 +26,16 @@ void color_sequential (loop_t* loop);
  * The value of k comes from an analysis of the loop chain, specifically from the
  * way parloops write/increment and read datasets.
  *
- * Input:
- * loop: the loop whose datasets are beign colored
+ * @param loops
+ *   the loop chain
+ * @param
+ *   start point of tiling in the loop chain
+ * @param iter2tile
+ *   map from iteration set to tiles
+ * @return
+ *   a map from iteration set to colors, where tiles' colors are enforced to be
+ *   different if the tiles are within k steps
  */
-void color_kdistance (loop_t* loop);
+map_t* color_kdistance (loop_list* loops, int seed, map_t* iter2tile);
 
 #endif

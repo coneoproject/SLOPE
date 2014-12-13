@@ -13,16 +13,16 @@
 
 using namespace std;
 
-inspector_t* insp_init (int tileSize, insp_strategy strategy)
+inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
 {
   inspector_t* insp = (inspector_t*) malloc (sizeof(inspector_t));
 
   insp->strategy = strategy;
-  insp->tileSize = tileSize;
+  insp->avgTileSize = avgTileSize;
   insp->loops = (loop_list*) malloc (sizeof(loop_list*));
 
   insp->seed = -1;
-  insp->iter2tile = NULL;
+  insp->iter2tc = NULL;
 
   return insp;
 }
@@ -52,12 +52,12 @@ insp_info insp_run (inspector_t* insp, int seed)
   insp_strategy strategy = insp->strategy;
   loop_list* loops = insp->loops;
   loop_t* baseLoop = (*loops)[seed];
-  int tileSize = insp->tileSize;
+  int avgTileSize = insp->avgTileSize;
 
   ASSERT((seed >= 0) && (seed < loops->size()), "Invalid tiling start point");
 
   // partition the iteration set of the base loop and create empty tiles
-  map_t* iter2tile = partition (baseLoop, tileSize);
+  map_t* iter2tile = partition (baseLoop, avgTileSize);
   int nTiles = iter2tile->outSet->size;
   tile_list* tiles = new tile_list (nTiles);
   for (int i = 0; i < nTiles; i++) {
@@ -65,19 +65,22 @@ insp_info insp_run (inspector_t* insp, int seed)
   }
   tile_assign_loop (tiles, seed, iter2tile);
 
-  // track information essential for the executor
-  insp->iter2tile = iter2tile;
-  insp->tiles = tiles;
-
   // color the base loop's sets
+  map_t* iter2color;
   switch (strategy) {
     case SEQUENTIAL: case MPI:
-      color_sequential (baseLoop);
+      iter2color = color_sequential (iter2tile);
       break;
     case OMP: case OMP_MPI:
-      color_kdistance (baseLoop);
+      iter2color = color_kdistance (loops, seed, iter2tile);
       break;
   }
+
+  iter2tc_t* iter2tc = make_iter2tc (iter2tile, iter2color);
+
+  // track information essential for tiling, execution, and debugging
+  insp->iter2tc = iter2tc;
+  insp->tiles = tiles;
 
   return INSP_OK;
 }
@@ -88,13 +91,14 @@ void insp_print (inspector_t* insp, insp_verbose level)
 
   // aliases
   loop_list* loops = insp->loops;
-  map_t* iter2tile = insp->iter2tile;
-  int seed = insp->seed;
-  int tileSize = insp->tileSize;
-  int itsetSize = (iter2tile) ? iter2tile->inSet->size : 0;
-  int nTiles = (iter2tile) ? iter2tile->outSet->size : 0;
-  int* iter2tileMap = (iter2tile) ? iter2tile->indMap : NULL;
+  iter2tc_t* iter2tc = insp->iter2tc;
   tile_list* tiles = insp->tiles;
+  int seed = insp->seed;
+  int avgTileSize = insp->avgTileSize;
+  int nTiles = tiles->size();
+  int itsetSize = (iter2tc) ? iter2tc->itsetSize : 0;
+  int* iter2tileMap = (iter2tc) ? iter2tc->iter2tile : NULL;
+  int* iter2colorMap = (iter2tc) ? iter2tc->iter2color : NULL;
 
   // set verbosity level
   int verbosityItSet, verbosityTiles;;
@@ -120,17 +124,20 @@ void insp_print (inspector_t* insp, insp_verbose level)
     cout << "No loops specified" << endl;
   }
   cout << "Number of tiles: " << nTiles << endl;
-  cout << "Tile size: " << tileSize << endl;
-  if (iter2tile) {
+  cout << "Average tile size: " << avgTileSize << endl;
+  if (iter2tc) {
     cout << endl << "Printing partioning of the base loop's iteration set:" << endl;
-    cout << "  Iteration  |  Tile "<< endl;
+    cout << "  Iteration  |  Tile |  Color" << endl;
     for (int i = 0; i < verbosityItSet; i++) {
-      cout << "         " << i << "   |   " << iter2tileMap[i] << endl;
+      cout << "         " << i
+           << "   |   " << iter2tileMap[i]
+           << "   |   " << iter2colorMap[i] << endl;
     }
     if (verbosityItSet < itsetSize) {
       cout << "..." << endl;
-      cout << "         " << itsetSize -1 << "   |   ";
-      cout << iter2tileMap[itsetSize -1] << endl;
+      cout << "         " << itsetSize -1
+           << "   |   " << iter2tileMap[itsetSize -1]
+           << "   |   " << iter2colorMap[itsetSize -1] << endl;
     }
   }
   else {

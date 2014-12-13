@@ -37,8 +37,11 @@ typedef struct {
   set_t* outSet;
   /* indirect map from input to output iteration sets */
   int* indMap;
-  /* size of indMap */
+  /* size of indMap (== -1 if an irregular map, in which case the actual size
+   * is given by offsets[outSet->size]) */
   int mapSize;
+  /* offsets in indMap (!= NULL only if an irregular map) */
+  int* offsets;
 } map_t;
 
 /*
@@ -56,52 +59,16 @@ typedef struct {
 
 typedef std::list<descriptor_t*> desc_list;
 
+/*
+ * Identify direct maps
+ */
 #define DIRECT NULL
 
-/*
- * Initialize a map
- */
-inline map_t* map(set_t* inSet, set_t* outSet, int* indMap, int mapSize)
-{
-  map_t* map = (map_t*) malloc (sizeof(map_t));
-  map->inSet = inSet;
-  map->outSet = outSet;
-  map->indMap = indMap;
-  map->mapSize = mapSize;
-  return map;
-}
-
-/*
- * Destroy a map
- */
-inline void map_free(map_t* map)
-{
-  free(map);
-}
-
-/*
- * Initialize an access descriptor
- */
-inline descriptor_t* desc(map_t* map, am_t mode)
-{
-  descriptor_t* desc = (descriptor_t*) malloc (sizeof(descriptor_t));
-  desc->map = map;
-  desc->mode = mode;
-  return desc;
-}
-
-/*
- * Destroy an access descriptor
- */
-inline void map_free(descriptor_t* desc)
-{
-  free(desc);
-}
 
 /*
  * Initialize a set
  */
-inline set_t* set(char* setName, int size)
+inline set_t* set (char* setName, int size)
 {
   set_t* set = (set_t*) malloc (sizeof(set_t));
   set->setName = setName;
@@ -112,10 +79,69 @@ inline set_t* set(char* setName, int size)
 /*
  * Destroy a set
  */
-inline void set_free(set_t* set)
+inline void set_free (set_t* set)
 {
   free(set);
 }
 
+/*
+ * Initialize a map
+ */
+inline map_t* map (set_t* inSet, set_t* outSet, int* indMap, int mapSize)
+{
+  map_t* map = (map_t*) malloc (sizeof(map_t));
+  map->inSet = inSet;
+  map->outSet = outSet;
+  map->indMap = indMap;
+  map->mapSize = mapSize;
+  map->offsets = NULL;
+  return map;
+}
+
+/*
+ * Initialize an irregular maps, in which each input entry is mapped to a
+ * variable number of output entries. The offsets track the distance between
+ * two different output entries in indMap.
+ */
+inline map_t* imap (set_t* inSet, set_t* outSet, int* indMap, int* offsets)
+{
+  map_t* map = (map_t*) malloc (sizeof(map_t));
+  map->inSet = inSet;
+  map->outSet = outSet;
+  map->indMap = indMap;
+  map->mapSize = -1;
+  map->offsets = offsets;
+  return map;
+}
+
+/*
+ * Destroy a map
+ */
+inline void map_free (map_t* map)
+{
+  set_free (map->inSet);
+  set_free (map->outSet);
+  free (map->offsets);
+  free (map);
+}
+
+/*
+ * Initialize an access descriptor
+ */
+inline descriptor_t* desc (map_t* map, am_t mode)
+{
+  descriptor_t* desc = (descriptor_t*) malloc (sizeof(descriptor_t));
+  desc->map = map;
+  desc->mode = mode;
+  return desc;
+}
+
+/*
+ * Destroy an access descriptor
+ */
+inline void desc_free (descriptor_t* desc)
+{
+  free(desc);
+}
 
 #endif

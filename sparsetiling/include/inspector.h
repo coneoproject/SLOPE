@@ -9,6 +9,7 @@
 
 #include "parloop.h"
 #include "tile.h"
+#include "tiling.h"
 
 enum insp_strategy {SEQUENTIAL, OMP, MPI, OMP_MPI};
 enum insp_info {INSP_OK, INSP_ERR};
@@ -22,10 +23,10 @@ typedef struct {
   insp_strategy strategy;
   /* the base loop index */
   int seed;
-  /* initial partitioning of the base loop */
-  map_t* iter2tile;
-  /* initial tile size */
-  int tileSize;
+  /* initial partitioning and coloring of the base loop */
+  iter2tc_t* iter2tc;
+  /* average tile size */
+  int avgTileSize;
   /* list of loops spanned by a tile */
   loop_list* loops;
   /* list of tiles */

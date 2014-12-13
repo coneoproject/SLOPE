@@ -1,7 +1,7 @@
 /*
  *  partitioner.cpp
  *
- * Implement a number of routines for partitioning iteration sets
+ * Implement routine(s) for partitioning iteration sets
  */
 
 #include "partitioner.h"
@@ -15,6 +15,8 @@ map_t* partition (loop_t* loop, int tileSize)
 
   int nParts = setSize / tileSize;
   int reminderTileSize = setSize % nParts;
+  int nTiles = nParts + ((reminderTileSize > 0) ? 1 : 0);
+
   int partID = -1;
   int i;
   for (i = 0; i < setSize - reminderTileSize; i++) {
@@ -25,6 +27,16 @@ map_t* partition (loop_t* loop, int tileSize)
     indMap[i] = partID;
   }
 
-  set_t* tileSet = set ("tiles", nParts + ((reminderTileSize > 0) ? 1 : 0));
-  return map (loop->set, tileSet, indMap, setSize);
+  // compute offsets to create an irregular map since the last tile won't have
+  // same size as the other tiles if the iteration set size is not a multiple
+  // of the specified tile size
+  int* offsets = (int*) malloc (sizeof(int)*(nTiles + 1));
+  offsets[0] = 0;
+  for (i = 1; i < nTiles; i++) {
+    offsets[i] = tileSize + offsets[i - 1];
+  }
+  offsets[nTiles] = setSize;
+
+  set_t* tileSet = set ("tiles", nTiles);
+  return imap (loop->set, tileSet, indMap, offsets);
 }

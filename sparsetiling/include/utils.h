@@ -27,6 +27,15 @@
             std::exit(EXIT_FAILURE); \
         } \
     } while (false)
+
+#   define PRINT_INTARR(array, start, finish) \
+    do { \
+        std::cout << "Array `" #array "`: "; \
+        for (int ia = start; ia < finish; ++ia) { \
+          std::cout << array[ia] << " "; \
+        } \
+        std::cout << std::endl; \
+    } while (false)
 #else
 #   define ASSERT(condition, message) do { } while (false)
 #endif
