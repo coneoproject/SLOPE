@@ -36,27 +36,29 @@ typedef struct {
 /*
  * Initialize a new inspector
  *
- * input:
- * tileSize: average tile size after partitioning of the base loop's iteration set
- * strategy: tiling strategy (SEQUENTIAL, OMP - openmp, MPI, OMP_MPI)
- *
- * output:
- * an inspector data structure
+ * @param tileSize
+ *   average tile size after partitioning of the base loop's iteration set
+ * @param strategy
+ *   tiling strategy (SEQUENTIAL, OMP - openmp, MPI, OMP_MPI)
+ * @return
+ *   an inspector data structure
  */
 inspector_t* insp_init (int tileSize, insp_strategy strategy);
 
 /*
  * Add a parloop to the inspector
  *
- * input:
- * insp: the inspector data structure
- * loopName: identifier name of the parloop
- * set: iteration set of the parloop
- * descriptors: list of access descriptors used by the parloop. Each descriptor
- *              specifies what and how a set is accessed.
- *
- * output:
- * the inspector is updated with a new loop the tiles will have to cross
+ * @param insp
+ *   the inspector data structure
+ * @param loopName
+ *   identifier name of the parloop
+ * @param set
+ *   iteration set of the parloop
+ * @param descriptors
+ *   list of access descriptors used by the parloop. Each descriptor specifies
+ *   what and how a set is accessed.
+ * @return
+ *   the inspector is updated with a new loop the tiles will have to cross
  */
 insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
                             desc_list* descriptors);
@@ -64,28 +66,33 @@ insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
 /*
  * Inspect a sequence of parloops and compute a tiled scheduling
  *
- * input:
- * insp: the inspector data structure, already defined over a range of parloops
- * seed: start point of the tiling (a number between 0 and the number of
- *       parloops spanned by the inspector)
- *
- * output:
- * on return from the function, insp will contain a list of tiles, each tile
- * characterized by a list of iterations that are supposed to be executed, for each
- * crossed parloop
+ * @param insp
+ *   the inspector data structure, already defined over a range of parloops
+ * @param seed
+ *   start point of the tiling (a number between 0 and the number of parloops
+ *   spanned by the inspector)
+ * @return
+ *   on return from the function, insp will contain a list of tiles, each tile
+ *   characterized by a list of iterations that are supposed to be executed,
+ *   for each crossed parloop
  */
 insp_info insp_run (inspector_t* insp, int seed);
 
 /*
  * Print a summary of the inspector
  *
- * input:
- * insp: the inspector data structure
+ * @param insp
+ *   the inspector data structure
+ * @param level
+ *   level of verbosity (LOW, MEDIUM, HIGH)
  */
 void insp_print (inspector_t* insp, insp_verbose level);
 
 /*
  * Destroy an inspector
+ *
+ * @param insp
+ *   the inspector data structure
  */
 void insp_free (inspector_t* insp);
 

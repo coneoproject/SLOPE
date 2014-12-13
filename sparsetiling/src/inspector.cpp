@@ -56,7 +56,7 @@ insp_info insp_run (inspector_t* insp, int seed)
 
   ASSERT((seed >= 0) && (seed < loops->size()), "Invalid tiling start point");
 
-  // partition the iteration set of the base loop and creates empty tiles
+  // partition the iteration set of the base loop and create empty tiles
   map_t* iter2tile = partition (baseLoop, tileSize);
   int nTiles = iter2tile->outSet->size;
   tile_list* tiles = new tile_list (nTiles);

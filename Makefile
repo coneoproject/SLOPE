@@ -47,7 +47,8 @@ sparsetiling: mklib
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/partitioner.cpp -o $(OBJ)/partitioner.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/coloring.cpp -o $(OBJ)/coloring.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
-	ar -r $(LIB)/libst.a $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	ar -r $(LIB)/libst.a $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o $(OBJ)/tiling.o
 	ranlib $(LIB)/libst.a
 
 tests: mklib
