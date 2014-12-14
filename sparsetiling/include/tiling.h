@@ -32,12 +32,11 @@ typedef struct {
  * A projection_t can be implemented by any container provided that the semantics
  * of the container is such that its elements are unique.
  */
-
-inline bool operator<(const iter2tc_t &a, const iter2tc_t &b)
+inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
 {
-  return a.setName < b.setName;
+  return strcmp(a->setName, b->setName);
 }
-typedef std::set<iter2tc_t> projection_t;
+typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
 
 /*
  * Bind iterations to tile IDs and colors.
@@ -58,43 +57,49 @@ void iter2tc_free (iter2tc_t* iter2tc);
 // function pointers to MAX/MIN (that is, we stick to inline calls).
 
 /*
- * Project tiling and coloring of an iteration set to the other sets that are
- * touched by the parloop, as tiling is going forward. This produces information
- * for the subsequent call to tile_forward.
+ * Project tiling and coloring of an iteration set to all sets that are
+ * touched (read, incremented, written) by the parloop, as tiling is going forward.
+ * This produces the required information for calling tile_forward.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
  *   projection
  * @param tilingInfo
- *   brings information about the result of tiling, including the tile each
- *   iteration set element belongs to as well as the color
- * @return
+ *   carry information about the tiling of tiledLoop, including the tile each
+ *   iteration set element belongs to and the color
+ * @param prevLoopProjection
  *   a list of iteration-sets to tile-color mappings, which represents the
- *   projection of tiling loop_{i} necessary for tiling loop_{i+1}
+ *   projection of tiling at loop_{i-1}.
+ * @return
+ *   Update prevLoopProjection by exploiting information in tilingInfo
  */
-projection_t* project_forward (loop_t* tiledLoop, iter2tc_t tilingInfo);
+void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
+                      projection_t* prevLoopProjection);
 
 /*
- * Project tiling and coloring of an iteration set to the other sets that are
- * touched by the parloop, as tiling is going backward. This produces information
- * for the subsequent call to tile_backward.
+ * Project tiling and coloring of an iteration set to all sets that are
+ * touched (read, incremented, written) by the parloop, as tiling is going backward.
+ * This produces the required information for calling tile_backward.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
  *   projection
  * @param tilingInfo
- *   brings information about the result of tiling, including the tile each
- *   iteration set element belongs to as well as the color
- * @return
+ *   carry information about the tiling of tiledLoop, including the tile each
+ *   iteration set element belongs to and the color
+ * @param prevLoopProjection
  *   a list of iteration-sets to tile-color mappings, which represents the
- *   projection of tiling loop_{i} necessary for tiling loop_{i-1}
+ *   projection of tiling at loop_{i+1}.
+ * @return
+ *   Update prevLoopProjection by exploiting information in tilingInfo
  */
-projection_t* project_backward (loop_t* tiledLoop, iter2tc_t tilingInfo);
+void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
+                       projection_t* prevLoopProjection);
 
 /*
  * Tile a parloop when going forward along the loop chain.
  */
-void tile_forward ();
+iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProjection);
 
 /*
  * Tile a parloop when going backward along the loop chain.

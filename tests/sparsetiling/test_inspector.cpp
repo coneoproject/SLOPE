@@ -50,9 +50,9 @@ int main ()
   insp_add_parloop (insp, "pl1", cells, &pl1Desc);
   insp_add_parloop (insp, "pl2", edges, &pl2Desc);
 
-  const int seed = 1;
+  const int seed = 0;
   insp_run (insp, seed);
 
-  insp_print (insp, MEDIUM);
+  insp_print (insp, LOW);
   return 0;
 }

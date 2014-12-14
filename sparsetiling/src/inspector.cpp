@@ -101,28 +101,47 @@ insp_info insp_run (inspector_t* insp, int seed)
   // 2- make a projection of the dependencies for tiling the subsequent loop
   // 3- tile the subsequent loop, using the projection
   // 4- go back to point 2, and repeat till there are loop along the direction
-  projection_t* projection;
-  iter2tc_t* baseLoopTilingInfo;
+  projection_t* baseLoopProjection = new projection_t (&iter2tc_cmp);
+  projection_t* prevLoopProjection = new projection_t (&iter2tc_cmp);
+  iter2tc_t* baseLoopTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
+                                                tmpIter2tileMap, tmpIter2colorMap);
+  iter2tc_t* prevTilingInfo = baseLoopTilingInfo;
+  loop_t* prevTiledLoop = baseLoop;
 
   // forward tiling
-  baseLoopTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
-                                     tmpIter2tileMap, tmpIter2colorMap);
   for (int i = seed + 1; i < nLoops; i++) {
+    loop_t* curLoop = loops->at(i);
+    iter2tc_t* curTilingInfo;
+
+    // compute projection from i-1 for tiling loop i
+    project_forward (prevTiledLoop, prevTilingInfo, prevLoopProjection);
+
     // tile loop i as going forward
+    curTilingInfo = tile_forward (curLoop, prevLoopProjection);
 
-    // update projection for tiling loop i+1
+    // update baseLoopProjection, which is a requirement for tiling backward
 
+    // prepare for next iteration
+    prevTiledLoop = curLoop;
+    prevTilingInfo = curTilingInfo;
   }
+
+  // prepare for backward tiling
+  delete prevLoopProjection;
+  prevLoopProjection = baseLoopProjection;
+  prevTiledLoop = baseLoop;
+  prevTilingInfo = baseLoopTilingInfo;
 
   // backward tiling
-  baseLoopTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
-                                     tmpIter2tileMap, tmpIter2colorMap);
-  for (int i = seed; i >= 0; i--) {
+  for (int i = seed - 1; i >= 0; i--) {
+    // compute projection from i+1 for tiling loop i
+
     // tile loop i as going backward
 
-    // update projection for tiling loop i-1
-
   }
+
+  // free memory
+  delete prevLoopProjection;
 
   return INSP_OK;
 }

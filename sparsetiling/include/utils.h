@@ -14,28 +14,40 @@
 
 #include <iostream>
 
+#ifndef NDEBUG
 /*
  * This is taken from:
  *   http://stackoverflow.com/questions/3767869/adding-message-to-assert
  */
-#ifndef NDEBUG
 #   define ASSERT(condition, message) \
     do { \
-        if (! (condition)) { \
-            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
-                      << " line " << __LINE__ << ": " << message << std::endl; \
-            std::exit(EXIT_FAILURE); \
-        } \
+      if (! (condition)) { \
+          std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                    << " line " << __LINE__ << ": " << message << std::endl; \
+          std::exit(EXIT_FAILURE); \
+      } \
     } while (false)
 
 #   define PRINT_INTARR(array, start, finish) \
     do { \
-        std::cout << "Array `" #array "`: "; \
-        for (int ia = start; ia < finish; ++ia) { \
-          std::cout << array[ia] << " "; \
-        } \
-        std::cout << std::endl; \
+      std::cout << "Array `" #array "`: "; \
+      for (int ia = start; ia < finish; ++ia) { \
+        std::cout << array[ia] << " "; \
+      } \
+      std::cout << std::endl; \
     } while (false)
+
+#   define PRINT_PROJECTION(_projection, _loop) \
+    do { \
+      std::cout << "Projection for loop " << _loop << ":" << std::endl; \
+      std::cout << "  Sets touched in previous tiled loop:" << std::endl; \
+      projection_t::const_iterator it, end; \
+      for (it = _projection->begin(), end = _projection->end(); it != end; it++) { \
+        std::cout << "    " << (*it)->setName \
+                  << ", size: " << (*it)->itSetSize << std::endl; \
+      } \
+    } while (false)
+
 #else
 #   define ASSERT(condition, message) do { } while (false)
 #endif

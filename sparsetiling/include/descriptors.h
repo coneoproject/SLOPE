@@ -13,6 +13,7 @@
 #include <list>
 
 #include <stdlib.h>
+#include <string.h>
 
 /* Define the ways a set can be accessed */
 enum am_t {READ, WRITE, RW, INC};
@@ -74,6 +75,14 @@ inline set_t* set (char* setName, int size)
   set->setName = setName;
   set->size = size;
   return set;
+}
+
+/*
+ * Compare two sets based on their name identifier
+ */
+inline bool set_cmp(const set_t* a, const set_t* b)
+{
+  return strcmp(a->setName, b->setName);
 }
 
 /*
