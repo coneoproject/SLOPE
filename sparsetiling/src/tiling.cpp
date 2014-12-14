@@ -7,10 +7,11 @@
 #include "tiling.h"
 #include "utils.h"
 
-iter2tc_t* iter2tc_init (int itSetSize, int* iter2tile, int* iter2color)
+iter2tc_t* iter2tc_init (char* setName, int itSetSize, int* iter2tile, int* iter2color)
 {
   iter2tc_t* iter2tc = (iter2tc_t*) malloc (sizeof(iter2tc_t));
 
+  iter2tc->setName = setName;
   iter2tc->itSetSize = itSetSize;
   iter2tc->iter2tile = iter2tile;
   iter2tc->iter2color = iter2color;
@@ -34,7 +35,7 @@ projection_t* project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo)
 
   projection_t* projection = (projection_t*) malloc (sizeof(projection_t));
 
-desc_list::const_iterator it, end;
+  desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
     // aliases
     map_t* descMap = (*it)->map;
@@ -52,6 +53,7 @@ desc_list::const_iterator it, end;
       // aliases
       int inSetSize = descMap->inSet->size;
       int outSetSize = descMap->outSet->size;
+      char* outSetName = descMap->outSet->setName;
       int mapSize = descMap->mapSize;
       int* indMap = descMap->indMap;
 
@@ -60,7 +62,7 @@ desc_list::const_iterator it, end;
       std::fill_n (descIter2tile, outSetSize, -1);
       std::fill_n (descIter2color, outSetSize, -1);
 
-      descIter2tc = iter2tc_init (outSetSize, descIter2tile, descIter2color);
+      descIter2tc = iter2tc_init (outSetName, outSetSize, descIter2tile, descIter2color);
 
       // iterate over the tiledLoop's iteration set, and use the map to access
       // the touched adjacent entities.

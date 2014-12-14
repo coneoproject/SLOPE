@@ -9,6 +9,8 @@
 
 #include <set>
 
+#include <string.h>
+
 #include "descriptors.h"
 #include "parloop.h"
 
@@ -16,6 +18,8 @@
  * Bind each element of an iteration set to a tile and a color
  */
 typedef struct {
+  /* set name identifier */
+  char* setName;
   /* iteration set */
   int itSetSize;
   /* tiling of the iteration set */
@@ -31,7 +35,7 @@ typedef struct {
 
 inline bool operator<(const iter2tc_t &a, const iter2tc_t &b)
 {
-  return a.itSetSize < b.itSetSize;
+  return a.setName < b.setName;
 }
 typedef std::set<iter2tc_t> projection_t;
 
@@ -41,7 +45,7 @@ typedef std::set<iter2tc_t> projection_t;
  * Note: the caller loses ownership of iter2tile and iter2color after calling
  * this function. Access to these two maps becomes therefore undefined.
  */
-iter2tc_t* iter2tc_init (int itSetSize, int* iter2tile, int* iter2color);
+iter2tc_t* iter2tc_init (char* setName, int itSetSize, int* iter2tile, int* iter2color);
 
 /*
  * Destroy an iter2tc_t

@@ -17,14 +17,15 @@ map_t* partition (loop_t* loop, int tileSize)
   int reminderTileSize = setSize % nParts;
   int nTiles = nParts + ((reminderTileSize > 0) ? 1 : 0);
 
-  int partID = -1;
+  int tileID = -1;
   int i;
   for (i = 0; i < setSize - reminderTileSize; i++) {
-    partID = (i % tileSize == 0) ? partID + 1 : partID;
-    indMap[i] = partID;
+    tileID = (i % tileSize == 0) ? tileID + 1 : tileID;
+    indMap[i] = tileID;
   }
+  tileID++;
   for (; i < setSize; i++) {
-    indMap[i] = partID;
+    indMap[i] = tileID;
   }
 
   // compute offsets to create an irregular map since the last tile won't have

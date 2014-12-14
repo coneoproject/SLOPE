@@ -26,10 +26,10 @@ static inline void tile_add_iteration (tile_t* tile, int loopID, int iteration)
 void tile_assign_loop (tile_list* tiles, int loopID, map_t* iter2tile)
 {
   // aliases
-  int itsetSize = iter2tile->inSet->size;
+  int itSetSize = iter2tile->inSet->size;
   int* iter2tileMap = iter2tile->indMap;
 
-  for (int i = 0; i < itsetSize; i++) {
+  for (int i = 0; i < itSetSize; i++) {
     tile_add_iteration ((*tiles)[iter2tileMap[i]], loopID, i);
   }
 }

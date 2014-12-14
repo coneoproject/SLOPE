@@ -9,7 +9,6 @@
 
 #include "parloop.h"
 #include "tile.h"
-#include "tiling.h"
 
 enum insp_strategy {SEQUENTIAL, OMP, MPI, OMP_MPI};
 enum insp_info {INSP_OK, INSP_ERR};

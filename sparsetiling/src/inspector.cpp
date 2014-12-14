@@ -5,11 +5,13 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "inspector.h"
 #include "utils.h"
 #include "partitioner.h"
 #include "coloring.h"
+#include "tiling.h"
 
 using namespace std;
 
@@ -52,9 +54,12 @@ insp_info insp_run (inspector_t* insp, int seed)
 
   // aliases
   insp_strategy strategy = insp->strategy;
-  loop_list* loops = insp->loops;
-  loop_t* baseLoop = (*loops)[seed];
   int avgTileSize = insp->avgTileSize;
+  loop_list* loops = insp->loops;
+  int nLoops = loops->size();
+  loop_t* baseLoop = (*loops)[seed];
+  char* baseLoopSetName = baseLoop->set->setName;
+  int baseLoopSetSize = baseLoop->set->size;
 
   ASSERT((seed >= 0) && (seed < loops->size()), "Invalid tiling start point");
 
@@ -82,6 +87,42 @@ insp_info insp_run (inspector_t* insp, int seed)
   insp->iter2tile = iter2tile;
   insp->iter2color = iter2color;
   insp->tiles = tiles;
+
+  // create copies of initial tiling and coloring, cause they can be manipulated
+  // during one phase of tiling (e.g. forward), so they need to be reset to their
+  // original values before the other tiling phase (e.g. backward)
+  int* tmpIter2tileMap = (int*) malloc (sizeof(int)*baseLoopSetSize);
+  int* tmpIter2colorMap = (int*) malloc (sizeof(int)*baseLoopSetSize);
+  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int));
+  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int));
+
+  // tile the loop chain. First forward, then backward. The algorithm is as follows:
+  // 1- start from the base loop, then go forward (backward)
+  // 2- make a projection of the dependencies for tiling the subsequent loop
+  // 3- tile the subsequent loop, using the projection
+  // 4- go back to point 2, and repeat till there are loop along the direction
+  projection_t* projection;
+  iter2tc_t* baseLoopTilingInfo;
+
+  // forward tiling
+  baseLoopTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
+                                     tmpIter2tileMap, tmpIter2colorMap);
+  for (int i = seed + 1; i < nLoops; i++) {
+    // tile loop i as going forward
+
+    // update projection for tiling loop i+1
+
+  }
+
+  // backward tiling
+  baseLoopTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
+                                     tmpIter2tileMap, tmpIter2colorMap);
+  for (int i = seed; i >= 0; i--) {
+    // tile loop i as going backward
+
+    // update projection for tiling loop i-1
+
+  }
 
   return INSP_OK;
 }
@@ -134,7 +175,7 @@ void insp_print (inspector_t* insp, insp_verbose level)
            << "   |   " << iter2color->indMap[i] << endl;
     }
     if (verbosityItSet < itSetSize) {
-      cout << "..." << endl;
+      cout << "         ..." << endl;
       cout << "         " << itSetSize - 1
            << "   |   " << iter2tile->indMap[itSetSize - 1]
            << "   |   " << iter2color->indMap[itSetSize - 1] << endl;
@@ -153,6 +194,13 @@ void insp_print (inspector_t* insp, insp_verbose level)
         cout << "         " << i;
         cout << "   |   " << (*tiles)[i]->iterations[seed]->at(j) << endl;
       }
+    }
+    if (verbosityTiles < nTiles) {
+      int tileID = nTiles - 1;
+      int tileSize = (*tiles)[tileID]->iterations[seed]->size();
+      cout << "         ..." << endl;
+      cout << "         " << tileID
+           << "   |   " << (*tiles)[tileID]->iterations[seed]->at(tileSize - 1) << endl;
     }
   }
 }
