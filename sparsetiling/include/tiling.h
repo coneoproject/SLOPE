@@ -34,7 +34,7 @@ typedef struct {
  */
 inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
 {
-  return strcmp(a->setName, b->setName);
+  return strcmp(a->setName, b->setName) < 0;
 }
 typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
 
@@ -47,9 +47,19 @@ typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> pr
 iter2tc_t* iter2tc_init (char* setName, int itSetSize, int* iter2tile, int* iter2color);
 
 /*
+ * Clone an iter2tc_t
+ */
+iter2tc_t* iter2tc_cpy (iter2tc_t* iter2tc);
+
+/*
  * Destroy an iter2tc_t
  */
 void iter2tc_free (iter2tc_t* iter2tc);
+
+/*
+ * Free resources associated with a projection_t
+ */
+void projection_free (projection_t* projection);
 
 // Note: the following functions are classified as either for forward or backward
 // tiling. Since the tiling operations need to be fast, we prefer to keep them
@@ -67,14 +77,14 @@ void iter2tc_free (iter2tc_t* iter2tc);
  * @param tilingInfo
  *   carry information about the tiling of tiledLoop, including the tile each
  *   iteration set element belongs to and the color
- * @param prevLoopProjection
+ * @param prevLoopProj
  *   a list of iteration-sets to tile-color mappings, which represents the
  *   projection of tiling at loop_{i-1}.
  * @return
- *   Update prevLoopProjection by exploiting information in tilingInfo
+ *   Update prevLoopProj by exploiting information in tilingInfo
  */
 void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProjection);
+                      projection_t* prevLoopProj);
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
@@ -87,19 +97,19 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
  * @param tilingInfo
  *   carry information about the tiling of tiledLoop, including the tile each
  *   iteration set element belongs to and the color
- * @param prevLoopProjection
+ * @param prevLoopProj
  *   a list of iteration-sets to tile-color mappings, which represents the
  *   projection of tiling at loop_{i+1}.
  * @return
- *   Update prevLoopProjection by exploiting information in tilingInfo
+ *   Update prevLoopProj by exploiting information in tilingInfo
  */
 void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                       projection_t* prevLoopProjection);
+                       projection_t* prevLoopProj);
 
 /*
  * Tile a parloop when going forward along the loop chain.
  */
-iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProjection);
+iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj);
 
 /*
  * Tile a parloop when going backward along the loop chain.

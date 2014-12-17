@@ -39,7 +39,8 @@
 
 #   define PRINT_PROJECTION(_projection, _loop) \
     do { \
-      std::cout << "Projection for loop " << _loop << ":" << std::endl; \
+      std::cout << "Projection `" #_projection "` for loop " \
+                << _loop << ":" << std::endl; \
       std::cout << "  Sets touched in previous tiled loop:" << std::endl; \
       projection_t::const_iterator it, end; \
       for (it = _projection->begin(), end = _projection->end(); it != end; it++) { \

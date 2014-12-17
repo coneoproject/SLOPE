@@ -19,16 +19,39 @@ iter2tc_t* iter2tc_init (char* setName, int itSetSize, int* iter2tile, int* iter
   return iter2tc;
 }
 
+iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
+{
+  iter2tc_t* iter2tc = (iter2tc_t*) malloc (sizeof(iter2tc_t));
+
+  iter2tc->setName = toCopy->setName;
+  iter2tc->itSetSize = toCopy->itSetSize;
+  iter2tc->iter2tile = (int*) malloc (sizeof(int)*toCopy->itSetSize);
+  iter2tc->iter2color = (int*) malloc (sizeof(int)*toCopy->itSetSize);
+
+  memcpy (iter2tc->iter2tile, toCopy->iter2tile, sizeof(int)*toCopy->itSetSize);
+  memcpy (iter2tc->iter2color, toCopy->iter2color, sizeof(int)*toCopy->itSetSize);
+
+  return iter2tc;
+}
+
 void iter2tc_free (iter2tc_t* iter2tc)
 {
-  free (iter2tc->setName);
   free (iter2tc->iter2tile);
   free (iter2tc->iter2color);
   free (iter2tc);
 }
 
+void projection_free (projection_t* projection)
+{
+  projection_t::iterator it, end;
+  for (it = projection->begin(), end = projection->end(); it != end; it++) {
+    iter2tc_free(*it);
+  }
+  delete projection;
+}
+
 void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProjection)
+                      projection_t* prevLoopProj)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -89,19 +112,23 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
     // members are just ignored; here, therefore, we exploit the set name in
     // *projIter2tc to remove any now-old projection over the set, and we then
     // reinsert the object with the updated members.
-    projection_t* curLoopProjection = prevLoopProjection;  // just for intuition
-    curLoopProjection->erase (projIter2tc);
-    curLoopProjection->insert (projIter2tc);
+    projection_t* curLoopProj = prevLoopProj;  // just for intuition
+    projection_t::iterator toFree = curLoopProj->find (projIter2tc);
+    if (toFree != curLoopProj->end()) {
+      curLoopProj->erase(toFree);
+      iter2tc_free (*toFree);
+    }
+    curLoopProj->insert (projIter2tc);
   }
 }
 
 void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                       projection_t* prevLoopProjection)
+                       projection_t* prevLoopProj)
 {
 
 }
 
-iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProjection)
+iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
 {
   // aliases
   set_t* toTile = curLoop->set;
@@ -141,8 +168,8 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProjection)
     // means that the touched set, regardless of whether it is touched directly
     // or indirectly, does not introduce any dependency with the loop being tiled
     iter2tc_t projIter2tc = {touchedSetName};
-    projection_t::iterator iprojIter2tc = prevLoopProjection->find (&projIter2tc);
-    if (iprojIter2tc == prevLoopProjection->end()) {
+    projection_t::iterator iprojIter2tc = prevLoopProj->find (&projIter2tc);
+    if (iprojIter2tc == prevLoopProj->end()) {
       continue;
     }
     int* projIter2tile = (*iprojIter2tc)->iter2tile;

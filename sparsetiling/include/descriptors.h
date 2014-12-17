@@ -82,7 +82,7 @@ inline set_t* set (char* setName, int size)
  */
 inline bool set_cmp(const set_t* a, const set_t* b)
 {
-  return strcmp(a->setName, b->setName);
+  return strcmp(a->setName, b->setName) < 0;
 }
 
 /*

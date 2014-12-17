@@ -31,7 +31,7 @@ ST_TESTS = $(TESTS)/sparsetiling
 #
 
 CXX      := $(CXX)
-CXXFLAGS := -O3 -std=c++0x $(VTK_ON) $(CXX_OPTS)
+CXXFLAGS := -std=c++0x $(VTK_ON) $(CXX_OPTS)
 
 
 .PHONY: clean mklib

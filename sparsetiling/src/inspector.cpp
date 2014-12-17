@@ -101,12 +101,13 @@ insp_info insp_run (inspector_t* insp, int seed)
   // 2- make a projection of the dependencies for tiling the subsequent loop
   // 3- tile the subsequent loop, using the projection
   // 4- go back to point 2, and repeat till there are loop along the direction
-  projection_t* baseLoopProjection = new projection_t (&iter2tc_cmp);
-  projection_t* prevLoopProjection = new projection_t (&iter2tc_cmp);
-  iter2tc_t* baseLoopTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
-                                                tmpIter2tileMap, tmpIter2colorMap);
-  iter2tc_t* prevTilingInfo = baseLoopTilingInfo;
+
+  // prepare for forward tiling
   loop_t* prevTiledLoop = baseLoop;
+  projection_t* baseLoopProj = new projection_t (&iter2tc_cmp);
+  projection_t* prevLoopProj = new projection_t (&iter2tc_cmp);
+  iter2tc_t* prevTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
+                                            tmpIter2tileMap, tmpIter2colorMap);
 
   // forward tiling
   for (int i = seed + 1; i < nLoops; i++) {
@@ -114,12 +115,19 @@ insp_info insp_run (inspector_t* insp, int seed)
     iter2tc_t* curTilingInfo;
 
     // compute projection from i-1 for tiling loop i
-    project_forward (prevTiledLoop, prevTilingInfo, prevLoopProjection);
+    project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj);
+
+    // update baseLoopProj, which is a requirement for backward tiling.
+    projection_t::iterator it, end;
+    for (it = prevLoopProj->begin(), end = prevLoopProj->end(); it != end; it++) {
+      if (baseLoopProj->find (*it) != baseLoopProj->end ()) {
+        // note we allocate additional memory only if it's sure we are inserting
+        baseLoopProj->insert (iter2tc_cpy(*it));
+      }
+    }
 
     // tile loop i as going forward
-    curTilingInfo = tile_forward (curLoop, prevLoopProjection);
-
-    // update baseLoopProjection, which is a requirement for tiling backward
+    curTilingInfo = tile_forward (curLoop, prevLoopProj);
 
     // prepare for next iteration
     prevTiledLoop = curLoop;
@@ -127,10 +135,13 @@ insp_info insp_run (inspector_t* insp, int seed)
   }
 
   // prepare for backward tiling
-  delete prevLoopProjection;
-  prevLoopProjection = baseLoopProjection;
+  projection_free (prevLoopProj);
+  prevLoopProj = new projection_t (&iter2tc_cmp);
   prevTiledLoop = baseLoop;
-  prevTilingInfo = baseLoopTilingInfo;
+  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*baseLoopSetSize);
+  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*baseLoopSetSize);
+  prevTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
+                                 tmpIter2tileMap, tmpIter2colorMap);
 
   // backward tiling
   for (int i = seed - 1; i >= 0; i--) {
@@ -141,7 +152,8 @@ insp_info insp_run (inspector_t* insp, int seed)
   }
 
   // free memory
-  delete prevLoopProjection;
+  projection_free (prevLoopProj);
+  projection_free (baseLoopProj);
 
   return INSP_OK;
 }
