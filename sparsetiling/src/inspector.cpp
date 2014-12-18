@@ -40,6 +40,8 @@ insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
   loop->loopName = loopName;
   loop->set = set;
   loop->descriptors = descriptors;
+  loop->coloring = NULL;
+  loop->tiling = NULL;
 
   insp->loops->push_back(loop);
 

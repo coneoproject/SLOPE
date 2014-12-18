@@ -4,8 +4,6 @@
  */
 
 #include "tile.h"
-#include "utils.h"
-
 
 tile_t* tile_init (int spannedLoops)
 {

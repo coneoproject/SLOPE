@@ -222,6 +222,16 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
     checkedSets.insert (touchedSet);
   }
 
+  // if requested at compile time, the coloring and tiling of the parloop are
+  // explicitly tracked. These can be used for debugging or visualization purposes,
+  // for example for generating VTK files showing the colored parloop
+#ifndef VTKON
+  curLoop->tiling = (int*) malloc (sizeof(int)*toTileSetSize);
+  curLoop->coloring = (int*) malloc (sizeof(int)*toTileSetSize);
+  memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
+  memcpy (curLoop->coloring, loopIter2tc->iter2color, sizeof(int)*toTileSetSize);
+#endif
+
   return loopIter2tc;
 }
 

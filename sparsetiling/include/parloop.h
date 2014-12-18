@@ -21,6 +21,10 @@ typedef struct {
   set_t* set;
   /* list of maps used to execute the kernel in this loop */
   desc_list* descriptors;
+  /* track coloring of the parloop */
+  int* coloring;
+  /* track tiling of the parloop */
+  int* tiling;
 
 } loop_t;
 
