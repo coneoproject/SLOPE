@@ -51,7 +51,7 @@ void projection_free (projection_t* projection)
 }
 
 void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProj)
+                      projection_t* prevLoopProj, projection_t* baseLoopProj)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -86,9 +86,6 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
       std::fill_n (projIter2tile, projSetSize, -1);
       std::fill_n (projIter2color, projSetSize, -1);
 
-      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
-                                  projIter2color);
-
       // iterate over the tiledLoop's iteration set, and use the map to access
       // the touched iteration set's elements.
       for (int i = 0; i < tiledSetSize; i++) {
@@ -104,21 +101,31 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
           }
         }
       }
+
+      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
+                                  projIter2color);
     }
 
-    // Update the projection for the parloop by first removing any former
-    // projection over a set touched by the previous parloop
-    // Note that erase and insert are based on the set name, while the other
-    // members are just ignored; here, therefore, we exploit the set name in
-    // *projIter2tc to remove any now-old projection over the set, and we then
-    // reinsert the object with the updated members.
-    projection_t* curLoopProj = prevLoopProj;  // just for intuition
-    projection_t::iterator toFree = curLoopProj->find (projIter2tc);
-    if (toFree != curLoopProj->end()) {
-      curLoopProj->erase(toFree);
-      iter2tc_free (*toFree);
+    // update projections:
+    // - baseParLoop is added a projection for a set X if X is not in baseParLoop
+    //   yet. This is becase baseParLoop will be used for backward tiling, in which
+    //   the sets projections closest (in time) to the seed parloop need to be seen
+    // - prevLoopProj is updated everytime a new projection is available; for this,
+    //   any previous projections for a same set are deleted and memory is freed
+    // Note: if the projection still has to be added to baseLoopProj, then for sure it
+    //       is not in prevLoopProj either. On the other hand, if the projection is
+    //       in baseLoopProj, then a projection on the same set is in prevLoopProj
+    if (baseLoopProj->find (projIter2tc) == baseLoopProj->end()) {
+      baseLoopProj->insert (iter2tc_cpy(projIter2tc));
     }
-    curLoopProj->insert (projIter2tc);
+    else {
+      projection_t::iterator toFree = prevLoopProj->find (projIter2tc);
+      if (toFree != prevLoopProj-> end()) {
+        iter2tc_free (*toFree);
+        prevLoopProj->erase (toFree);
+      }
+    }
+    prevLoopProj->insert (projIter2tc);
   }
 }
 
