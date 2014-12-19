@@ -133,7 +133,7 @@ inline double time_stamp()
 inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int meshDim)
 {
 #ifndef VTKON
-  std::cout << "To enable generation of VTK files, compile with -DVTKON" << std::end;
+  std::cout << "To enable generation of VTK files, compile with -DVTKON" << std::endl;
   return;
 #endif
 
