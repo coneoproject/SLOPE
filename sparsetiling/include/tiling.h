@@ -11,7 +11,6 @@
 
 #include <string.h>
 
-#include "descriptors.h"
 #include "parloop.h"
 
 /*

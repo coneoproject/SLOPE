@@ -7,7 +7,6 @@
 #ifndef _PARTITIONER_H_
 #define _PARTITIONER_H_
 
-#include "descriptors.h"
 #include "parloop.h"
 
 enum part_info {PART_OK, PART_ERR};

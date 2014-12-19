@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "descriptors.h"
+#include "descriptor.h"
 
 typedef std::vector<int> iterations_list;
 

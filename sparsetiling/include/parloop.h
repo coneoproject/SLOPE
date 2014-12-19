@@ -9,7 +9,7 @@
 
 #include <vector>
 
-#include "descriptors.h"
+#include "descriptor.h"
 
 /*
  * Represent a parloop

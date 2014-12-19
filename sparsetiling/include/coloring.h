@@ -6,7 +6,6 @@
 #ifndef _COLORING_H_
 #define _COLORING_H_
 
-#include "descriptors.h"
 #include "parloop.h"
 
 /*
