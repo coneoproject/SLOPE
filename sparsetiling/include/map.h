@@ -33,7 +33,7 @@ typedef struct {
 /*
  * Initialize a map
  */
-map_t* map (set_t* inSet, set_t* outSet, int* indMap, int mapSize);
+map_t* map (set_t* inSet, set_t* outSet, int* indMap, int ariety);
 
 /*
  * Initialize an irregular maps, in which each input entry is mapped to a
@@ -53,14 +53,14 @@ void map_free (map_t* map);
  * K of elements in Y.
  *
  * @param x2y
- *   mapping from set x to set y
- * @param xZero
- *   if xZero == true then the output numbering starts from 0:
- * @param y2x
- *   on return: mapping from y to x
+ *   a mapping from a set x to a set y
+ * @param xOffset
+ *   indicates an offset in the x's numbering (0 implies a regular map)
  * @param maxIncidence
  *   on return: maximum incidence on a y element
+ * @return
+ *   a mapping from set y to set x
  */
-void map_invert (map_t* x2y, int xZero, map_t* y2x, int* maxIncidence);
+map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence);
 
 #endif

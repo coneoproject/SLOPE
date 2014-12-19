@@ -200,7 +200,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
     for (descIt = descriptors->begin(), descEnd = descriptors->end(); it != end; it++) {
       map_t* map = (*descIt)->map;
       if (! strcmp (map->outSet->setName, nodesSetName)) {
-        int ariety = map->mapSize;
+        int ariety = map->mapSize / loopSetSize;
         std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
         stream << shape << loopSetSize << " " << loopSetSize*(ariety + 1) << std::endl;
         vtkfile << stream.str();
