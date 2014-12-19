@@ -3,6 +3,7 @@
 #
 # CXX
 # CXX_OPTS
+# SLOPE_ARCH (mac,linux)
 
 #
 # The following environment variable(s) can be predefined
@@ -33,6 +34,10 @@ ST_TESTS = $(TESTS)/sparsetiling
 CXX      := $(CXX)
 CXXFLAGS := -std=c++0x $(VTKON) $(CXX_OPTS)
 
+ifeq ($(SLOPE_ARCH),linux)
+  CLOCK_LIB = -lrt
+endif
+
 
 .PHONY: clean mklib
 
@@ -55,11 +60,11 @@ sparsetiling: mklib
 
 tests: mklib
 	@echo "Compiling the tests"
-	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_inspector.cpp -o $(ST_BIN)/tests/test_inspector $(LIB)/libst.a -lrt
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_inspector.cpp -o $(ST_BIN)/tests/test_inspector $(LIB)/libst.a $(CLOCK_LIB)
 
 demos: mklib
 	@echo "Compiling the demos"
-	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil.cpp -o $(ST_BIN)/airfoil/airfoil -lrt
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil.cpp -o $(ST_BIN)/airfoil/airfoil $(CLOCK_LIB)
 
 clean:
 	-rm -if $(OBJ)/*.o
