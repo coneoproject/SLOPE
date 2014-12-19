@@ -42,9 +42,9 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
 {
   // aliases
   int xSize = x2y->inSet->size;
-  char* xName = x2y->inSet->setName;
+  std::string xName = x2y->inSet->setName;
   int ySize = x2y->outSet->size;
-  char* yName = x2y->outSet->setName;
+  std::string yName = x2y->outSet->setName;
   int* x2yMap = x2y->indMap;
   int x2yMapSize = x2y->mapSize;
 

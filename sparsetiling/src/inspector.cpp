@@ -4,8 +4,9 @@
  * Implement inspector routines
  */
 
+#include <string>
+
 #include <stdlib.h>
-#include <string.h>
 
 #include "inspector.h"
 #include "utils.h"
@@ -31,7 +32,7 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
   return insp;
 }
 
-insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
+insp_info insp_add_parloop (inspector_t* insp, std::string loopName, set_t* set,
                             desc_list* descriptors)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
@@ -60,7 +61,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
   loop_t* baseLoop = (*loops)[seed];
-  char* baseLoopSetName = baseLoop->set->setName;
+  std::string baseLoopSetName = baseLoop->set->setName;
   int baseLoopSetSize = baseLoop->set->size;
 
   ASSERT((seed >= 0) && (seed < loops->size()), "Invalid tiling start point");

@@ -160,7 +160,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
   // aliases
   loop_list* loops = insp->loops;
   int nNodes = nodes->size;
-  char* nodesSetName = nodes->setName;
+  std::string nodesSetName = nodes->setName;
 
   // create directory in which VTK files will be stored, if not exists
   struct stat st = {0};
@@ -172,7 +172,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
   for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
     loop_t* loop = *it;
     int loopSetSize = loop->set->size;
-    char* loopName = loop->loopName;
+    std::string loopName = loop->loopName;
     desc_list* descriptors = loop->descriptors;
 
     if (! loop->coloring) {
@@ -219,7 +219,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
     bool found = false;
     for (descIt = descriptors->begin(), descEnd = descriptors->end(); it != end; it++) {
       map_t* map = (*descIt)->map;
-      if (! strcmp (map->outSet->setName, nodesSetName)) {
+      if (map->outSet->setName == nodesSetName) {
         int ariety = map->mapSize / loopSetSize;
         std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
         stream << shape << loopSetSize << " " << loopSetSize*(ariety + 1) << std::endl;

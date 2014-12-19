@@ -62,7 +62,7 @@ inspector_t* insp_init (int tileSize, insp_strategy strategy);
  * @return
  *   the inspector is updated with a new loop the tiles will have to cross
  */
-insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
+insp_info insp_add_parloop (inspector_t* insp, std::string loopName, set_t* set,
                             desc_list* descriptors);
 
 /*

@@ -6,14 +6,14 @@
 #ifndef _SET_H_
 #define _SET_H_
 
-#include <string.h>
+#include <string>
 
 /*
  * Represent a set
  */
 typedef struct {
   /* identifier name of the set */
-  char* setName;
+  std::string setName;
   /* size of the set */
   int size;
 } set_t;
@@ -21,7 +21,7 @@ typedef struct {
 /*
  * Initialize a set
  */
-inline set_t* set (char* setName, int size)
+inline set_t* set (std::string setName, int size)
 {
   set_t* set = (set_t*) malloc (sizeof(set_t));
   set->setName = setName;
@@ -34,7 +34,7 @@ inline set_t* set (char* setName, int size)
  */
 inline bool set_cmp(const set_t* a, const set_t* b)
 {
-  return strcmp(a->setName, b->setName) < 0;
+  return a->setName < b->setName;
 }
 
 /*

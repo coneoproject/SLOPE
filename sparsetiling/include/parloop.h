@@ -8,6 +8,7 @@
 #define _PARLOOP_H_
 
 #include <vector>
+#include <string>
 
 #include "descriptor.h"
 
@@ -16,7 +17,7 @@
  */
 typedef struct {
   /* name/identifier of the parloop */
-  char* loopName;
+  std::string loopName;
   /* size of the iteration set */
   set_t* set;
   /* list of maps used to execute the kernel in this loop */

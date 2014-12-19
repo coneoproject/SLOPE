@@ -20,10 +20,9 @@
 enum am_t {READ, WRITE, RW, INC};
 
 /*
- * Represent an access descriptor, which binds three things:
- * - a set (represented as a string)
- * - the map used to access the set
- * - the way the set is accessed (READ, WRITE, RW, INC)
+ * Represent an access descriptor, which binds two things:
+ * - a map from the iteration set of a parloop to a target set
+ * - the way the target set is accessed (READ, WRITE, RW, INC)
  */
 typedef struct {
   /* map used to access a certain set */

@@ -7,7 +7,8 @@
 #include "tiling.h"
 #include "utils.h"
 
-iter2tc_t* iter2tc_init (char* setName, int itSetSize, int* iter2tile, int* iter2color)
+iter2tc_t* iter2tc_init (std::string setName, int itSetSize, int* iter2tile,
+                         int* iter2color)
 {
   iter2tc_t* iter2tc = (iter2tc_t*) malloc (sizeof(iter2tc_t));
 
@@ -76,7 +77,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
       // aliases
       int tiledSetSize = descMap->inSet->size;
       int projSetSize = descMap->outSet->size;
-      char* projSetName = descMap->outSet->setName;
+      std::string projSetName = descMap->outSet->setName;
       int mapSize = descMap->mapSize;
       int* indMap = descMap->indMap;
 
@@ -140,7 +141,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   // aliases
   set_t* toTile = curLoop->set;
   int toTileSetSize = toTile->size;
-  char* toTileSetName = toTile->setName;
+  std::string toTileSetName = toTile->setName;
   desc_list* descriptors = curLoop->descriptors;
   iter2tc_t *loopIter2tc;
 
@@ -162,7 +163,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
     map_t* descMap = (*it)->map;
     am_t descMode = (*it)->mode;
     set_t* touchedSet = (descMap == DIRECT) ? toTile : descMap->outSet;
-    char* touchedSetName = touchedSet->setName;
+    std::string touchedSetName = touchedSet->setName;
 
     if (checkedSets.find(touchedSet) != checkedSets.end()) {
       // set already used for computing a tiling of curLoop (e.g. it was found
