@@ -13,6 +13,7 @@ tile_t* tile_init (int spannedLoops)
     tile->iterations[i] = new iterations_list;
   }
   tile->spannedLoops = spannedLoops;
+  tile->color = -1;
   return tile;
 }
 

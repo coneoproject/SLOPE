@@ -71,7 +71,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   int nTiles = iter2tile->outSet->size;
   tile_list* tiles = new tile_list (nTiles);
   for (int i = 0; i < nTiles; i++) {
-    (*tiles)[i] = tile_init (loops->size());
+    tiles->at(i) = tile_init (loops->size());
   }
   tile_assign_loop (tiles, seed, iter2tile);
 
@@ -79,10 +79,10 @@ insp_info insp_run (inspector_t* insp, int seed)
   map_t* iter2color;
   switch (strategy) {
     case SEQUENTIAL: case MPI:
-      iter2color = color_sequential (iter2tile);
+      iter2color = color_sequential (iter2tile, tiles);
       break;
     case OMP: case OMP_MPI:
-      iter2color = color_kdistance (loops, seed, iter2tile);
+      iter2color = color_kdistance (loops, seed, iter2tile, tiles);
       break;
   }
 
