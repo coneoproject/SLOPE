@@ -235,5 +235,7 @@ void insp_free (inspector_t* insp)
   }
   delete insp->tiles;
   free (insp->loops);
+  map_free (insp->iter2tile);
+  map_free (insp->iter2color);
   free (insp);
 }

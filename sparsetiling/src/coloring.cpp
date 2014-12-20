@@ -28,7 +28,9 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
 {
   // aliases
   int nTiles = iter2tile->outSet->size;
-  int* offsets = iter2tile->offsets;
+
+  int* offsets = (int*) malloc (sizeof(int)*(nTiles + 1));
+  memcpy (offsets, iter2tile->offsets, sizeof(int)*(nTiles + 1));
 
   // each tile is assigned a different color. This way, the tiling algorithm,
   // which is based on colors, works seamless regardless of whether the
