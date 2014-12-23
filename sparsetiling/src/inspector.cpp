@@ -230,10 +230,9 @@ void insp_print (inspector_t* insp, insp_verbose level)
 
 void insp_free (inspector_t* insp)
 {
-  for (int i = 0; i < insp->tiles->size(); i++) {
-    free ((*insp->tiles)[i]);
-  }
-  delete insp->tiles;
+  // Note that tiles are not freed because they are already freed in the
+  // executor free function
+
   free (insp->loops);
   map_free (insp->iter2tile);
   map_free (insp->iter2color);
