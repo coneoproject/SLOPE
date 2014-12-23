@@ -169,15 +169,15 @@ void insp_print (inspector_t* insp, insp_verbose level)
   switch (level) {
     case LOW:
       verbosityItSet = MIN(LOW, itSetSize);
-      verbosityTiles = nTiles / 2;
+      verbosityTiles = avgTileSize / 2;
       break;
     case MEDIUM:
       verbosityItSet = MIN(MEDIUM, itSetSize);
-      verbosityTiles = nTiles;
+      verbosityTiles = avgTileSize;
       break;
     case HIGH:
       verbosityItSet = itSetSize;
-      verbosityTiles = nTiles;
+      verbosityTiles = avgTileSize;
   }
 
   cout << endl << ":: Inspector info ::" << endl << endl;
@@ -210,20 +210,20 @@ void insp_print (inspector_t* insp, insp_verbose level)
 
   if (tiles) {
     cout << endl << "Printing tiles' base loop iterations" << endl;
-    cout << "       Tile  |  Iteration "<< endl;
-    for (int i = 0; i < verbosityTiles; i++) {
-      int tileSize = (*tiles)[i]->iterations[seed]->size();
-      for (int j = 0; j < tileSize; j++) {
-        cout << "         " << i;
-        cout << "   |   " << (*tiles)[i]->iterations[seed]->at(j) << endl;
+    cout << "       Tile  |  Color  |    Iterations "<< endl;
+    for (int i = 0; i < nTiles; i++) {
+      int tileSize = tiles->at(i)->iterations[seed]->size();
+      int range = MIN(tileSize, verbosityTiles);
+      cout << "         " << i << "   |    " << tiles->at(i)->color << "    |   {";
+      cout << tiles->at(i)->iterations[seed]->at(0);
+      for (int j = 1; j < range; j++) {
+        cout << ", " << tiles->at(i)->iterations[seed]->at(j);
       }
-    }
-    if (verbosityTiles < nTiles) {
-      int tileID = nTiles - 1;
-      int tileSize = (*tiles)[tileID]->iterations[seed]->size();
-      cout << "         ..." << endl;
-      cout << "         " << tileID
-           << "   |   " << (*tiles)[tileID]->iterations[seed]->at(tileSize - 1) << endl;
+      if (tileSize > verbosityTiles) {
+        int lastIterID = tiles->at(i)->iterations[seed]->at(tileSize - 1);
+        cout << "..., " << lastIterID;
+      }
+      cout << "}" << endl;
     }
   }
 }
