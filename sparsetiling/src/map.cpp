@@ -10,7 +10,7 @@
 
 map_t* map (set_t* inSet, set_t* outSet, int* indMap, int mapSize)
 {
-  map_t* map = (map_t*) malloc (sizeof(map_t));
+  map_t* map = new map_t;
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
@@ -21,7 +21,7 @@ map_t* map (set_t* inSet, set_t* outSet, int* indMap, int mapSize)
 
 map_t* imap (set_t* inSet, set_t* outSet, int* indMap, int* offsets)
 {
-  map_t* map = (map_t*) malloc (sizeof(map_t));
+  map_t* map = new map_t;
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
@@ -38,11 +38,11 @@ void map_free (map_t* map, bool freeIndMap)
 
   set_free (map->inSet);
   set_free (map->outSet);
-  free (map->offsets);
+  delete[] map->offsets;
   if (freeIndMap) {
-    free (map->indMap);
+    delete[] map->indMap;
   }
-  free (map);
+  delete map;
 }
 
 map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
@@ -55,8 +55,8 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
 
   int x2yAriety = x2yMapSize / xSize;
 
-  int* y2xMap = (int*) malloc (sizeof(int)*x2yMapSize);
-  int* y2xOffset = (int*) calloc (ySize + 1, sizeof(int));
+  int* y2xMap = new int[x2yMapSize];
+  int* y2xOffset = new int[ySize + 1]();
   int incidence = 0;
 
   // compute the offsets in y2x
@@ -69,7 +69,7 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
   }
 
   // compute y2x
-  int* inserted = (int*) calloc (ySize + 1, sizeof(int));
+  int* inserted = new int[ySize + 1]();
   for (int i = 0; i < x2yMapSize; i += x2yAriety) {
     for (int j = 0; j < x2yAriety; j++) {
       int entry = x2yMap[i + j] - 1 + xOffset;
@@ -77,7 +77,7 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
       inserted[entry]++;
     }
   }
-  free (inserted);
+  delete[] inserted;
 
   if (maxIncidence)
     *maxIncidence = incidence;

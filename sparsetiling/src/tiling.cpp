@@ -12,7 +12,7 @@
 iter2tc_t* iter2tc_init (std::string setName, int itSetSize, int* iter2tile,
                          int* iter2color)
 {
-  iter2tc_t* iter2tc = (iter2tc_t*) malloc (sizeof(iter2tc_t));
+  iter2tc_t* iter2tc = new iter2tc_t;
 
   iter2tc->setName = setName;
   iter2tc->itSetSize = itSetSize;
@@ -24,12 +24,12 @@ iter2tc_t* iter2tc_init (std::string setName, int itSetSize, int* iter2tile,
 
 iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
 {
-  iter2tc_t* iter2tc = (iter2tc_t*) malloc (sizeof(iter2tc_t));
+  iter2tc_t* iter2tc = new iter2tc_t;
 
   iter2tc->setName = toCopy->setName;
   iter2tc->itSetSize = toCopy->itSetSize;
-  iter2tc->iter2tile = (int*) malloc (sizeof(int)*toCopy->itSetSize);
-  iter2tc->iter2color = (int*) malloc (sizeof(int)*toCopy->itSetSize);
+  iter2tc->iter2tile = new int[toCopy->itSetSize];
+  iter2tc->iter2color = new int[toCopy->itSetSize];
 
   memcpy (iter2tc->iter2tile, toCopy->iter2tile, sizeof(int)*toCopy->itSetSize);
   memcpy (iter2tc->iter2color, toCopy->iter2color, sizeof(int)*toCopy->itSetSize);
@@ -39,9 +39,9 @@ iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
 
 void iter2tc_free (iter2tc_t* iter2tc)
 {
-  free (iter2tc->iter2tile);
-  free (iter2tc->iter2color);
-  free (iter2tc);
+  delete[] iter2tc->iter2tile;
+  delete[] iter2tc->iter2color;
+  delete iter2tc;
 }
 
 void projection_free (projection_t* projection)
@@ -84,8 +84,8 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
       int* indMap = descMap->indMap;
 
       int ariety = mapSize / tiledSetSize;
-      int* projIter2tile = (int*) malloc (sizeof(int)*projSetSize);
-      int* projIter2color = (int*) malloc (sizeof(int)*projSetSize);
+      int* projIter2tile = new int[projSetSize];
+      int* projIter2color = new int[projSetSize];
       std::fill_n (projIter2tile, projSetSize, -1);
       std::fill_n (projIter2color, projSetSize, -1);
 
@@ -152,8 +152,8 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
 
   // allocate and initialize space to keep tiling and coloring results
-  int* loopIter2tile = (int*) malloc (sizeof(int)*toTileSetSize);
-  int* loopIter2color = (int*) malloc (sizeof(int)*toTileSetSize);
+  int* loopIter2tile = new int[toTileSetSize];
+  int* loopIter2color = new int[toTileSetSize];
   std::fill_n (loopIter2tile, toTileSetSize, -1);
   std::fill_n (loopIter2color, toTileSetSize, -1);
   loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile,
@@ -229,8 +229,8 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   // explicitly tracked. These can be used for debugging or visualization purposes,
   // for example for generating VTK files showing the colored parloop
 #ifndef VTKON
-  curLoop->tiling = (int*) malloc (sizeof(int)*toTileSetSize);
-  curLoop->coloring = (int*) malloc (sizeof(int)*toTileSetSize);
+  curLoop->tiling = new int[toTileSetSize];
+  curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
   memcpy (curLoop->coloring, loopIter2tc->iter2color, sizeof(int)*toTileSetSize);
 #endif

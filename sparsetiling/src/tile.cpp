@@ -7,8 +7,8 @@
 
 tile_t* tile_init (int spannedLoops)
 {
-  tile_t* tile = (tile_t*) malloc (sizeof(tile_t));
-  tile->iterations = (iterations_list**) malloc (sizeof(iterations_list*)*spannedLoops);
+  tile_t* tile = new tile_t;
+  tile->iterations = new iterations_list*[spannedLoops];
   for (int i = 0; i < spannedLoops; i++) {
     tile->iterations[i] = new iterations_list;
   }
@@ -38,5 +38,6 @@ void tile_free (tile_t* tile)
   for (int i = 0; i < tile->spannedLoops; i++) {
     delete tile->iterations[i];
   }
-  free (tile->iterations);
+  delete[] tile->iterations;
+  delete tile;
 }

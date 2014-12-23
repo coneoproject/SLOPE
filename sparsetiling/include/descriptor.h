@@ -38,7 +38,7 @@ typedef std::list<descriptor_t*> desc_list;
  */
 inline descriptor_t* desc (map_t* map, am_t mode)
 {
-  descriptor_t* desc = (descriptor_t*) malloc (sizeof(descriptor_t));
+  descriptor_t* desc = new descriptor_t;
   desc->map = map;
   desc->mode = mode;
   return desc;
@@ -49,7 +49,7 @@ inline descriptor_t* desc (map_t* map, am_t mode)
  */
 inline void desc_free (descriptor_t* desc)
 {
-  free(desc);
+  delete desc;
 }
 
 #endif

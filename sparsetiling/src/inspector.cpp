@@ -19,11 +19,11 @@ using namespace std;
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
 {
-  inspector_t* insp = (inspector_t*) malloc (sizeof(inspector_t));
+  inspector_t* insp = new inspector_t;
 
   insp->strategy = strategy;
   insp->avgTileSize = avgTileSize;
-  insp->loops = (loop_list*) malloc (sizeof(loop_list));
+  insp->loops = new loop_list;
 
   insp->seed = -1;
   insp->iter2tile = NULL;
@@ -38,7 +38,7 @@ insp_info insp_add_parloop (inspector_t* insp, std::string loopName, set_t* set,
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
-  loop_t* loop = (loop_t*) malloc (sizeof(loop_t));
+  loop_t* loop = new loop_t;
   loop->loopName = loopName;
   loop->set = set;
   loop->descriptors = descriptors;
@@ -95,8 +95,8 @@ insp_info insp_run (inspector_t* insp, int seed)
   // create copies of initial tiling and coloring, cause they can be manipulated
   // during one phase of tiling (e.g. forward), so they need to be reset to their
   // original values before the other tiling phase (e.g. backward)
-  int* tmpIter2tileMap = (int*) malloc (sizeof(int)*baseLoopSetSize);
-  int* tmpIter2colorMap = (int*) malloc (sizeof(int)*baseLoopSetSize);
+  int* tmpIter2tileMap = new int[baseLoopSetSize];
+  int* tmpIter2colorMap = new int[baseLoopSetSize];
   memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int));
   memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int));
 
@@ -234,8 +234,8 @@ void insp_free (inspector_t* insp)
   // Note that tiles are not freed because they are already freed in the
   // executor free function
 
-  free (insp->loops);
+  delete insp->loops;
   map_free (insp->iter2tile);
   map_free (insp->iter2color);
-  free (insp);
+  delete insp;
 }

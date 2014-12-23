@@ -23,7 +23,7 @@ typedef struct {
  */
 inline set_t* set (std::string setName, int size)
 {
-  set_t* set = (set_t*) malloc (sizeof(set_t));
+  set_t* set =  new set_t;
   set->setName = setName;
   set->size = size;
   return set;
@@ -34,7 +34,7 @@ inline set_t* set (std::string setName, int size)
  */
 inline set_t* set_cpy (set_t* toCopy)
 {
-  set_t* set = (set_t*) malloc (sizeof(set_t));
+  set_t* set =  new set_t;
   set->setName = toCopy->setName;
   set->size = toCopy->size;
   return set;
@@ -56,7 +56,7 @@ inline void set_free (set_t* set)
   if (! set) {
     return;
   }
-  free(set);
+  delete set;
 }
 
 #endif
