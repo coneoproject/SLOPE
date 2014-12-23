@@ -45,7 +45,7 @@ map_t* imap (set_t* inSet, set_t* outSet, int* indMap, int* offsets);
 /*
  * Destroy a map
  */
-void map_free (map_t* map);
+void map_free (map_t* map, bool freeIndMap = false);
 
 /*
  * Invert a mapping from a set X to a set Y.

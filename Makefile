@@ -61,7 +61,7 @@ sparsetiling: mklib
 
 tests: mklib
 	@echo "Compiling the tests"
-	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_inspector.cpp -o $(ST_BIN)/tests/test_inspector $(LIB)/libst.a $(CLOCK_LIB)
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 $(LIB)/libst.a $(CLOCK_LIB)
 
 demos: mklib
 	@echo "Compiling the demos"

@@ -4,6 +4,7 @@
  */
 
 #include "executor.h"
+#include <iostream>
 
 executor_t* exec_init (inspector_t* insp)
 {
@@ -23,9 +24,9 @@ executor_t* exec_init (inspector_t* insp)
   map_t* tile2color = map (tile_set, color_set, tile2colorIndMap, nTiles);
 
   exec->tiles = tiles;
-  exec->color2tile = map_invert (tile2color, 0, NULL);
+  exec->color2tile = map_invert (tile2color, 1, NULL);
 
-  map_free (tile2color);
+  map_free (tile2color, true);
 
   return exec;
 }
@@ -37,4 +38,5 @@ void exec_free (executor_t* exec)
   }
   delete exec->tiles;
   map_free (exec->color2tile);
+  free (exec);
 }

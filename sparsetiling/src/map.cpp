@@ -30,11 +30,18 @@ map_t* imap (set_t* inSet, set_t* outSet, int* indMap, int* offsets)
   return map;
 }
 
-void map_free (map_t* map)
+void map_free (map_t* map, bool freeIndMap)
 {
+  if (! map) {
+    return;
+  }
+
   set_free (map->inSet);
   set_free (map->outSet);
   free (map->offsets);
+  if (freeIndMap) {
+    free (map->indMap);
+  }
   free (map);
 }
 
@@ -42,9 +49,7 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
 {
   // aliases
   int xSize = x2y->inSet->size;
-  std::string xName = x2y->inSet->setName;
   int ySize = x2y->outSet->size;
-  std::string yName = x2y->outSet->setName;
   int* x2yMap = x2y->indMap;
   int x2yMapSize = x2y->mapSize;
 
@@ -55,20 +60,19 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
   int incidence = 0;
 
   // compute the offsets in y2x
-  y2xOffset[0] = 0;
   for (int i = 0; i < x2yMapSize; i++) {
     y2xOffset[x2yMap[i] + xOffset]++;
   }
-  for (int i = 1; i < ySize; i++) {
+  for (int i = 1; i < ySize + 1; i++) {
     y2xOffset[i + xOffset] += y2xOffset[i - 1 + xOffset];
     incidence = MAX(incidence, y2xOffset[i + xOffset] - y2xOffset[i - 1 + xOffset]);
   }
 
   // compute y2x
   int* inserted = (int*) calloc (ySize + 1, sizeof(int));
-  for (int i = 0; i < x2yMapSize; i++) {
+  for (int i = 0; i < x2yMapSize; i += x2yAriety) {
     for (int j = 0; j < x2yAriety; j++) {
-      int entry = x2yMap[i*x2yAriety + j] - 1 + xOffset;
+      int entry = x2yMap[i + j] - 1 + xOffset;
       y2xMap[y2xOffset[entry] + inserted[entry]] = i / x2yAriety;
       inserted[entry]++;
     }
@@ -77,5 +81,5 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
 
   if (maxIncidence)
     *maxIncidence = incidence;
-  return imap (set(xName, xSize), set(yName, ySize), y2xMap, y2xOffset);
+  return imap (set_cpy(x2y->inSet), set_cpy(x2y->outSet), y2xMap, y2xOffset);
 }

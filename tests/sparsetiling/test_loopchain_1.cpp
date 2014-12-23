@@ -1,10 +1,11 @@
 /*
- *  test_inspector.cpp
+ *  test_loopchain_1.cpp
  *
  * Check the correctness of the inspector using a simple, small mesh
  */
 
 #include "inspector.h"
+#include "executor.h"
 #include "common.hpp"
 
 int main ()
@@ -25,16 +26,16 @@ int main ()
    *     write directly edges
    */
 
-  // Sets
+  // sets
   set_t* vertices = set("vertices", mesh.vertices);
   set_t* edges = set("edges", mesh.edges);
   set_t* cells = set("cells", mesh.cells);
 
-  // Maps
+  // maps
   map_t* e2vMap = map(edges, vertices, mesh.e2v, mesh.e2vSize);
   map_t* c2vMap = map(cells, vertices, mesh.c2v, mesh.c2vSize);
 
-  // Descriptors
+  // descriptors
   desc_list pl0Desc ({desc(e2vMap, READ),
                       desc(DIRECT, WRITE)});
   desc_list pl1Desc ({desc(c2vMap, READ),
@@ -44,6 +45,8 @@ int main ()
                       desc(DIRECT, WRITE)});
 
   const int tileSize = 4;
+
+  // inspector
   inspector_t* insp = insp_init(tileSize, SEQUENTIAL);
 
   insp_add_parloop (insp, "pl0", edges, &pl0Desc);
@@ -55,8 +58,12 @@ int main ()
 
   insp_print (insp, LOW);
 
+  // executor
+  executor_t* exec = exec_init (insp);
+
   // free memory
   insp_free (insp);
+  exec_free (exec);
 
   return 0;
 }

@@ -53,6 +53,9 @@ inline bool set_cmp(const set_t* a, const set_t* b)
  */
 inline void set_free (set_t* set)
 {
+  if (! set) {
+    return;
+  }
   free(set);
 }
 
