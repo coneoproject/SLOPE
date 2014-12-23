@@ -7,6 +7,7 @@
 #include <string>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "inspector.h"
 #include "utils.h"

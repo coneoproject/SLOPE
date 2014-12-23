@@ -3,6 +3,8 @@
  *
  */
 
+#include <string.h>
+
 #include "coloring.h"
 
 static int* color_apply (tile_list* tiles, map_t* iter2tile, int* colors)

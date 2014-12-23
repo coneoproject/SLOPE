@@ -4,6 +4,8 @@
  * Collection of data structures and functions implementing the tiling engine
  */
 
+#include <string.h>
+
 #include "tiling.h"
 #include "utils.h"
 
