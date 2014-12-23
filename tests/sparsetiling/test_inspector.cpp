@@ -54,5 +54,9 @@ int main ()
   insp_run (insp, seed);
 
   insp_print (insp, LOW);
+
+  // free memory
+  insp_free (insp);
+
   return 0;
 }

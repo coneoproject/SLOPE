@@ -44,7 +44,7 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
 
   // note we have as many colors as the number of tiles
   set_t* colorSet = set ("colors", nTiles);
-  return imap (iter2tile->inSet, colorSet, iter2color, offsets);
+  return imap (set_cpy(iter2tile->inSet), colorSet, iter2color, offsets);
 }
 
 map_t* color_kdistance (loop_list* loops, int seed, map_t* iter2tile, tile_list* tiles)

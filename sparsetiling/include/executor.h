@@ -15,6 +15,8 @@
 typedef struct {
   /* list of tiles */
   tile_list* tiles;
+  /* map from colors to tiles */
+  map_t* color2tile;
 
 } executor_t;
 

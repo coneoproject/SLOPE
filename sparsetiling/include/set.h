@@ -30,6 +30,17 @@ inline set_t* set (std::string setName, int size)
 }
 
 /*
+ * Copy a set
+ */
+inline set_t* set_cpy (set_t* toCopy)
+{
+  set_t* set = (set_t*) malloc (sizeof(set_t));
+  set->setName = toCopy->setName;
+  set->size = toCopy->size;
+  return set;
+}
+
+/*
  * Compare two sets based on their name identifier
  */
 inline bool set_cmp(const set_t* a, const set_t* b)
