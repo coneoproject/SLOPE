@@ -24,7 +24,7 @@ executor_t* exec_init (inspector_t* insp)
   map_t* tile2color = map (tile_set, color_set, tile2colorIndMap, nTiles);
 
   exec->tiles = tiles;
-  exec->color2tile = map_invert (tile2color, 1, NULL);
+  exec->color2tile = map_invert (tile2color, NULL);
 
   map_free (tile2color, true);
 

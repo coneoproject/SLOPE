@@ -54,13 +54,11 @@ void map_free (map_t* map, bool freeIndMap = false);
  *
  * @param x2y
  *   a mapping from a set x to a set y
- * @param xOffset
- *   indicates an offset in the x's numbering (0 implies a regular map)
  * @param maxIncidence
  *   on return: maximum incidence on a y element
  * @return
  *   a mapping from set y to set x
  */
-map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence);
+map_t* map_invert (map_t* x2y, int* maxIncidence);
 
 #endif

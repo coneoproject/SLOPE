@@ -45,7 +45,7 @@ void map_free (map_t* map, bool freeIndMap)
   delete map;
 }
 
-map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
+map_t* map_invert (map_t* x2y, int* maxIncidence)
 {
   // aliases
   int xSize = x2y->inSet->size;
@@ -61,18 +61,18 @@ map_t* map_invert (map_t* x2y, int xOffset, int* maxIncidence)
 
   // compute the offsets in y2x
   for (int i = 0; i < x2yMapSize; i++) {
-    y2xOffset[x2yMap[i] + xOffset]++;
+    y2xOffset[x2yMap[i] + 1]++;
   }
   for (int i = 1; i < ySize + 1; i++) {
-    y2xOffset[i + xOffset] += y2xOffset[i - 1 + xOffset];
-    incidence = MAX(incidence, y2xOffset[i + xOffset] - y2xOffset[i - 1 + xOffset]);
+    y2xOffset[i] += y2xOffset[i - 1];
+    incidence = MAX(incidence, y2xOffset[i] - y2xOffset[i - 1]);
   }
 
   // compute y2x
   int* inserted = new int[ySize + 1]();
   for (int i = 0; i < x2yMapSize; i += x2yAriety) {
     for (int j = 0; j < x2yAriety; j++) {
-      int entry = x2yMap[i + j] - 1 + xOffset;
+      int entry = x2yMap[i + j];
       y2xMap[y2xOffset[entry] + inserted[entry]] = i / x2yAriety;
       inserted[entry]++;
     }
