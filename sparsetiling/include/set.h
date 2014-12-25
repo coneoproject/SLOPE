@@ -6,6 +6,8 @@
 #ifndef _SET_H_
 #define _SET_H_
 
+#include <set>
+
 #include <string>
 
 /*
@@ -17,6 +19,8 @@ typedef struct {
   /* size of the set */
   int size;
 } set_t;
+
+typedef std::set<set_t*> set_list;
 
 /*
  * Initialize a set

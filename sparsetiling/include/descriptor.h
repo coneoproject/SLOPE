@@ -10,7 +10,7 @@
 #ifndef _DESCRIPTORS_H_
 #define _DESCRIPTORS_H_
 
-#include <list>
+#include <set>
 
 #include <stdlib.h>
 
@@ -31,7 +31,7 @@ typedef struct {
   am_t mode;
 } descriptor_t;
 
-typedef std::list<descriptor_t*> desc_list;
+typedef std::set<descriptor_t*> desc_list;
 
 /*
  * Initialize an access descriptor
@@ -46,9 +46,12 @@ inline descriptor_t* desc (map_t* map, am_t mode)
 
 /*
  * Destroy an access descriptor
+ *
+ * Note that it is responsible of the caller to delete the descriptor's mapping
  */
 inline void desc_free (descriptor_t* desc)
 {
+  map_free (desc->map);
   delete desc;
 }
 

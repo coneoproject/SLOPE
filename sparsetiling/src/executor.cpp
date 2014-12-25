@@ -34,9 +34,9 @@ executor_t* exec_init (inspector_t* insp)
 void exec_free (executor_t* exec)
 {
   for (int i = 0; i < exec->tiles->size(); i++) {
-    delete (*exec->tiles)[i];
+    tile_free (exec->tiles->at(i));
   }
   delete exec->tiles;
-  map_free (exec->color2tile);
+  map_free (exec->color2tile, true);
   delete exec;
 }

@@ -6,6 +6,8 @@
 #ifndef _MAP_H_
 #define _MAP_H_
 
+#include <set>
+
 #include "set.h"
 
 /*
@@ -24,6 +26,8 @@ typedef struct {
   /* offsets in indMap (!= NULL only if an irregular map) */
   int* offsets;
 } map_t;
+
+typedef std::set<map_t*> map_list;
 
 /*
  * Identify direct maps

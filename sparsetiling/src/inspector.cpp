@@ -131,6 +131,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   }
 
   // prepare for backward tiling
+  iter2tc_free (prevTilingInfo);
   projection_free (prevLoopProj);
   prevLoopProj = new projection_t (&iter2tc_cmp);
   prevTiledLoop = baseLoop;
@@ -145,6 +146,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   }
 
   // free memory
+  iter2tc_free (prevTilingInfo);
   projection_free (prevLoopProj);
   projection_free (baseLoopProj);
 
@@ -232,10 +234,64 @@ void insp_print (inspector_t* insp, insp_verbose level)
 void insp_free (inspector_t* insp)
 {
   // Note that tiles are not freed because they are already freed in the
-  // executor free function
+  // executor's free function
+
+  // aliases
+  loop_list* loops = insp->loops;
+
+  // delete tiled loops, access descriptors, maps, and sets
+  // freed data structures are tracked so that freeing twice the same pointer
+  // is avoided
+  desc_list deletedDescs;
+  map_list deletedMaps;
+  set_list deletedSets;
+  loop_list::const_iterator lIt, lEnd;
+  for (lIt = loops->begin(), lEnd = loops->end(); lIt != lEnd; lIt++) {
+    desc_list* descriptors = (*lIt)->descriptors;
+    desc_list::const_iterator dIt, dEnd;
+    for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+      descriptor_t* desc = *dIt;
+      if (deletedDescs.find(desc) == deletedDescs.end()) {
+        // found an access descriptor to be freed
+        // now check if its map and sets still need be freed
+        map_t* map = desc->map;
+        desc->map = NULL;
+        if (map != DIRECT) {
+          if (deletedMaps.find(map) == deletedMaps.end()) {
+            // map still to be freed, so its sets might have to be freed as well
+            set_t* inSet = map->inSet;
+            set_t* outSet = map->outSet;
+            map->inSet = NULL;
+            map->outSet = NULL;
+            if (deletedSets.find(inSet) == deletedSets.end()) {
+              // set still to be freed
+              set_free (inSet);
+              deletedSets.insert (inSet);
+            }
+            if (deletedSets.find(outSet) == deletedSets.end()) {
+              // set still to be freed
+              set_free (outSet);
+              deletedSets.insert (outSet);
+            }
+            map_free (map);
+            deletedMaps.insert (map);
+          }
+        }
+        desc_free (desc);
+        deletedDescs.insert (desc);
+      }
+    }
+    // delete loops
+#ifndef VTKON
+    delete[] (*lIt)->tiling;
+    delete[] (*lIt)->coloring;
+#endif
+    delete *lIt;
+  }
 
   delete insp->loops;
-  map_free (insp->iter2tile);
-  map_free (insp->iter2color);
+
+  map_free (insp->iter2tile, true);
+  map_free (insp->iter2color, true);
   delete insp;
 }

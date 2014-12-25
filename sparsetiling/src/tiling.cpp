@@ -39,6 +39,9 @@ iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
 
 void iter2tc_free (iter2tc_t* iter2tc)
 {
+  if (! iter2tc) {
+    return;
+  }
   delete[] iter2tc->iter2tile;
   delete[] iter2tc->iter2color;
   delete iter2tc;
