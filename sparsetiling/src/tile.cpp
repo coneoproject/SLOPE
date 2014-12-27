@@ -12,6 +12,7 @@ tile_t* tile_init (int spannedLoops)
   for (int i = 0; i < spannedLoops; i++) {
     tile->iterations[i] = new iterations_list;
   }
+  tile->localMaps = new mapname_iterations*[spannedLoops];
   tile->spannedLoops = spannedLoops;
   tile->color = -1;
   return tile;
@@ -37,7 +38,14 @@ void tile_free (tile_t* tile)
 {
   for (int i = 0; i < tile->spannedLoops; i++) {
     delete tile->iterations[i];
+    mapname_iterations* localMap = tile->localMaps[i];
+    mapname_iterations::iterator it, end;
+    for (it = localMap->begin(), end = localMap->end(); it != end; it++) {
+      delete it->second;
+    }
+    delete localMap;
   }
   delete[] tile->iterations;
+  delete[] tile->localMaps;
   delete tile;
 }

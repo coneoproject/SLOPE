@@ -17,7 +17,7 @@
  */
 typedef struct {
   /* name/identifier of the parloop */
-  std::string loopName;
+  std::string name;
   /* size of the iteration set */
   set_t* set;
   /* list of maps used to execute the kernel in this loop */

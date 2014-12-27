@@ -8,9 +8,10 @@
 #include "map.h"
 #include "utils.h"
 
-map_t* map (set_t* inSet, set_t* outSet, int* indMap, int mapSize)
+map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int mapSize)
 {
   map_t* map = new map_t;
+  map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
@@ -19,9 +20,10 @@ map_t* map (set_t* inSet, set_t* outSet, int* indMap, int mapSize)
   return map;
 }
 
-map_t* imap (set_t* inSet, set_t* outSet, int* indMap, int* offsets)
+map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* indMap, int* offsets)
 {
   map_t* map = new map_t;
+  map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
@@ -81,5 +83,6 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
 
   if (maxIncidence)
     *maxIncidence = incidence;
-  return imap (set_cpy(x2y->inSet), set_cpy(x2y->outSet), y2xMap, y2xOffset);
+  return imap ("inverted" + x2y->name, set_cpy(x2y->inSet), set_cpy(x2y->outSet),
+               y2xMap, y2xOffset);
 }

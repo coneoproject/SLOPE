@@ -7,16 +7,22 @@
 #define _TILE_H_
 
 #include <vector>
+#include <unordered_map>
 
 #include "descriptor.h"
 
 typedef std::vector<int> iterations_list;
+typedef std::unordered_map<std::string, iterations_list*> mapname_iterations;
+typedef std::pair<std::string, iterations_list*> mi_pair;
 
 typedef struct {
   /* number of parloops spanned by the tile */
   int spannedLoops;
   /* list of iterations owned by the tile, for each parloop */
   iterations_list** iterations;
+  /* local indirection maps; there's one for each global (i.e., parloop's)
+   * indirection map */
+  mapname_iterations** localMaps;
   /* color of the tile */
   int color;
 } tile_t;

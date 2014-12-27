@@ -14,6 +14,8 @@
  * Represent a map between two sets
  */
 typedef struct {
+  /* name/identifier of the map */
+  std::string name;
   /* input iteration set */
   set_t* inSet;
   /* output iteration set */
@@ -37,14 +39,14 @@ typedef std::set<map_t*> map_list;
 /*
  * Initialize a map
  */
-map_t* map (set_t* inSet, set_t* outSet, int* indMap, int ariety);
+map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int ariety);
 
 /*
  * Initialize an irregular maps, in which each input entry is mapped to a
  * variable number of output entries. The offsets track the distance between
  * two different output entries in indMap.
  */
-map_t* imap (set_t* inSet, set_t* outSet, int* indMap, int* offsets);
+map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* indMap, int* offsets);
 
 /*
  * Destroy a map

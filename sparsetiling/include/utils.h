@@ -172,7 +172,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
   for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
     loop_t* loop = *it;
     int loopSetSize = loop->set->size;
-    std::string loopName = loop->loopName;
+    std::string loopName = loop->name;
     desc_list* descriptors = loop->descriptors;
 
     if (! loop->coloring) {

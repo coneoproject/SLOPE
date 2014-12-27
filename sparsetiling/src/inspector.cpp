@@ -33,13 +33,13 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
   return insp;
 }
 
-insp_info insp_add_parloop (inspector_t* insp, std::string loopName, set_t* set,
+insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
                             desc_list* descriptors)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
   loop_t* loop = new loop_t;
-  loop->loopName = loopName;
+  loop->name = name;
   loop->set = set;
   loop->descriptors = descriptors;
   loop->coloring = NULL;

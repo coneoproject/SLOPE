@@ -38,5 +38,5 @@ map_t* partition (loop_t* loop, int tileSize)
   }
   offsets[nTiles] = setSize;
 
-  return imap (set_cpy(loop->set), set("tiles", nTiles), indMap, offsets);
+  return imap ("iter2t", set_cpy(loop->set), set("tiles", nTiles), indMap, offsets);
 }
