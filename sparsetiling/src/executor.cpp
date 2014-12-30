@@ -35,6 +35,27 @@ executor_t* exec_init (inspector_t* insp)
   return exec;
 }
 
+int exec_num_colors (executor_t* exec)
+{
+  ASSERT(exec != NULL, "Invalid NULL pointer to executor");
+
+  return exec->color2tile->inSet->size;
+}
+
+int exec_tiles_per_color (executor_t* exec, int color)
+{
+  ASSERT ((color >= 0) && (color < exec_num_colors(exec)), "Invalid color provided");
+
+  int* offsets = exec->color2tile->offsets;
+  return offsets[color + 1] - offsets[color];
+}
+
+tile_t* exec_tile_at (executor_t* exec, int color, int ithTile)
+{
+  int tileID = exec->color2tile->indMap[exec->color2tile->offsets[color] + ithTile];
+  return exec->tiles->at (tileID);
+}
+
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
 {
   // aliases

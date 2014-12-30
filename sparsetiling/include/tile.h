@@ -20,8 +20,8 @@ typedef struct {
   int spannedLoops;
   /* list of iterations owned by the tile, for each parloop */
   iterations_list** iterations;
-  /* local indirection maps; there's one for each global (i.e., parloop's)
-   * indirection map */
+  /* local indirection maps; for each loop spanned, there's one local map for each
+   * global (i.e., parloop's) indirection map */
   mapname_iterations** localMaps;
   /* color of the tile */
   int color;

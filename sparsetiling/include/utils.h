@@ -150,6 +150,8 @@ inline double time_stamp()
 #ifndef VTK_DIR
 #define VTK_DIR "vtkfiles"
 #endif
+#define VTK_MESH2D 2
+#define VTK_MESH3D 3
 inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int meshDim)
 {
 #ifndef VTKON

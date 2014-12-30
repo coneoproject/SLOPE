@@ -55,17 +55,20 @@ sparsetiling: mklib
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/map.cpp -o $(OBJ)/map.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
-	ar -r $(LIB)/libst.a $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o $(OBJ)/tiling.o \
-		$(OBJ)/map.o $(OBJ)/executor.o
+	ar -r $(LIB)/libst.a $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
+		$(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o
 	ranlib $(LIB)/libst.a
 
 tests: mklib
 	@echo "Compiling the tests"
-	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 $(LIB)/libst.a $(CLOCK_LIB)
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 \
+		$(LIB)/libst.a $(CLOCK_LIB)
 
 demos: mklib
 	@echo "Compiling the demos"
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil.cpp -o $(ST_BIN)/airfoil/airfoil $(CLOCK_LIB)
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil_tiled.cpp -o $(ST_BIN)/airfoil/airfoil_tiled \
+		$(LIB)/libst.a $(CLOCK_LIB)
 
 clean:
 	-rm -if $(OBJ)/*.o

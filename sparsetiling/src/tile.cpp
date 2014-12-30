@@ -37,7 +37,9 @@ void tile_assign_loop (tile_list* tiles, int loopID, map_t* iter2tile)
 void tile_free (tile_t* tile)
 {
   for (int i = 0; i < tile->spannedLoops; i++) {
+    // delete loop's iterations belonging to tile
     delete tile->iterations[i];
+    // delete loop's local maps
     mapname_iterations* localMap = tile->localMaps[i];
     mapname_iterations::iterator it, end;
     for (it = localMap->begin(), end = localMap->end(); it != end; it++) {

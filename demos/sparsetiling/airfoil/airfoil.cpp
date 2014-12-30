@@ -66,14 +66,14 @@ double gam, gm1, cfl, eps, mach, alpha, qinf[4];
 
 int main(int argc, char **argv)
 {
-  int    *be2c, *e2c, *bound, *be2v, *e2v, *c2v;
+  int    *be2c, *e2c, *bound, *be2n, *e2n, *c2n;
   double  *x, *q, *qold, *adt, *res;
   int    nNodes, nCells, nEdges, nBedges;
 
   int nIters;
   double  rms;
 
-  airfoil_init(&be2c, &e2c, &bound, &be2v, &e2v, &c2v,
+  airfoil_init(&be2c, &e2c, &bound, &be2n, &e2n, &c2n,
                &x, &q, &qold, &adt, &res,
                &nNodes, &nCells, &nEdges, &nBedges,
                &nIters);
@@ -99,18 +99,18 @@ int main(int argc, char **argv)
       rms = 0.0;
 
       for(int i=0; i<nCells; i++) {
-        adt_calc(x + c2v[4*i + 0]*2,
-                 x + c2v[4*i + 1]*2,
-                 x + c2v[4*i + 2]*2,
-                 x + c2v[4*i + 3]*2,
+        adt_calc(x + c2n[4*i + 0]*2,
+                 x + c2n[4*i + 1]*2,
+                 x + c2n[4*i + 2]*2,
+                 x + c2n[4*i + 3]*2,
                  q + i*4,
                  adt + i);
       }
 
       // calculate flux residual
       for(int i=0; i<nEdges; i++) {
-        res_calc(x + e2v[2*i + 0]*2,
-                 x + e2v[2*i + 1]*2,
+        res_calc(x + e2n[2*i + 0]*2,
+                 x + e2n[2*i + 1]*2,
                  q + e2c[2*i + 0]*4,
                  q + e2c[2*i + 1]*4,
                  adt + e2c[2*i + 0],
@@ -120,8 +120,8 @@ int main(int argc, char **argv)
       }
 
       for(int i=0; i<nBedges; i++) {
-        bres_calc(x + be2v[2*i + 0]*2,
-                  x + be2v[2*i + 1]*2,
+        bres_calc(x + be2n[2*i + 0]*2,
+                  x + be2n[2*i + 1]*2,
                   q + be2c[i + 0]*4,
                   adt + be2c[i + 0],
                   res + be2c[i + 0]*4,
@@ -151,10 +151,10 @@ int main(int argc, char **argv)
   print_output("./output_plain.dat", q, 4, nCells);
 #endif
 
-  free(c2v);
-  free(e2v);
+  free(c2n);
+  free(e2n);
   free(e2c);
-  free(be2v);
+  free(be2n);
   free(be2c);
   free(bound);
   free(x);
