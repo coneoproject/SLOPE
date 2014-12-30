@@ -64,6 +64,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
   int* iter2tile = tilingInfo->iter2tile;
   int* iter2color = tilingInfo->iter2color;
 
+  bool directHandled = false;
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
     // aliases
@@ -72,10 +73,15 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
     iter2tc_t* projIter2tc;
     if (descMap == DIRECT) {
+      if (directHandled) {
+        // no need to handle direct descriptors more than once
+        continue;
+      }
       // direct set case: just replicate the current tiling
       // note that multiple DIRECT descriptors have no effect on the projection,
       // since a requirement for a projection is that its elements are unique
       projIter2tc = tilingInfo;
+      directHandled = true;
     }
     else {
       // indirect set case
