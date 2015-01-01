@@ -103,7 +103,7 @@ int main(int argc, char **argv)
   // sets
   set_t* nodes = set("nodes", nNodes);
   set_t* edges = set("edges", nEdges);
-  set_t* bedges = set("bedges", nBedges);
+  set_t* bedges = set("bedges", nBedges, true);
   set_t* cells = set("cells", nCells);
 
   // maps

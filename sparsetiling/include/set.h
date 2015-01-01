@@ -18,6 +18,8 @@ typedef struct {
   std::string setName;
   /* size of the set */
   int size;
+  /* subset flag */
+  bool isSubset;
 } set_t;
 
 typedef std::set<set_t*> set_list;
@@ -25,11 +27,12 @@ typedef std::set<set_t*> set_list;
 /*
  * Initialize a set
  */
-inline set_t* set (std::string setName, int size)
+inline set_t* set (std::string setName, int size, bool isSubset = false)
 {
   set_t* set =  new set_t;
   set->setName = setName;
   set->size = size;
+  set->isSubset = isSubset;
   return set;
 }
 

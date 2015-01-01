@@ -63,11 +63,12 @@ insp_info insp_run (inspector_t* insp, int seed)
   int avgTileSize = insp->avgTileSize;
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
-  loop_t* baseLoop = (*loops)[seed];
+  loop_t* baseLoop = loops->at(seed);
   std::string baseLoopSetName = baseLoop->set->setName;
   int baseLoopSetSize = baseLoop->set->size;
 
   ASSERT((seed >= 0) && (seed < nLoops), "Invalid tiling start point");
+  ASSERT(! baseLoop->set->isSubset, "Seed loop cannot be a subset");
 
   // partition the iteration set of the base loop and create empty tiles
   map_t* iter2tile = partition (baseLoop, avgTileSize);
