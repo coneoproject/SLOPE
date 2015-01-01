@@ -5,38 +5,29 @@
 
 #include "tile.h"
 
-tile_t* tile_init (int spannedLoops)
+tile_t* tile_init (int crossedLoops)
 {
   tile_t* tile = new tile_t;
-  tile->iterations = new iterations_list*[spannedLoops];
-  for (int i = 0; i < spannedLoops; i++) {
+  tile->iterations = new iterations_list*[crossedLoops];
+  for (int i = 0; i < crossedLoops; i++) {
     tile->iterations[i] = new iterations_list;
   }
-  tile->localMaps = new mapname_iterations*[spannedLoops];
-  tile->spannedLoops = spannedLoops;
+  tile->localMaps = new mapname_iterations*[crossedLoops];
+  tile->crossedLoops = crossedLoops;
   tile->color = -1;
   return tile;
 }
 
-static inline void tile_add_iteration (tile_t* tile, int loopID, int iteration)
+void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter2tileMap)
 {
-  tile->iterations[loopID]->push_back(iteration);
-}
-
-void tile_assign_loop (tile_list* tiles, int loopID, map_t* iter2tile)
-{
-  // aliases
-  int itSetSize = iter2tile->inSet->size;
-  int* iter2tileMap = iter2tile->indMap;
-
   for (int i = 0; i < itSetSize; i++) {
-    tile_add_iteration ((*tiles)[iter2tileMap[i]], loopID, i);
+    tiles->at(iter2tileMap[i])->iterations[loopIndex]->push_back(i);
   }
 }
 
 void tile_free (tile_t* tile)
 {
-  for (int i = 0; i < tile->spannedLoops; i++) {
+  for (int i = 0; i < tile->crossedLoops; i++) {
     // delete loop's iterations belonging to tile
     delete tile->iterations[i];
     // delete loop's local maps

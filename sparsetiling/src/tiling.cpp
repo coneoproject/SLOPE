@@ -95,6 +95,8 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
       int ariety = mapSize / tiledSetSize;
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
+      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
+                                  projIter2color);
       std::fill_n (projIter2tile, projSetSize, -1);
       std::fill_n (projIter2color, projSetSize, -1);
 
@@ -113,9 +115,6 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
           }
         }
       }
-
-      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
-                                  projIter2color);
     }
 
     // update projections:
@@ -132,7 +131,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
     }
     else {
       projection_t::iterator toFree = prevLoopProj->find (projIter2tc);
-      if (toFree != prevLoopProj-> end()) {
+      if (toFree != prevLoopProj->end()) {
         iter2tc_free (*toFree);
         prevLoopProj->erase (toFree);
       }
@@ -221,10 +220,11 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
         int iterColor = loopIter2color[i];
         for (int j = 0; j < ariety; j++) {
           int indIter = indMap[i*ariety + j];
+          int indTile = projIter2tile[indIter];
           int indColor = MAX(iterColor, projIter2color[indIter]);
-          if (indColor != loopIter2color[i]) {
+          if (iterColor != indColor) {
             // update color and tile of the loop being tiled
-            loopIter2tile[i] = iterTile;
+            loopIter2tile[i] = indTile;
             loopIter2color[i] = indColor;
           }
         }

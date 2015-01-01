@@ -110,12 +110,22 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
 /*
  * Tile a parloop when going forward along the loop chain.
+ *
+ * @param curLoop
+ *   the loop whose iterations will be colored and assigned a tile
+ * @param prevLoopProj
+ *   the projection of tiling up to curLoop
  */
 iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj);
 
 /*
  * Tile a parloop when going backward along the loop chain.
+ *
+ * @param curLoop
+ *   the loop whose iterations will be colored and assigned a tile
+ * @param prevLoopProj
+ *   the projection of tiling up to curLoop
  */
-void tile_backward ();
+iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj);
 
 #endif

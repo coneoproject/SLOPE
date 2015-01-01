@@ -61,6 +61,11 @@
       } \
     } while (false)
 
+#   define PRINT_VAR(var) \
+    do { \
+      std::cout << "`" #var "`:" << var << std::endl; \
+    } while (false)
+
 #else
 #   define ASSERT(condition, message) do { } while (false)
 #endif

@@ -186,13 +186,12 @@ int main(int argc, char **argv)
         for (int j = 0; j < nTilesPerColor; j++) {
           // execute the tile
           tile_t* tile = exec_tile_at (exec, i, j);
-          int tileLoopSize;
 
           // loop adt_calc (calculate area/timstep)
           mapname_iterations& localMaps = *(tile->localMaps[0]);
           iterations_list& lc2n = *(localMaps["c2n"]);
           iterations_list& iterations = *(tile->iterations[0]);
-          tileLoopSize = iterations.size();
+          int tileLoopSize = iterations.size();
           for (int k = 0; k < tileLoopSize; k++) {
             adt_calc (x + lc2n[k*4 + 0]*2,
                       x + lc2n[k*4 + 1]*2,
@@ -208,8 +207,7 @@ int main(int argc, char **argv)
           iterations_list& le2c = *(localMaps["e2c"]);
           iterations = *(tile->iterations[1]);
           tileLoopSize = iterations.size();
-          for (int k = 0; k < tileLoopSize; k++)
-          {
+          for (int k = 0; k < tileLoopSize; k++) {
             res_calc (x + le2n[k*2 + 0]*2,
                       x + le2n[k*2 + 1]*2,
                       q + le2c[k*2 + 0]*4,
@@ -226,25 +224,23 @@ int main(int argc, char **argv)
           iterations_list& lbe2c = *(localMaps["be2c"]);
           iterations = *(tile->iterations[2]);
           tileLoopSize = iterations.size();
-          for (int k = 0; k < tileLoopSize; k++)
-          {
+          for (int k = 0; k < tileLoopSize; k++) {
             bres_calc (x + lbe2n[k*2 + 0]*2,
                        x + lbe2n[k*2 + 1]*2,
-                       q     + lbe2c[k + 0]*4,
-                       adt   + lbe2c[k + 0]*1,
-                       res   + lbe2c[k + 0]*4,
+                       q + lbe2c[k + 0]*4,
+                       adt + lbe2c[k + 0]*1,
+                       res + lbe2c[k + 0]*4,
                        bound + iterations[k]);
           }
 
           // loop update
           iterations = *(tile->iterations[3]);
           tileLoopSize = iterations.size();
-          for (int k = 0; k < tileLoopSize; k++)
-          {
-            update    (qold  + iterations[k]*4,
-                       q     + iterations[k]*4,
-                       res   + iterations[k]*4,
-                       adt   + iterations[k],
+          for (int k = 0; k < tileLoopSize; k++) {
+            update    (qold + iterations[k]*4,
+                       q + iterations[k]*4,
+                       res + iterations[k]*4,
+                       adt + iterations[k],
                        &rms);
           }
 
@@ -253,8 +249,7 @@ int main(int argc, char **argv)
           lc2n = *(localMaps["c2n"]);
           iterations = *(tile->iterations[4]);
           tileLoopSize = iterations.size();
-          for (int k = 0; k < tileLoopSize; k++)
-          {
+          for (int k = 0; k < tileLoopSize; k++) {
             adt_calc (x + lc2n[k*4 + 0]*2,
                       x + lc2n[k*4 + 1]*2,
                       x + lc2n[k*4 + 2]*2,
@@ -269,8 +264,7 @@ int main(int argc, char **argv)
           le2c = *(localMaps["e2c"]);
           iterations = *(tile->iterations[5]);
           tileLoopSize = iterations.size();
-          for (int k = 0; k < tileLoopSize; k++)
-          {
+          for (int k = 0; k < tileLoopSize; k++) {
             res_calc (x + le2n[k*2 + 0]*2,
                       x + le2n[k*2 + 1]*2,
                       q + le2c[k*2 + 0]*4,

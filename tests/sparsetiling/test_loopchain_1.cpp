@@ -56,7 +56,7 @@ int main ()
   const int seed = 0;
   insp_run (insp, seed);
 
-  insp_print (insp, LOW);
+  insp_print (insp, HIGH);
 
   // executor
   executor_t* exec = exec_init (insp);

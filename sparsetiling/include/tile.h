@@ -16,11 +16,11 @@ typedef std::unordered_map<std::string, iterations_list*> mapname_iterations;
 typedef std::pair<std::string, iterations_list*> mi_pair;
 
 typedef struct {
-  /* number of parloops spanned by the tile */
-  int spannedLoops;
+  /* number of parloops crossed by the tile */
+  int crossedLoops;
   /* list of iterations owned by the tile, for each parloop */
   iterations_list** iterations;
-  /* local indirection maps; for each loop spanned, there's one local map for each
+  /* local indirection maps; for each loop crossed, there's one local map for each
    * global (i.e., parloop's) indirection map */
   mapname_iterations** localMaps;
   /* color of the tile */
@@ -33,22 +33,24 @@ typedef std::vector<tile_t*> tile_list;
  * Initialize a tile
  *
  * input:
- * spannedLoops: number of loops the tile spans
+ * crossedLoops: number of loops the tile crosses
  */
-tile_t* tile_init (int spannedLoops);
+tile_t* tile_init (int crossedLoops);
 
 /*
- * Add iterations to one loop spanned by the tile
+ * Distribute the iteration set of a loop over a list of tiles according to what
+ * is defined in a map from iterations to tiles
  *
- * input:
- * tiles: the tiles the iterations are added to
- * loopID: identifier of the loop spanned by the tile for which iterations are added
- * iter2tile: map from iterations to tile identifiers
- *
- * output:
- * the tiles will contain the iterations they have to execute for the given loop
+ * @param tiles
+ *   the list of tiles the iterations are added to
+ * @param loopIndex
+ *   the index of a loop crossed by tile
+ * @param itSetSize
+ *   number of iterations to be assigned
+ * @param iter2tile
+ *   indirection array from iterations to tile identifiers
  */
-void tile_assign_loop (tile_list* tiles, int loopID, map_t* iter2tile);
+void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter2tileMap);
 
 /*
  * Free resources associated with the tile
