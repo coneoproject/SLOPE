@@ -99,8 +99,8 @@ insp_info insp_run (inspector_t* insp, int seed)
   // original values before the other tiling phase (e.g. backward)
   int* tmpIter2tileMap = new int[baseLoopSetSize];
   int* tmpIter2colorMap = new int[baseLoopSetSize];
-  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int));
-  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int));
+  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*baseLoopSetSize);
+  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*baseLoopSetSize);
 
   // tile the loop chain. First forward, then backward. The algorithm is as follows:
   // 1- start from the base loop, then go forward (backward)
