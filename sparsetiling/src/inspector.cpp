@@ -231,8 +231,8 @@ void insp_print (inspector_t* insp, insp_verbose level)
     else {
       cout << endl << "No forward tiling (seed loop is loop chain's top)" << endl;
     }
-    cout << endl << "Printing result of backward tiling..." << endl;
     if (0 <= seed - 1) {
+      cout << endl << "Printing result of backward tiling..." << endl;
       for (int i = seed - 1; i >= 0; i--) {
         cout << "  Loop " << i << " - " << loops->at(i)->name << endl;
         print_tiled_loop (tiles, i, verbosityTiles);
