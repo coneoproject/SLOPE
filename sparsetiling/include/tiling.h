@@ -17,7 +17,7 @@
  */
 typedef struct {
   /* set name identifier */
-  std::string setName;
+  std::string name;
   /* iteration set */
   int itSetSize;
   /* tiling of the iteration set */
@@ -32,7 +32,7 @@ typedef struct {
  */
 inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
 {
-  return a->setName < b->setName;
+  return a->name < b->name;
 }
 typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
 
@@ -42,7 +42,7 @@ typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> pr
  * Note: the caller loses ownership of iter2tile and iter2color after calling
  * this function. Access to these two maps becomes therefore undefined.
  */
-iter2tc_t* iter2tc_init (std::string setName, int itSetSize, int* iter2tile,
+iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
                          int* iter2color);
 
 /*

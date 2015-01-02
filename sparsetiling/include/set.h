@@ -15,7 +15,7 @@
  */
 typedef struct {
   /* identifier name of the set */
-  std::string setName;
+  std::string name;
   /* size of the set */
   int size;
   /* subset flag */
@@ -27,10 +27,10 @@ typedef std::set<set_t*> set_list;
 /*
  * Initialize a set
  */
-inline set_t* set (std::string setName, int size, bool isSubset = false)
+inline set_t* set (std::string name, int size, bool isSubset = false)
 {
   set_t* set =  new set_t;
-  set->setName = setName;
+  set->name = name;
   set->size = size;
   set->isSubset = isSubset;
   return set;
@@ -42,7 +42,7 @@ inline set_t* set (std::string setName, int size, bool isSubset = false)
 inline set_t* set_cpy (set_t* toCopy)
 {
   set_t* set =  new set_t;
-  set->setName = toCopy->setName;
+  set->name = toCopy->name;
   set->size = toCopy->size;
   return set;
 }
@@ -52,7 +52,7 @@ inline set_t* set_cpy (set_t* toCopy)
  */
 inline bool set_cmp(const set_t* a, const set_t* b)
 {
-  return a->setName < b->setName;
+  return a->name < b->name;
 }
 
 /*

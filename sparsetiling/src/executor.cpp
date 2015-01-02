@@ -4,6 +4,7 @@
  */
 
 #include "executor.h"
+#include "utils.h"
 
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 

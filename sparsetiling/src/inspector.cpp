@@ -64,7 +64,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
   loop_t* baseLoop = loops->at(seed);
-  std::string baseLoopSetName = baseLoop->set->setName;
+  std::string baseLoopSetName = baseLoop->set->name;
   int baseLoopSetSize = baseLoop->set->size;
 
   ASSERT((seed >= 0) && (seed < nLoops), "Invalid tiling start point");

@@ -9,12 +9,12 @@
 #include "tiling.h"
 #include "utils.h"
 
-iter2tc_t* iter2tc_init (std::string setName, int itSetSize, int* iter2tile,
+iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
                          int* iter2color)
 {
   iter2tc_t* iter2tc = new iter2tc_t;
 
-  iter2tc->setName = setName;
+  iter2tc->name = name;
   iter2tc->itSetSize = itSetSize;
   iter2tc->iter2tile = iter2tile;
   iter2tc->iter2color = iter2color;
@@ -26,7 +26,7 @@ iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
 {
   iter2tc_t* iter2tc = new iter2tc_t;
 
-  iter2tc->setName = toCopy->setName;
+  iter2tc->name = toCopy->name;
   iter2tc->itSetSize = toCopy->itSetSize;
   iter2tc->iter2tile = new int[toCopy->itSetSize];
   iter2tc->iter2color = new int[toCopy->itSetSize];
@@ -88,7 +88,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
       // aliases
       int tiledSetSize = descMap->inSet->size;
       int projSetSize = descMap->outSet->size;
-      std::string projSetName = descMap->outSet->setName;
+      std::string projSetName = descMap->outSet->name;
       int mapSize = descMap->mapSize;
       int* indMap = descMap->indMap;
 
@@ -165,7 +165,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   // aliases
   set_t* toTile = curLoop->set;
   int toTileSetSize = toTile->size;
-  std::string toTileSetName = toTile->setName;
+  std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
   iter2tc_t *loopIter2tc;
 
@@ -187,7 +187,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
     map_t* descMap = (*it)->map;
     am_t descMode = (*it)->mode;
     set_t* touchedSet = (descMap == DIRECT) ? toTile : descMap->outSet;
-    std::string touchedSetName = touchedSet->setName;
+    std::string touchedSetName = touchedSet->name;
 
     if (checkedSets.find(touchedSet) != checkedSets.end()) {
       // set already used for computing a tiling of curLoop (e.g. it was found

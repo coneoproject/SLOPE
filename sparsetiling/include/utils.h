@@ -56,9 +56,21 @@
       std::cout << "  Sets touched in previous tiled loop:" << std::endl; \
       projection_t::const_iterator it, end; \
       for (it = _projection->begin(), end = _projection->end(); it != end; it++) { \
-        std::cout << "    " << (*it)->setName \
+        std::cout << "    " << (*it)->name \
                   << ", size: " << (*it)->itSetSize << std::endl; \
       } \
+    } while (false)
+
+#   define PRINT_MAP(mapping) \
+    do { \
+      std::cout << "Map `" #mapping "`:" << std::endl \
+                << "name: " << mapping->name << std::endl \
+                << "size: " << mapping->mapSize << std::endl \
+                << "  inSet: " << mapping->inSet->name \
+                << ", size: " << mapping->inSet->size << std::endl \
+                << "  outSet: " << mapping->outSet->name \
+                << ", size: " << mapping->outSet->size \
+                << std::endl; \
     } while (false)
 
 #   define PRINT_VAR(var) \
@@ -167,7 +179,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
   // aliases
   loop_list* loops = insp->loops;
   int nNodes = nodes->size;
-  std::string nodesSetName = nodes->setName;
+  std::string nodesSetName = nodes->name;
 
   // create directory in which VTK files will be stored, if not exists
   struct stat st = {0};
@@ -226,7 +238,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
     bool found = false;
     for (descIt = descriptors->begin(), descEnd = descriptors->end(); it != end; it++) {
       map_t* map = (*descIt)->map;
-      if (map->outSet->setName == nodesSetName) {
+      if (map->outSet->name == nodesSetName) {
         int ariety = map->mapSize / loopSetSize;
         std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
         stream << shape << loopSetSize << " " << loopSetSize*(ariety + 1) << std::endl;

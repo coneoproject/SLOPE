@@ -111,7 +111,7 @@ int main(int argc, char **argv)
   map_t* e2nMap = map("e2n", edges, nodes, e2n, nEdges*2);
   map_t* e2cMap = map("e2c", edges, cells, e2c, nEdges*2);
   map_t* be2nMap = map("be2n", bedges, nodes, be2n, nBedges*2);
-  map_t* be2cMap = map("be2c", bedges, cells, be2n, nBedges*1);
+  map_t* be2cMap = map("be2c", bedges, cells, be2c, nBedges*1);
 
   // descriptors
   desc_list adtCalcDesc ({desc(c2nMap, READ),
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
                           desc(e2cMap, READ),
                           desc(e2cMap, INC)});
   desc_list bresCalcDesc ({desc(be2nMap, READ),
-                           desc(be2cMap, INC),
+                           desc(be2cMap, READ),
                            desc(be2cMap, INC)});
   desc_list updateDesc ({desc(DIRECT, READ),
                          desc(DIRECT, WRITE)});
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
     // predictor/corrector update loop
 
     // notice k<1 instead of <2 due to unrolling
-    for(int k=0; k<1; k++) {
+    for(int k = 0; k < 1; k++) {
 
       rms = 0.0;
 
