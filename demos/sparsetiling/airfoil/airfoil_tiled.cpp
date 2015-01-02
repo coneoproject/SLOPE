@@ -186,93 +186,89 @@ int main(int argc, char **argv)
         for (int j = 0; j < nTilesPerColor; j++) {
           // execute the tile
           tile_t* tile = exec_tile_at (exec, i, j);
+          int tileLoopSize;
 
           // loop adt_calc (calculate area/timstep)
-          mapname_iterations& localMaps = *(tile->localMaps[0]);
-          iterations_list& lc2n = *(localMaps["c2n"]);
-          iterations_list& iterations = *(tile->iterations[0]);
-          int tileLoopSize = iterations.size();
+          iterations_list& lc2n_0 = tile_get_local_map (tile, 0, "c2n");
+          iterations_list& iterations_0 = tile_get_iterations (tile, 0);
+          tileLoopSize = iterations_0.size();
           for (int k = 0; k < tileLoopSize; k++) {
-            adt_calc (x + lc2n[k*4 + 0]*2,
-                      x + lc2n[k*4 + 1]*2,
-                      x + lc2n[k*4 + 2]*2,
-                      x + lc2n[k*4 + 3]*2,
-                      q + iterations[k]*4,
-                      adt + iterations[k]);
+            adt_calc (x + lc2n_0[k*4 + 0]*2,
+                      x + lc2n_0[k*4 + 1]*2,
+                      x + lc2n_0[k*4 + 2]*2,
+                      x + lc2n_0[k*4 + 3]*2,
+                      q + iterations_0[k]*4,
+                      adt + iterations_0[k]);
           }
 
           // loop res_calc
-          localMaps = *(tile->localMaps[1]);
-          iterations_list& le2n = *(localMaps["e2n"]);
-          iterations_list& le2c = *(localMaps["e2c"]);
-          iterations = *(tile->iterations[1]);
-          tileLoopSize = iterations.size();
+          iterations_list& le2n_1 = tile_get_local_map (tile, 1, "e2n");
+          iterations_list& le2c_1 = tile_get_local_map (tile, 1, "e2c");
+          iterations_list& iterations_1 = tile_get_iterations (tile, 1);
+          tileLoopSize = iterations_1.size();
           for (int k = 0; k < tileLoopSize; k++) {
-            res_calc (x + le2n[k*2 + 0]*2,
-                      x + le2n[k*2 + 1]*2,
-                      q + le2c[k*2 + 0]*4,
-                      q + le2c[k*2 + 1]*4,
-                      adt + le2c[k*2 + 0]*1,
-                      adt + le2c[k*2 + 1]*1,
-                      res + le2c[k*2 + 0]*4,
-                      res + le2c[k*2 + 1]*4);
+            res_calc (x + le2n_1[k*2 + 0]*2,
+                      x + le2n_1[k*2 + 1]*2,
+                      q + le2c_1[k*2 + 0]*4,
+                      q + le2c_1[k*2 + 1]*4,
+                      adt + le2c_1[k*2 + 0]*1,
+                      adt + le2c_1[k*2 + 1]*1,
+                      res + le2c_1[k*2 + 0]*4,
+                      res + le2c_1[k*2 + 1]*4);
           }
 
           // loop bres_calc
-          localMaps = *(tile->localMaps[2]);
-          iterations_list& lbe2n = *(localMaps["be2n"]);
-          iterations_list& lbe2c = *(localMaps["be2c"]);
-          iterations = *(tile->iterations[2]);
-          tileLoopSize = iterations.size();
+          iterations_list& lbe2n_2 = tile_get_local_map (tile, 2, "be2n");
+          iterations_list& lbe2c_2 = tile_get_local_map (tile, 2, "be2c");
+          iterations_list& iterations_2 = tile_get_iterations (tile, 2);
+          tileLoopSize = iterations_2.size();
           for (int k = 0; k < tileLoopSize; k++) {
-            bres_calc (x + lbe2n[k*2 + 0]*2,
-                       x + lbe2n[k*2 + 1]*2,
-                       q + lbe2c[k + 0]*4,
-                       adt + lbe2c[k + 0]*1,
-                       res + lbe2c[k + 0]*4,
-                       bound + iterations[k]);
+            bres_calc (x + lbe2n_2[k*2 + 0]*2,
+                       x + lbe2n_2[k*2 + 1]*2,
+                       q + lbe2c_2[k + 0]*4,
+                       adt + lbe2c_2[k + 0]*1,
+                       res + lbe2c_2[k + 0]*4,
+                       bound + iterations_2[k]);
           }
 
           // loop update
-          iterations = *(tile->iterations[3]);
-          tileLoopSize = iterations.size();
+          iterations_list& iterations_3 = tile_get_iterations (tile, 3);
+          tileLoopSize = iterations_3.size();
           for (int k = 0; k < tileLoopSize; k++) {
-            update    (qold + iterations[k]*4,
-                       q + iterations[k]*4,
-                       res + iterations[k]*4,
-                       adt + iterations[k],
+            update    (qold + iterations_3[k]*4,
+                       q + iterations_3[k]*4,
+                       res + iterations_3[k]*4,
+                       adt + iterations_3[k],
                        &rms);
           }
 
           // loop adt_calc (k = 2)
-          localMaps = *(tile->localMaps[4]);
-          lc2n = *(localMaps["c2n"]);
-          iterations = *(tile->iterations[4]);
-          tileLoopSize = iterations.size();
+          iterations_list& lc2n_4 = tile_get_local_map (tile, 4, "c2n");
+          iterations_list& iterations_4 = tile_get_iterations (tile, 4);
+          tileLoopSize = iterations_4.size();
           for (int k = 0; k < tileLoopSize; k++) {
-            adt_calc (x + lc2n[k*4 + 0]*2,
-                      x + lc2n[k*4 + 1]*2,
-                      x + lc2n[k*4 + 2]*2,
-                      x + lc2n[k*4 + 3]*2,
-                      q + iterations[k]*4,
-                      adt + iterations[k]);
+            adt_calc (x + lc2n_4[k*4 + 0]*2,
+                      x + lc2n_4[k*4 + 1]*2,
+                      x + lc2n_4[k*4 + 2]*2,
+                      x + lc2n_4[k*4 + 3]*2,
+                      q + iterations_4[k]*4,
+                      adt + iterations_4[k]);
           }
 
           // loop res_calc (k = 2)
-          localMaps = *(tile->localMaps[5]);
-          le2n = *(localMaps["e2n"]);
-          le2c = *(localMaps["e2c"]);
-          iterations = *(tile->iterations[5]);
-          tileLoopSize = iterations.size();
+          iterations_list& le2n_5 = tile_get_local_map (tile, 5, "e2n");
+          iterations_list& le2c_5 = tile_get_local_map (tile, 5, "e2c");
+          iterations_list& iterations_5 = tile_get_iterations (tile, 5);
+          tileLoopSize = iterations_5.size();
           for (int k = 0; k < tileLoopSize; k++) {
-            res_calc (x + le2n[k*2 + 0]*2,
-                      x + le2n[k*2 + 1]*2,
-                      q + le2c[k*2 + 0]*4,
-                      q + le2c[k*2 + 1]*4,
-                      adt + le2c[k*2 + 0]*1,
-                      adt + le2c[k*2 + 1]*1,
-                      res + le2c[k*2 + 0]*4,
-                      res + le2c[k*2 + 1]*4);
+            res_calc (x + le2n_5[k*2 + 0]*2,
+                      x + le2n_5[k*2 + 1]*2,
+                      q + le2c_5[k*2 + 0]*4,
+                      q + le2c_5[k*2 + 1]*4,
+                      adt + le2c_5[k*2 + 0]*1,
+                      adt + le2c_5[k*2 + 1]*1,
+                      res + le2c_5[k*2 + 0]*4,
+                      res + le2c_5[k*2 + 1]*4);
           }
 
         }

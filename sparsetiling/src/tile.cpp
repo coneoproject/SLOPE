@@ -4,6 +4,7 @@
  */
 
 #include "tile.h"
+#include "utils.h"
 
 tile_t* tile_init (int crossedLoops)
 {
@@ -23,6 +24,18 @@ void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter
   for (int i = 0; i < itSetSize; i++) {
     tiles->at(iter2tileMap[i])->iterations[loopIndex]->push_back(i);
   }
+}
+
+iterations_list& tile_get_local_map (tile_t* tile, int loopIndex, std::string mapName)
+{
+  ASSERT((loopIndex >= 0) && (loopIndex < tile->crossedLoops),
+         "Invalid loop index while retrieving a local map");
+  return *(tile->localMaps[loopIndex]->find(mapName)->second);
+}
+
+iterations_list& tile_get_iterations (tile_t* tile, int loopIndex)
+{
+  return *(tile->iterations[loopIndex]);
 }
 
 void tile_free (tile_t* tile)

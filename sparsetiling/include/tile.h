@@ -32,8 +32,8 @@ typedef std::vector<tile_t*> tile_list;
 /*
  * Initialize a tile
  *
- * input:
- * crossedLoops: number of loops the tile crosses
+ * @param crossedLoops
+ *   number of loops the tile crosses
  */
 tile_t* tile_init (int crossedLoops);
 
@@ -51,6 +51,32 @@ tile_t* tile_init (int crossedLoops);
  *   indirection array from iterations to tile identifiers
  */
 void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter2tileMap);
+
+/*
+ * Retrieve a local map of a tile given a loop index and a map name
+ *
+ * @param tile
+ *   the tile for which the map is retrieved
+ * @param loopIndex
+ *   the index of a loop crossed by tile
+ * @param mapName
+ *   name of the map to be retrieved
+ * @return
+ *   a reference to a local map of name mapName
+ */
+iterations_list& tile_get_local_map (tile_t* tile, int loopIndex, std::string mapName);
+
+/*
+ * Retrieve the iterations list of a tile for a given loop index
+ *
+ * @param tile
+ *   the tile for which a list of iterations is retrieved
+ * @param loopIndex
+ *   the index of a loop crossed by tile the iterations belong to
+ * @return
+ *   a reference to an iterations list
+ */
+iterations_list& tile_get_iterations (tile_t* tile, int loopIndex);
 
 /*
  * Free resources associated with the tile
