@@ -159,7 +159,7 @@ insp_info insp_run (inspector_t* insp, int seed)
 
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
 
-void insp_print (inspector_t* insp, insp_verbose level)
+void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
@@ -179,11 +179,11 @@ void insp_print (inspector_t* insp, insp_verbose level)
   switch (level) {
     case LOW:
       verbosityItSet = MIN(LOW, itSetSize);
-      verbosityTiles = MIN(LOW / 3, avgTileSize / 2);
+      verbosityTiles = (loopIndex == -1) ? MIN(LOW / 3, avgTileSize / 2) : INT_MAX;
       break;
     case MEDIUM:
       verbosityItSet = MIN(MEDIUM, itSetSize);
-      verbosityTiles = avgTileSize;
+      verbosityTiles = (loopIndex == -1) ? avgTileSize : INT_MAX;
       break;
     case HIGH:
       verbosityItSet = itSetSize;
@@ -219,25 +219,33 @@ void insp_print (inspector_t* insp, insp_verbose level)
   }
 
   if (tiles) {
-    cout << endl << "Printing tiles' base loop iterations" << endl;
-    print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
-    if (seed + 1 < nLoops) {
-      cout << endl << "Printing result of forward tiling..." << endl;
-      for (int i = seed + 1; i < nLoops; i++) {
-        print_tiled_loop (tiles, loops->at(i), verbosityTiles);
+    if (loopIndex == -1) {
+      cout << endl << "Printing tiles' base loop iterations" << endl;
+      print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
+      if (seed + 1 < nLoops) {
+        cout << endl << "Printing result of forward tiling..." << endl;
+        for (int i = seed + 1; i < nLoops; i++) {
+          print_tiled_loop (tiles, loops->at(i), verbosityTiles);
+        }
+      }
+      else {
+        cout << endl << "No forward tiling (seed loop is loop chain's top)" << endl;
+      }
+      if (0 <= seed - 1) {
+        cout << endl << "Printing result of backward tiling..." << endl;
+        for (int i = seed - 1; i >= 0; i--) {
+          print_tiled_loop (tiles, loops->at(i), verbosityTiles);
+        }
+      }
+      else {
+        cout << endl << "No backward tiling (seed loop is loop chain's bottom)" << endl;
       }
     }
     else {
-      cout << endl << "No forward tiling (seed loop is loop chain's top)" << endl;
-    }
-    if (0 <= seed - 1) {
-      cout << endl << "Printing result of backward tiling..." << endl;
-      for (int i = seed - 1; i >= 0; i--) {
-        print_tiled_loop (tiles, loops->at(i), verbosityTiles);
-      }
-    }
-    else {
-      cout << endl << "No backward tiling (seed loop is loop chain's bottom)" << endl;
+      ASSERT((loopIndex >= 0) && (loopIndex < nLoops),
+             "Invalid loop index while printing inspector summary");
+      cout << "Printing result of tiling loop " << loops->at(loopIndex)->name << endl;
+      print_tiled_loop (tiles, loops->at(loopIndex), verbosityTiles);
     }
   }
 }

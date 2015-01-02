@@ -87,8 +87,10 @@ insp_info insp_run (inspector_t* insp, int seed);
  *   the inspector data structure
  * @param level
  *   level of verbosity (LOW, MEDIUM, HIGH)
+ * @param loopIndex
+ *   if different than -1, print information only for loop of index loopIndex
  */
-void insp_print (inspector_t* insp, insp_verbose level);
+void insp_print (inspector_t* insp, insp_verbose level, int loopIndex = -1);
 
 /*
  * Destroy an inspector
