@@ -141,6 +141,8 @@ int main(int argc, char **argv)
   double endInsp = time_stamp();
   printf("inspector run-time = %f\n", endInsp - startInsp);
 
+  insp_print (insp, LOW);
+
   //
   // plot tiled mesh, for each parallel loop in the loop chain
   //

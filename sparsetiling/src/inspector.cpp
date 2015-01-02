@@ -157,7 +157,7 @@ insp_info insp_run (inspector_t* insp, int seed)
   return INSP_OK;
 }
 
-static void print_tiled_loop (tile_list* tiles, int loopIndex, int verbosityTiles);
+static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
 
 void insp_print (inspector_t* insp, insp_verbose level)
 {
@@ -179,7 +179,7 @@ void insp_print (inspector_t* insp, insp_verbose level)
   switch (level) {
     case LOW:
       verbosityItSet = MIN(LOW, itSetSize);
-      verbosityTiles = avgTileSize / 2;
+      verbosityTiles = MIN(LOW / 3, avgTileSize / 2);
       break;
     case MEDIUM:
       verbosityItSet = MIN(MEDIUM, itSetSize);
@@ -220,12 +220,11 @@ void insp_print (inspector_t* insp, insp_verbose level)
 
   if (tiles) {
     cout << endl << "Printing tiles' base loop iterations" << endl;
-    print_tiled_loop (tiles, seed, verbosityTiles);
+    print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
     if (seed + 1 < nLoops) {
       cout << endl << "Printing result of forward tiling..." << endl;
       for (int i = seed + 1; i < nLoops; i++) {
-        cout << "  Loop " << i << " - " << loops->at(i)->name << endl;
-        print_tiled_loop (tiles, i, verbosityTiles);
+        print_tiled_loop (tiles, loops->at(i), verbosityTiles);
       }
     }
     else {
@@ -234,8 +233,7 @@ void insp_print (inspector_t* insp, insp_verbose level)
     if (0 <= seed - 1) {
       cout << endl << "Printing result of backward tiling..." << endl;
       for (int i = seed - 1; i >= 0; i--) {
-        cout << "  Loop " << i << " - " << loops->at(i)->name << endl;
-        print_tiled_loop (tiles, i, verbosityTiles);
+        print_tiled_loop (tiles, loops->at(i), verbosityTiles);
       }
     }
     else {
@@ -311,28 +309,43 @@ void insp_free (inspector_t* insp)
 
 /***** Static / utility functions *****/
 
-static void print_tiled_loop (tile_list* tiles, int loopIndex, int verbosityTiles)
+static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles)
 {
   // aliases
   int nTiles = tiles->size();
+  int totalIterationsAssigned = 0;
 
-  cout << "       Tile  |  Color  |    Iterations " << endl;
-  for (int i = 0; i < nTiles; i++) {
-    int tileSize = tiles->at(i)->iterations[loopIndex]->size();
+  cout << "  Loop " << loop->index << " - " << loop->name << endl;
+  cout << "       Tile  |  Color  |  tot : {Iterations} " << endl;
+
+  int tilesRange = MIN(nTiles, verbosityTiles);
+  for (int i = 0; i < tilesRange; i++) {
+    int tileSize = tiles->at(i)->iterations[loop->index]->size();
+    totalIterationsAssigned += tileSize;
     int range = MIN(tileSize, verbosityTiles);
-    cout << "         " << i << "   |    " << tiles->at(i)->color << "    |   {";
+    cout << "         " << i << "   |    " << tiles->at(i)->color << "    |   "
+         << tileSize << " : {";
     if (tileSize == 0) {
       cout << "No iterations}" << endl;
       continue;
     }
-    cout << tiles->at(i)->iterations[loopIndex]->at(0);
+    cout << tiles->at(i)->iterations[loop->index]->at(0);
     for (int j = 1; j < range; j++) {
-      cout << ", " << tiles->at(i)->iterations[loopIndex]->at(j);
+      cout << ", " << tiles->at(i)->iterations[loop->index]->at(j);
     }
     if (tileSize > verbosityTiles) {
-      int lastIterID = tiles->at(i)->iterations[loopIndex]->at(tileSize - 1);
+      int lastIterID = tiles->at(i)->iterations[loop->index]->at(tileSize - 1);
       cout << "..., " << lastIterID;
     }
     cout << "}" << endl;
   }
+  if (nTiles > tilesRange) {
+    for (int i = tilesRange; i < nTiles; i++) {
+      int tileSize = tiles->at(i)->iterations[loop->index]->size();
+      totalIterationsAssigned += tileSize;
+    }
+    cout << "         ..." << endl;
+  }
+  cout << "Summary: assigned " << totalIterationsAssigned << "/"
+       << loop->set->size << " iterations" << endl;
 }
