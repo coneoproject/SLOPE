@@ -96,7 +96,7 @@ int main(int argc, char **argv)
   const int seedTilePoint = nLoops / 2;
 
   printf("running inspector\n");
-  printf("average tile size: %d nodes\n", avgTileSize);
+  printf("average tile size: %d iterations\n", avgTileSize);
 
   double startInsp = time_stamp();
 
@@ -135,8 +135,7 @@ int main(int argc, char **argv)
   insp_add_parloop (insp, "adtCalc2", cells, &adtCalcDesc);
   insp_add_parloop (insp, "resCalc2", edges, &resCalcDesc);
 
-  const int seed = 0;
-  insp_run (insp, seed);
+  insp_run (insp, seedTilePoint);
 
   double endInsp = time_stamp();
   printf("inspector run-time = %f\n", endInsp - startInsp);

@@ -40,15 +40,6 @@ inline void airfoil_init (
                                     &(*c2v)[4*n+2], &(*c2v)[4*n+3]) != 4) {
       printf("error reading from new_grid.dat\n"); exit(-1);
     }
-    // Programmaticaly adjust mesh connectivity along the boundary
-    if ((*c2v)[4*n] >= 800 && (*c2v)[4*n] <= 1200)
-      (*c2v)[4*n] = 1200 - (*c2v)[4*n];
-    if ((*c2v)[4*n+1] >= 800 && (*c2v)[4*n+1] <= 1200)
-      (*c2v)[4*n+1] = 1200 - (*c2v)[4*n+1];
-    if ((*c2v)[4*n+2] >= 800 && (*c2v)[4*n+2] <= 1200)
-      (*c2v)[4*n+2] = 1200 - (*c2v)[4*n+2];
-    if ((*c2v)[4*n+3] >= 800 && (*c2v)[4*n+3] <= 1200)
-      (*c2v)[4*n+3] = 1200 - (*c2v)[4*n+3];
   }
 
   for (int n=0; n<(*nEdges); n++) {
@@ -56,11 +47,6 @@ inline void airfoil_init (
                                     &(*e2c)[2*n], &(*e2c)[2*n+1]) != 4) {
       printf("error reading from new_grid.dat\n"); exit(-1);
     }
-   // Programmaticaly adjust mesh connectivity along the boundary
-   if ((*e2v)[2*n] >= 800 && (*e2v)[2*n] <= 1200)
-     (*e2v)[2*n] = 1200 - (*e2v)[2*n];
-   if ((*e2v)[2*n+1] >= 800 && (*e2v)[2*n+1] <= 1200)
-     (*e2v)[2*n+1] = 1200 - (*e2v)[2*n+1];
   }
 
   for (int n=0; n<(*nBedges); n++) {
