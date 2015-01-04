@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <limits.h>
 
 #include "tiling.h"
 #include "utils.h"
@@ -120,8 +121,8 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
       // is used to replicate non-touched iterations' color and tile.
       if (tiledLoop->set->isSubset) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
-        ASSERT (oldProjIter2tc != prevLoopProj->end(), "Projecting from subset lacks \
-                                                        old projection");
+        ASSERT (oldProjIter2tc != prevLoopProj->end(),
+                "Projecting from subset lacks old projection");
         for (int i = 0; i < projSetSize; i++) {
           if (projIter2tile[i] == -1) {
             projIter2tile[i] = (*oldProjIter2tc)->iter2tile[i];
@@ -132,7 +133,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
     }
 
     // update projections:
-    // - baseParLoop is added a projection for a set X if X is not in baseParLoop
+    // - baseLoopProj is added a projection for a set X if X is not in baseLoopProj
     //   yet. This is becase baseParLoop will be used for backward tiling, in which
     //   the sets projections closest (in time) to the seed parloop need to be seen
     // - prevLoopProj is updated everytime a new projection is available; for this,
@@ -157,7 +158,88 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
                        projection_t* prevLoopProj)
 {
+  // aliases
+  desc_list* descriptors = tiledLoop->descriptors;
+  int* iter2tile = tilingInfo->iter2tile;
+  int* iter2color = tilingInfo->iter2color;
 
+  bool directHandled = false;
+  desc_list::const_iterator it, end;
+  for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
+    // aliases
+    map_t* descMap = (*it)->map;
+    am_t descMode = (*it)->mode;
+
+    iter2tc_t* projIter2tc;
+    if (descMap == DIRECT) {
+      if (directHandled) {
+        // no need to handle direct descriptors more than once
+        continue;
+      }
+      // direct set case: just replicate the current tiling
+      // note that multiple DIRECT descriptors have no effect on the projection,
+      // since a requirement for a projection is that its elements are unique
+      projIter2tc = tilingInfo;
+      directHandled = true;
+    }
+    else {
+      // indirect set case
+      // aliases
+      int tiledSetSize = descMap->inSet->size;
+      int projSetSize = descMap->outSet->size;
+      std::string projSetName = descMap->outSet->name;
+      int mapSize = descMap->mapSize;
+      int* indMap = descMap->indMap;
+
+      int ariety = mapSize / tiledSetSize;
+      int* projIter2tile = new int[projSetSize];
+      int* projIter2color = new int[projSetSize];
+      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
+                                  projIter2color);
+      std::fill_n (projIter2tile, projSetSize, INT_MAX);
+      std::fill_n (projIter2color, projSetSize, INT_MAX);
+
+      // iterate over the tiledLoop's iteration set, and use the map to access
+      // the touched iteration set's elements.
+      for (int i = 0; i < tiledSetSize; i++) {
+        int iterTile = iter2tile[i];
+        int iterColor = iter2color[i];
+        for (int j = 0; j < ariety; j++) {
+          int indIter = indMap[i*ariety + j];
+          int indColor = MIN(iterColor, projIter2color[indIter]);
+          if (indColor != projIter2color[indIter]) {
+            // update color and tile of the indirect touched iteration
+            projIter2tile[indIter] = iterTile;
+            projIter2color[indIter] = indColor;
+          }
+        }
+      }
+
+      // if projecting from a subset, an older projection must be present. This
+      // is used to replicate non-touched iterations' color and tile.
+      if (tiledLoop->set->isSubset) {
+        projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
+        ASSERT (oldProjIter2tc != prevLoopProj->end(),
+                "Projecting from subset lacks old projection");
+        for (int i = 0; i < projSetSize; i++) {
+          if (projIter2tile[i] == INT_MAX) {
+            projIter2tile[i] = (*oldProjIter2tc)->iter2tile[i];
+            projIter2color[i] = (*oldProjIter2tc)->iter2color[i];
+          }
+        }
+      }
+    }
+
+    // update projections:
+    // - prevLoopProj is updated everytime a new projection is available; for this,
+    //   any previous projections for a same set are deleted and memory is freed
+    projection_t::iterator toFree = prevLoopProj->find (projIter2tc);
+    if (toFree != prevLoopProj->end()) {
+      iter2tc_free (*toFree);
+      prevLoopProj->erase (toFree);
+    }
+    prevLoopProj->insert (projIter2tc);
+  }
 }
 
 iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
@@ -261,7 +343,103 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   return loopIter2tc;
 }
 
-void tile_backward ()
+iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
 {
+  // aliases
+  set_t* toTile = curLoop->set;
+  int toTileSetSize = toTile->size;
+  std::string toTileSetName = toTile->name;
+  desc_list* descriptors = curLoop->descriptors;
+  iter2tc_t *loopIter2tc;
 
+  // the following contains all projected iteration sets that have already been
+  // used to determine a tiling and a coloring for curLoop
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
+
+  // allocate and initialize space to keep tiling and coloring results
+  int* loopIter2tile = new int[toTileSetSize];
+  int* loopIter2color = new int[toTileSetSize];
+  std::fill_n (loopIter2tile, toTileSetSize, INT_MAX);
+  std::fill_n (loopIter2color, toTileSetSize, INT_MAX);
+  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile,
+                              loopIter2color);
+
+  desc_list::const_iterator it, end;
+  for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
+    // aliases
+    map_t* descMap = (*it)->map;
+    am_t descMode = (*it)->mode;
+    set_t* touchedSet = (descMap == DIRECT) ? toTile : descMap->outSet;
+    std::string touchedSetName = touchedSet->name;
+
+    if (checkedSets.find(touchedSet) != checkedSets.end()) {
+      // set already used for computing a tiling of curLoop (e.g. it was found
+      // in a previous descriptor), so skip recomputing same information
+      continue;
+    }
+
+    // retrieve projected iteration-set to tile-color info
+    // if no projection is present, just go on to the next descriptor because it
+    // means that the touched set, regardless of whether it is touched directly
+    // or indirectly, does not introduce any dependency with the loop being tiled
+    iter2tc_t projIter2tc = {touchedSetName};
+    projection_t::iterator iprojIter2tc = prevLoopProj->find (&projIter2tc);
+    if (iprojIter2tc == prevLoopProj->end()) {
+      continue;
+    }
+    int* projIter2tile = (*iprojIter2tc)->iter2tile;
+    int* projIter2color = (*iprojIter2tc)->iter2color;
+
+    if (touchedSet == toTile) {
+      // direct set case
+      for (int i = 0; i < toTileSetSize; i++) {
+        int iterTile = projIter2tile[i];
+        int iterColor = MIN(projIter2color[i], loopIter2color[i]);
+        if (iterColor != loopIter2color[i]) {
+          loopIter2tile[i] = iterTile;
+          loopIter2color[i] = iterColor;
+        }
+      }
+    }
+    else {
+      // indirect set case
+      // aliases
+      int touchedSetSize = touchedSet->size;
+      int mapSize = descMap->mapSize;
+      int* indMap = descMap->indMap;
+
+      int ariety = mapSize / toTileSetSize;
+
+      // iterate over the being-tiled loop's iteration set, and use the map to
+      // access the touched iteration set's elements.
+      for (int i = 0; i < toTileSetSize; i++) {
+        int iterTile = loopIter2tile[i];
+        int iterColor = loopIter2color[i];
+        for (int j = 0; j < ariety; j++) {
+          int indIter = indMap[i*ariety + j];
+          int indTile = projIter2tile[indIter];
+          int indColor = MIN(iterColor, projIter2color[indIter]);
+          if (iterColor != indColor) {
+            // update color and tile of the loop being tiled
+            loopIter2tile[i] = indTile;
+            loopIter2color[i] = indColor;
+          }
+        }
+      }
+    }
+
+    checkedSets.insert (touchedSet);
+  }
+
+  // if requested at compile time, the coloring and tiling of the parloop are
+  // explicitly tracked. These can be used for debugging or visualization purposes,
+  // for example for generating VTK files showing the colored parloop
+#ifndef VTKON
+  curLoop->tiling = new int[toTileSetSize];
+  curLoop->coloring = new int[toTileSetSize];
+  memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
+  memcpy (curLoop->coloring, loopIter2tc->iter2color, sizeof(int)*toTileSetSize);
+#endif
+
+  return loopIter2tc;
 }

@@ -137,22 +137,30 @@ insp_info insp_run (inspector_t* insp, int seed)
   // prepare for backward tiling
   iter2tc_free (prevTilingInfo);
   projection_free (prevLoopProj);
-  prevLoopProj = new projection_t (&iter2tc_cmp);
+  prevLoopProj = baseLoopProj;
   prevTiledLoop = baseLoop;
   prevTilingInfo = seedTilingInfo;
 
   // backward tiling
   for (int i = seed - 1; i >= 0; i--) {
+    loop_t* curLoop = loops->at(i);
+    iter2tc_t* curTilingInfo;
+
     // compute projection from i+1 for tiling loop i
+    project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj);
 
     // tile loop i as going backward
+    curTilingInfo = tile_backward (curLoop, prevLoopProj);
+    tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
 
+    // prepare for next iteration
+    prevTiledLoop = curLoop;
+    prevTilingInfo = curTilingInfo;
   }
 
   // free memory
   iter2tc_free (prevTilingInfo);
   projection_free (prevLoopProj);
-  projection_free (baseLoopProj);
 
   return INSP_OK;
 }

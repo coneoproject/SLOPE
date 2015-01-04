@@ -67,8 +67,8 @@ void projection_free (projection_t* projection);
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by the parloop, as tiling goes forward.
- * This produces the required information for calling tile_forward.
+ * touched (read, incremented, written) by a parloop i, as tiling goes forward.
+ * This produces the required information for calling tile_forward on a parloop i+1.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
@@ -91,8 +91,8 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by the parloop, as tiling goes backward.
- * This produces the required information for calling tile_backward.
+ * touched (read, incremented, written) by a parloop i, as tiling goes backward.
+ * This produces the required information for calling tile_backward on a parloop i-1.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
