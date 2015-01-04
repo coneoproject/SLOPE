@@ -14,7 +14,7 @@ map_t* partition (loop_t* loop, int tileSize)
   int* indMap = new int[setSize];
 
   int nParts = setSize / tileSize;
-  int reminderTileSize = setSize % nParts;
+  int reminderTileSize = setSize % tileSize;
   int nTiles = nParts + ((reminderTileSize > 0) ? 1 : 0);
 
   int tileID = -1;
