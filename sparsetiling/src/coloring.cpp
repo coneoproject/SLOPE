@@ -8,17 +8,20 @@
 #include "coloring.h"
 #include "utils.h"
 
-static int* color_apply (tile_list* tiles, map_t* iter2tile, int* colors)
+static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
 {
   // aliases
-  int itSetSize = iter2tile->inSet->size;
-  int nTiles = iter2tile->outSet->size;
-  int* offsets = iter2tile->offsets;
+  int itSetSize = tile2iter->outSet->size;
+  int nTiles = tile2iter->inSet->size;
 
   int* iter2color = new int[itSetSize];
 
   for (int i = 0; i < nTiles; i++ ) {
-    for (int j = offsets[i]; j < offsets[i + 1]; j++) {
+    // determine the tile's iteration space
+    int prevOffset = tile2iter->offsets[i];
+    int nextOffset = tile2iter->offsets[i + 1];
+
+    for (int j = prevOffset; j < nextOffset; j++) {
       iter2color[j] = colors[i];
     }
     tiles->at(i)->color = colors[i];
@@ -32,9 +35,6 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
   // aliases
   int nTiles = iter2tile->outSet->size;
 
-  int* offsets = new int[nTiles + 1];
-  memcpy (offsets, iter2tile->offsets, sizeof(int)*(nTiles + 1));
-
   // each tile is assigned a different color. This way, the tiling algorithm,
   // which is based on colors, works seamless regardless of whether the
   // execution strategy is seqeuntial or parallel (shared memory)
@@ -43,13 +43,15 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
     colors[i] = i;
   }
 
-  int* iter2color = color_apply(tiles, iter2tile, colors);
+  map_t* tile2iter = map_invert (iter2tile, NULL);
+  int* iter2color = color_apply(tiles, tile2iter, colors);
 
+  map_free (tile2iter, true);
   delete[] colors;
 
   // note we have as many colors as the number of tiles
-  return imap ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
-               iter2color, offsets);
+  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color,
+              iter2tile->inSet->size*1);
 }
 
 map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles)
@@ -126,14 +128,12 @@ map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles)
   }
 
   // create the iteration to colors map
-  int* iter2color = color_apply(tiles, iter2tile, colors);
-  int* offsets = new int[nTiles + 1];
-  memcpy (offsets, iter2tile->offsets, sizeof(int)*(nTiles + 1));
+  int* iter2color = color_apply(tiles, tile2iter, colors);
 
   delete[] work;
   delete[] colors;
-  map_free (tile2iter);
+  map_free (tile2iter, true);
 
-  return imap ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors),
-               iter2color, offsets);
+  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors), iter2color,
+              seedSetSize*1);
 }

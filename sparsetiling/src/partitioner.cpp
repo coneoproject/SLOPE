@@ -28,15 +28,5 @@ map_t* partition (loop_t* loop, int tileSize)
     indMap[i] = tileID;
   }
 
-  // compute offsets to create an irregular map since the last tile won't have
-  // same size as the other tiles if the iteration set size is not a multiple
-  // of the specified tile size
-  int* offsets = new int[nTiles + 1];
-  offsets[0] = 0;
-  for (i = 1; i < nTiles; i++) {
-    offsets[i] = tileSize + offsets[i - 1];
-  }
-  offsets[nTiles] = setSize;
-
-  return imap ("i2t", set_cpy(loop->set), set("tiles", nTiles), indMap, offsets);
+  return map ("i2t", set_cpy(loop->set), set("tiles", nTiles), indMap, setSize*1);
 }

@@ -27,7 +27,7 @@ map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* indMap, int* of
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
-  map->mapSize = offsets[outSet->size];
+  map->mapSize = offsets[inSet->size];
   map->offsets = offsets;
   return map;
 }
@@ -83,6 +83,6 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
 
   if (maxIncidence)
     *maxIncidence = incidence;
-  return imap ("inverted" + x2y->name, set_cpy(x2y->inSet), set_cpy(x2y->outSet),
+  return imap ("inverted_" + x2y->name, set_cpy(x2y->outSet), set_cpy(x2y->inSet),
                y2xMap, y2xOffset);
 }

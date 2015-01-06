@@ -22,9 +22,13 @@ typedef struct {
   set_t* outSet;
   /* indirect map from input to output iteration sets */
   int* indMap;
-  /* size of indMap (== offsets[outSet->size] if an irregular map) */
+  /* size of indMap (== offsets[inSet->size] if an irregular map) */
   int mapSize;
-  /* offsets in indMap (!= NULL only if an irregular map) */
+  /* offsets in indMap when two elements in the input iteration set can have
+   * a different number of output iteration set elements. For example, this is
+   * the case of a map from vertices to edges in an unstructured mesh. This value
+   * is different than NULL only if the map is irregular. The size of this array
+   * is inSet->size + 1.*/
   int* offsets;
 } map_t;
 
@@ -38,10 +42,10 @@ typedef std::set<map_t*> map_list;
 /*
  * Initialize a map
  */
-map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int ariety);
+map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int mapSize);
 
 /*
- * Initialize an irregular maps, in which each input entry is mapped to a
+ * Initialize an irregular map, in which input entries can be mapped to a
  * variable number of output entries. The offsets track the distance between
  * two different output entries in indMap.
  */
