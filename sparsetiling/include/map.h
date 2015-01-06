@@ -22,8 +22,7 @@ typedef struct {
   set_t* outSet;
   /* indirect map from input to output iteration sets */
   int* indMap;
-  /* size of indMap (== -1 if an irregular map, in which case the actual size
-   * is given by offsets[outSet->size]) */
+  /* size of indMap (== offsets[outSet->size] if an irregular map) */
   int mapSize;
   /* offsets in indMap (!= NULL only if an irregular map) */
   int* offsets;

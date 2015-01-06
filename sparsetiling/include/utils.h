@@ -64,11 +64,11 @@
 #   define PRINT_MAP(mapping) \
     do { \
       std::cout << "Map `" #mapping "`:" << std::endl \
-                << "name: " << mapping->name << std::endl \
-                << "size: " << mapping->mapSize << std::endl \
-                << "  inSet: " << mapping->inSet->name \
+                << "  name: " << mapping->name << std::endl \
+                << "  size: " << mapping->mapSize << std::endl \
+                << "    inSet: " << mapping->inSet->name \
                 << ", size: " << mapping->inSet->size << std::endl \
-                << "  outSet: " << mapping->outSet->name \
+                << "    outSet: " << mapping->outSet->name \
                 << ", size: " << mapping->outSet->size \
                 << std::endl; \
     } while (false)

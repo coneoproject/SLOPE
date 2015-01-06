@@ -70,15 +70,16 @@ insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
  *
  * @param insp
  *   the inspector data structure, already defined over a range of parloops
- * @param seed
- *   start point of the tiling (a number between 0 and the number of parloops
- *   spanned by the inspector)
+ * @param suggestedSeed
+ *   user-provided start point of the tiling (a number between 0 and the number of
+ *   parloops crossed by the inspector). The loop has to be an indirect one if the
+ *   inspector strategy targets shared memory parallelism
  * @return
  *   on return from the function, insp will contain a list of tiles, each tile
  *   characterized by a list of iterations that are supposed to be executed,
  *   for each crossed parloop
  */
-insp_info insp_run (inspector_t* insp, int seed);
+insp_info insp_run (inspector_t* insp, int suggestedSeed);
 
 /*
  * Print a summary of the inspector

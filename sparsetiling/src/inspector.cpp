@@ -46,32 +46,40 @@ insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
   loop->descriptors = descriptors;
   loop->coloring = NULL;
   loop->tiling = NULL;
+  loop->seedMap = NULL;
 
   insp->loops->push_back(loop);
 
   return INSP_OK;
 }
 
-insp_info insp_run (inspector_t* insp, int seed)
+bool select_seed_loop (loop_list* loops, int& suggestedSeed, insp_strategy strategy);
+
+insp_info insp_run (inspector_t* insp, int suggestedSeed)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
-
-  insp->seed = seed;
 
   // aliases
   insp_strategy strategy = insp->strategy;
   int avgTileSize = insp->avgTileSize;
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
-  loop_t* baseLoop = loops->at(seed);
-  std::string baseLoopSetName = baseLoop->set->name;
-  int baseLoopSetSize = baseLoop->set->size;
+
+  // establish seed loop
+  select_seed_loop (loops, suggestedSeed, strategy);
+  int seed = suggestedSeed;  // possibly modified in select_seed_loop
+  insp->seed = seed;
+
+  // aliases
+  loop_t* seedLoop = loops->at(seed);
+  std::string seedLoopSetName = seedLoop->set->name;
+  int seedLoopSetSize = seedLoop->set->size;
 
   ASSERT((seed >= 0) && (seed < nLoops), "Invalid tiling start point");
-  ASSERT(! baseLoop->set->isSubset, "Seed loop cannot be a subset");
+  ASSERT(! seedLoop->set->isSubset, "Seed loop cannot be a subset");
 
   // partition the iteration set of the base loop and create empty tiles
-  map_t* iter2tile = partition (baseLoop, avgTileSize);
+  map_t* iter2tile = partition (seedLoop, avgTileSize);
   int nTiles = iter2tile->outSet->size;
   tile_list* tiles = new tile_list (nTiles);
   for (int i = 0; i < nTiles; i++) {
@@ -86,7 +94,7 @@ insp_info insp_run (inspector_t* insp, int seed)
       iter2color = color_sequential (iter2tile, tiles);
       break;
     case OMP: case OMP_MPI:
-      iter2color = color_kdistance (loops, seed, iter2tile, tiles);
+      iter2color = color_shm (seedLoop, iter2tile, tiles);
       break;
   }
 
@@ -98,10 +106,10 @@ insp_info insp_run (inspector_t* insp, int seed)
   // create copies of initial tiling and coloring, cause they can be manipulated
   // during one phase of tiling (e.g. forward), so they need to be reset to their
   // original values before the other tiling phase (e.g. backward)
-  int* tmpIter2tileMap = new int[baseLoopSetSize];
-  int* tmpIter2colorMap = new int[baseLoopSetSize];
-  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*baseLoopSetSize);
-  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*baseLoopSetSize);
+  int* tmpIter2tileMap = new int[seedLoopSetSize];
+  int* tmpIter2colorMap = new int[seedLoopSetSize];
+  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
+  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*seedLoopSetSize);
 
   // tile the loop chain. First forward, then backward. The algorithm is as follows:
   // 1- start from the base loop, then go forward (backward)
@@ -110,10 +118,10 @@ insp_info insp_run (inspector_t* insp, int seed)
   // 4- go back to point 2, and repeat till there are loop along the direction
 
   // prepare for forward tiling
-  loop_t* prevTiledLoop = baseLoop;
-  projection_t* baseLoopProj = new projection_t (&iter2tc_cmp);
+  loop_t* prevTiledLoop = seedLoop;
+  projection_t* seedLoopProj = new projection_t (&iter2tc_cmp);
   projection_t* prevLoopProj = new projection_t (&iter2tc_cmp);
-  iter2tc_t* seedTilingInfo = iter2tc_init (baseLoopSetName, baseLoopSetSize,
+  iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
                                             tmpIter2tileMap, tmpIter2colorMap);
   iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
 
@@ -123,7 +131,7 @@ insp_info insp_run (inspector_t* insp, int seed)
     iter2tc_t* curTilingInfo;
 
     // compute projection from i-1 for tiling loop i
-    project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, baseLoopProj);
+    project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj);
 
     // tile loop i as going forward
     curTilingInfo = tile_forward (curLoop, prevLoopProj);
@@ -137,8 +145,8 @@ insp_info insp_run (inspector_t* insp, int seed)
   // prepare for backward tiling
   iter2tc_free (prevTilingInfo);
   projection_free (prevLoopProj);
-  prevLoopProj = baseLoopProj;
-  prevTiledLoop = baseLoop;
+  prevLoopProj = seedLoopProj;
+  prevTiledLoop = seedLoop;
   prevTilingInfo = seedTilingInfo;
 
   // backward tiling
@@ -163,6 +171,30 @@ insp_info insp_run (inspector_t* insp, int seed)
   projection_free (prevLoopProj);
 
   return INSP_OK;
+}
+
+bool select_seed_loop (loop_list* loops, int& suggestedSeed, insp_strategy strategy)
+{
+  if (! (strategy == OMP || strategy == OMP_MPI)) {
+    return true;
+  }
+
+  // tiling for shared memory parallelism:
+  // need to be sure the suggested seed loop is an indirect one. This is because
+  // an indirect map is required to reassign a same color to tiles that are not
+  // adjacent. If the suggested seed loop is a direct one (or it only has maps to
+  // subsets), then another loop is selected as seed.
+  if (! loop_load_full_map (loops->at(suggestedSeed))) {
+    int i = 0;
+    loop_list::const_iterator it, end;
+    for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+      if (loop_load_full_map (*it)) {
+        suggestedSeed = i;
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);

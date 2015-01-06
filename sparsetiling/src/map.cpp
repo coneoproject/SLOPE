@@ -27,7 +27,7 @@ map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* indMap, int* of
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
-  map->mapSize = -1;
+  map->mapSize = offsets[outSet->size];
   map->offsets = offsets;
   return map;
 }
