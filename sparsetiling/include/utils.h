@@ -169,7 +169,8 @@ inline double time_stamp()
 #endif
 #define VTK_MESH2D 2
 #define VTK_MESH3D 3
-inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int meshDim)
+inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
+                          int meshDim)
 {
 #ifndef VTKON
   std::cout << "To enable generation of VTK files, compile with -DVTKON" << std::endl;
@@ -197,10 +198,12 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
     if (! loop->coloring) {
       std::cout << "No coloring for loop `" << loopName
                 << "`, check output of inspector." << std::endl;
+      continue;
     }
+    std::cout << "Generating VTK file for loop `" << loopName << "`..." << std::flush;
 
     std::stringstream stream;
-    stream << VTK_DIR << "/loop" << i << "-" << loopName << ".vtk" << std::endl;
+    stream << VTK_DIR << "/loop" << i << "-" << loopName << ".vtk";
     std::ofstream vtkfile;
     vtkfile.open (stream.str());
     stream.str("");
@@ -208,12 +211,12 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
 
     // write header of the VTK file
     vtkfile << "# vtk DataFile Version 1.0" << std::endl;
-    vtkfile << "Coloring %s" << loopName << std::endl;
+    vtkfile << "Coloring " << loopName << std::endl;
     vtkfile << "ASCII" << std::endl << std::endl;
 
     // write coordinates of nodes
     vtkfile << "DATASET POLYDATA" << std::endl;
-    vtkfile << "POINTS" << nNodes << " float" << std::endl;
+    vtkfile << "POINTS " << nNodes << " float" << std::endl;
     for (int j = 0; j < nNodes; j++) {
       vtkfile << coordinates[j*meshDim] << " " << coordinates[j*meshDim + 1];
       switch (meshDim) {
@@ -234,11 +237,11 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
 
     // write iteration set map to nodes; if not available in the loop's descriptors,
     // just skip the file generation for the loop
-    desc_list::const_iterator descIt, descEnd;
+    desc_list::const_iterator dIt, dEnd;
     bool found = false;
-    for (descIt = descriptors->begin(), descEnd = descriptors->end(); it != end; it++) {
-      map_t* map = (*descIt)->map;
-      if (map->outSet->name == nodesSetName) {
+    for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+      map_t* map = (*dIt)->map;
+      if (map != DIRECT && map->outSet->name == nodesSetName) {
         int ariety = map->mapSize / loopSetSize;
         std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
         stream << shape << loopSetSize << " " << loopSetSize*(ariety + 1) << std::endl;
@@ -248,6 +251,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
           for (int l = 0; l < ariety; l++) {
             vtkfile << " " << map->indMap[k*ariety + l];
           }
+          vtkfile << std::endl;
         }
         found = true;
         break;
@@ -267,6 +271,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
       vtkfile << loop->coloring[k] << std::endl;
     }
 
+    std::cout << "Done!" << std::endl;
     vtkfile.close();
   }
 
