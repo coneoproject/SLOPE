@@ -3,43 +3,137 @@
  *
  */
 
-#include "coloring.h"
+#include <string.h>
 
-static int* color_apply (int itsetSize, int nTiles, int* colors, int* offsets)
+#include "coloring.h"
+#include "utils.h"
+
+static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
 {
-  int* iter2color = (int*) malloc (itsetSize*sizeof(int));
+  // aliases
+  int itSetSize = tile2iter->outSet->size;
+  int nTiles = tile2iter->inSet->size;
+
+  int* iter2color = new int[itSetSize];
 
   for (int i = 0; i < nTiles; i++ ) {
-    for (int j = offsets[i]; j < offsets[i + 1]; j++) {
+    // determine the tile's iteration space
+    int prevOffset = tile2iter->offsets[i];
+    int nextOffset = tile2iter->offsets[i + 1];
+
+    for (int j = prevOffset; j < nextOffset; j++) {
       iter2color[j] = colors[i];
     }
+    tiles->at(i)->color = colors[i];
   }
 
   return iter2color;
 }
 
-map_t* color_sequential (map_t* iter2tile)
+map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
 {
   // aliases
-  int itsetSize = iter2tile->inSet->size;
   int nTiles = iter2tile->outSet->size;
-  int* offsets = iter2tile->offsets;
 
   // each tile is assigned a different color. This way, the tiling algorithm,
   // which is based on colors, works seamless regardless of whether the
   // execution strategy is seqeuntial or parallel (shared memory)
-  int* colors = (int*) malloc (nTiles * sizeof(int));
-  for (int i = 0; i < nTiles; i++)
+  int* colors = new int[nTiles];
+  for (int i = 0; i < nTiles; i++) {
     colors[i] = i;
+  }
 
-  int* iter2color = color_apply(itsetSize, nTiles, colors, offsets);
+  map_t* tile2iter = map_invert (iter2tile, NULL);
+  int* iter2color = color_apply(tiles, tile2iter, colors);
+
+  map_free (tile2iter, true);
+  delete[] colors;
 
   // note we have as many colors as the number of tiles
-  set_t* colorSet = set ("colors", nTiles);
-  return imap (iter2tile->inSet, colorSet, iter2color, offsets);
+  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color,
+              iter2tile->inSet->size*1);
 }
 
-map_t* color_kdistance (loop_list* loops, int seed, map_t* iter2tile)
+map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles)
 {
-  return NULL;
+  // aliases
+  map_t* seedMap = loop->seedMap;
+  int nTiles = tiles->size();
+  int seedSetSize = seedMap->inSet->size;
+  int seedMapSize = seedMap->mapSize;
+  int* seedIndMap = seedMap->indMap;
+
+  ASSERT (seedMap, "Couldn't find a valid map for coloring a seed iteration space");
+
+  map_t* tile2iter = map_invert (iter2tile, NULL);
+  int seedMapAriety = seedMapSize / seedSetSize;
+
+  // init colors
+  int* colors = new int[nTiles];
+  std::fill_n (colors, nTiles, -1);
+
+  bool repeat = true;
+  int nColor = 0;
+  int nColors = 0;
+
+  // array to work out the colors
+  int* work = new int[seedMapSize];
+
+  // coloring algorithm
+  while (repeat)
+  {
+    repeat = false;
+
+    // zero out color array
+    std::fill_n (work, seedMapSize, 0);
+
+    // start coloring tiles
+    for (int i = 0; i < nTiles; i++)
+    {
+      // determine the tile's iteration space
+      int prevOffset = tile2iter->offsets[i];
+      int nextOffset = tile2iter->offsets[i + 1];
+
+      if (colors[i] == -1)
+      {
+        unsigned int mask = 0;
+        for (int e = prevOffset; e < nextOffset; e++) {
+          for (int j = 0; j < seedMapAriety; j++) {
+            // set bits of mask
+            mask |= work[seedIndMap[e*seedMapAriety + j]];
+          }
+        }
+
+        // find first bit not set
+        int color = ffs(~mask) - 1;
+        if (color == -1) {
+          // run out of colors on this pass
+          repeat = true;
+        }
+        else
+        {
+          colors[i] = nColor + color;
+          mask = 1 << color;
+          nColors = MAX(nColors, nColor + color + 1);
+          for (int e = prevOffset; e < nextOffset; e++) {
+            for (int j = 0; j < seedMapAriety; j++) {
+              work[seedIndMap[e*seedMapAriety + j]] |= mask;
+            }
+          }
+        }
+      }
+    }
+    // increment base level
+    nColor += 32;
+  }
+
+  // create the iteration to colors map
+  int* iter2color = color_apply(tiles, tile2iter, colors);
+
+  delete[] work;
+  delete[] colors;
+  map_free (tile2iter, true);
+
+  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors), iter2color,
+              seedSetSize*1);
 }

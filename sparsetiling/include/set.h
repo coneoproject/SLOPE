@@ -6,26 +6,44 @@
 #ifndef _SET_H_
 #define _SET_H_
 
-#include <string.h>
+#include <set>
+
+#include <string>
 
 /*
  * Represent a set
  */
 typedef struct {
   /* identifier name of the set */
-  char* setName;
+  std::string name;
   /* size of the set */
   int size;
+  /* subset flag */
+  bool isSubset;
 } set_t;
+
+typedef std::set<set_t*> set_list;
 
 /*
  * Initialize a set
  */
-inline set_t* set (char* setName, int size)
+inline set_t* set (std::string name, int size, bool isSubset = false)
 {
-  set_t* set = (set_t*) malloc (sizeof(set_t));
-  set->setName = setName;
+  set_t* set =  new set_t;
+  set->name = name;
   set->size = size;
+  set->isSubset = isSubset;
+  return set;
+}
+
+/*
+ * Copy a set
+ */
+inline set_t* set_cpy (set_t* toCopy)
+{
+  set_t* set =  new set_t;
+  set->name = toCopy->name;
+  set->size = toCopy->size;
   return set;
 }
 
@@ -34,7 +52,7 @@ inline set_t* set (char* setName, int size)
  */
 inline bool set_cmp(const set_t* a, const set_t* b)
 {
-  return strcmp(a->setName, b->setName) < 0;
+  return a->name < b->name;
 }
 
 /*
@@ -42,7 +60,10 @@ inline bool set_cmp(const set_t* a, const set_t* b)
  */
 inline void set_free (set_t* set)
 {
-  free(set);
+  if (! set) {
+    return;
+  }
+  delete set;
 }
 
 #endif

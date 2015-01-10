@@ -14,6 +14,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -51,9 +56,26 @@
       std::cout << "  Sets touched in previous tiled loop:" << std::endl; \
       projection_t::const_iterator it, end; \
       for (it = _projection->begin(), end = _projection->end(); it != end; it++) { \
-        std::cout << "    " << (*it)->setName \
+        std::cout << "    " << (*it)->name \
                   << ", size: " << (*it)->itSetSize << std::endl; \
       } \
+    } while (false)
+
+#   define PRINT_MAP(mapping) \
+    do { \
+      std::cout << "Map `" #mapping "`:" << std::endl \
+                << "  name: " << mapping->name << std::endl \
+                << "  size: " << mapping->mapSize << std::endl \
+                << "    inSet: " << mapping->inSet->name \
+                << ", size: " << mapping->inSet->size << std::endl \
+                << "    outSet: " << mapping->outSet->name \
+                << ", size: " << mapping->outSet->size \
+                << std::endl; \
+    } while (false)
+
+#   define PRINT_VAR(var) \
+    do { \
+      std::cout << "`" #var "`:" << var << std::endl; \
     } while (false)
 
 #else
@@ -66,7 +88,22 @@
 inline double time_stamp()
 {
   struct timespec tv;
+#ifdef __MACH__
+  /*
+   * OS X does not have clock_gettime, use clock_get_time
+   * This is taken from:
+   *   http://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x
+   */
+  clock_serv_t cclock;
+  mach_timespec_t mts;
+  host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+  clock_get_time(cclock, &mts);
+  mach_port_deallocate(mach_task_self(), cclock);
+  tv.tv_sec = mts.tv_sec;
+  tv.tv_nsec = mts.tv_nsec;
+#else
   clock_gettime(CLOCK_MONOTONIC, &tv);
+#endif
   return tv.tv_sec + (tv.tv_nsec) / (1000.0*1000.0*1000.0);
 }
 
@@ -130,7 +167,10 @@ inline double time_stamp()
 #ifndef VTK_DIR
 #define VTK_DIR "vtkfiles"
 #endif
-inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int meshDim)
+#define VTK_MESH2D 2
+#define VTK_MESH3D 3
+inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
+                          int meshDim)
 {
 #ifndef VTKON
   std::cout << "To enable generation of VTK files, compile with -DVTKON" << std::endl;
@@ -140,7 +180,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
   // aliases
   loop_list* loops = insp->loops;
   int nNodes = nodes->size;
-  char* nodesSetName = nodes->setName;
+  std::string nodesSetName = nodes->name;
 
   // create directory in which VTK files will be stored, if not exists
   struct stat st = {0};
@@ -152,16 +192,18 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
   for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
     loop_t* loop = *it;
     int loopSetSize = loop->set->size;
-    char* loopName = loop->loopName;
+    std::string loopName = loop->name;
     desc_list* descriptors = loop->descriptors;
 
     if (! loop->coloring) {
       std::cout << "No coloring for loop `" << loopName
                 << "`, check output of inspector." << std::endl;
+      continue;
     }
+    std::cout << "Generating VTK file for loop `" << loopName << "`..." << std::flush;
 
     std::stringstream stream;
-    stream << VTK_DIR << "/loop" << i << "-" << loopName << ".vtk" << std::endl;
+    stream << VTK_DIR << "/loop" << i << "-" << loopName << ".vtk";
     std::ofstream vtkfile;
     vtkfile.open (stream.str());
     stream.str("");
@@ -169,12 +211,12 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
 
     // write header of the VTK file
     vtkfile << "# vtk DataFile Version 1.0" << std::endl;
-    vtkfile << "Coloring %s" << loopName << std::endl;
+    vtkfile << "Coloring " << loopName << std::endl;
     vtkfile << "ASCII" << std::endl << std::endl;
 
     // write coordinates of nodes
     vtkfile << "DATASET POLYDATA" << std::endl;
-    vtkfile << "POINTS" << nNodes << " float" << std::endl;
+    vtkfile << "POINTS " << nNodes << " float" << std::endl;
     for (int j = 0; j < nNodes; j++) {
       vtkfile << coordinates[j*meshDim] << " " << coordinates[j*meshDim + 1];
       switch (meshDim) {
@@ -195,11 +237,11 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
 
     // write iteration set map to nodes; if not available in the loop's descriptors,
     // just skip the file generation for the loop
-    desc_list::const_iterator descIt, descEnd;
+    desc_list::const_iterator dIt, dEnd;
     bool found = false;
-    for (descIt = descriptors->begin(), descEnd = descriptors->end(); it != end; it++) {
-      map_t* map = (*descIt)->map;
-      if (! strcmp (map->outSet->setName, nodesSetName)) {
+    for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+      map_t* map = (*dIt)->map;
+      if (map != DIRECT && map->outSet->name == nodesSetName) {
         int ariety = map->mapSize / loopSetSize;
         std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
         stream << shape << loopSetSize << " " << loopSetSize*(ariety + 1) << std::endl;
@@ -209,6 +251,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
           for (int l = 0; l < ariety; l++) {
             vtkfile << " " << map->indMap[k*ariety + l];
           }
+          vtkfile << std::endl;
         }
         found = true;
         break;
@@ -228,6 +271,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, int* coordinates, int
       vtkfile << loop->coloring[k] << std::endl;
     }
 
+    std::cout << "Done!" << std::endl;
     vtkfile.close();
   }
 

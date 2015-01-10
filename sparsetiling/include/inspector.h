@@ -52,7 +52,7 @@ inspector_t* insp_init (int tileSize, insp_strategy strategy);
  *
  * @param insp
  *   the inspector data structure
- * @param loopName
+ * @param name
  *   identifier name of the parloop
  * @param set
  *   iteration set of the parloop
@@ -62,7 +62,7 @@ inspector_t* insp_init (int tileSize, insp_strategy strategy);
  * @return
  *   the inspector is updated with a new loop the tiles will have to cross
  */
-insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
+insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
                             desc_list* descriptors);
 
 /*
@@ -70,15 +70,16 @@ insp_info insp_add_parloop (inspector_t* insp, char* loopName, set_t* set,
  *
  * @param insp
  *   the inspector data structure, already defined over a range of parloops
- * @param seed
- *   start point of the tiling (a number between 0 and the number of parloops
- *   spanned by the inspector)
+ * @param suggestedSeed
+ *   user-provided start point of the tiling (a number between 0 and the number of
+ *   parloops crossed by the inspector). The loop has to be an indirect one if the
+ *   inspector strategy targets shared memory parallelism
  * @return
  *   on return from the function, insp will contain a list of tiles, each tile
  *   characterized by a list of iterations that are supposed to be executed,
  *   for each crossed parloop
  */
-insp_info insp_run (inspector_t* insp, int seed);
+insp_info insp_run (inspector_t* insp, int suggestedSeed);
 
 /*
  * Print a summary of the inspector
@@ -87,8 +88,10 @@ insp_info insp_run (inspector_t* insp, int seed);
  *   the inspector data structure
  * @param level
  *   level of verbosity (LOW, MEDIUM, HIGH)
+ * @param loopIndex
+ *   if different than -1, print information only for loop of index loopIndex
  */
-void insp_print (inspector_t* insp, insp_verbose level);
+void insp_print (inspector_t* insp, insp_verbose level, int loopIndex = -1);
 
 /*
  * Destroy an inspector

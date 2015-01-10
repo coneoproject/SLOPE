@@ -8,8 +8,7 @@
 #define _TILING_H_
 
 #include <set>
-
-#include <string.h>
+#include <string>
 
 #include "parloop.h"
 
@@ -18,7 +17,7 @@
  */
 typedef struct {
   /* set name identifier */
-  char* setName;
+  std::string name;
   /* iteration set */
   int itSetSize;
   /* tiling of the iteration set */
@@ -33,7 +32,7 @@ typedef struct {
  */
 inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
 {
-  return strcmp(a->setName, b->setName) < 0;
+  return a->name < b->name;
 }
 typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
 
@@ -43,7 +42,8 @@ typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> pr
  * Note: the caller loses ownership of iter2tile and iter2color after calling
  * this function. Access to these two maps becomes therefore undefined.
  */
-iter2tc_t* iter2tc_init (char* setName, int itSetSize, int* iter2tile, int* iter2color);
+iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
+                         int* iter2color);
 
 /*
  * Clone an iter2tc_t
@@ -67,8 +67,8 @@ void projection_free (projection_t* projection);
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by the parloop, as tiling goes forward.
- * This produces the required information for calling tile_forward.
+ * touched (read, incremented, written) by a parloop i, as tiling goes forward.
+ * This produces the required information for calling tile_forward on a parloop i+1.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
@@ -91,8 +91,8 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by the parloop, as tiling goes backward.
- * This produces the required information for calling tile_backward.
+ * touched (read, incremented, written) by a parloop i, as tiling goes backward.
+ * This produces the required information for calling tile_backward on a parloop i-1.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
@@ -110,12 +110,22 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
 /*
  * Tile a parloop when going forward along the loop chain.
+ *
+ * @param curLoop
+ *   the loop whose iterations will be colored and assigned a tile
+ * @param prevLoopProj
+ *   the projection of tiling up to curLoop
  */
 iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj);
 
 /*
  * Tile a parloop when going backward along the loop chain.
+ *
+ * @param curLoop
+ *   the loop whose iterations will be colored and assigned a tile
+ * @param prevLoopProj
+ *   the projection of tiling up to curLoop
  */
-void tile_backward ();
+iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj);
 
 #endif
