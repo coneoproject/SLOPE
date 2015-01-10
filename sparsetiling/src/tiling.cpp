@@ -86,33 +86,42 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
     }
     else {
       // indirect set case
-      // aliases
-      int tiledSetSize = descMap->inSet->size;
-      int projSetSize = descMap->outSet->size;
-      std::string projSetName = descMap->outSet->name;
-      int mapSize = descMap->mapSize;
-      int* indMap = descMap->indMap;
 
-      int ariety = mapSize / tiledSetSize;
+      // use the inverted map to compute the projection for two reasons:
+      // - the outer loop along the projected set is fully parallel, so it can
+      //   be openmpizable
+      // - checking conflicts requires to store only O(k) instead of O(kN) memory,
+      //   with k the average ariety of a projected set iteration and N the size of
+      //   the projected iteration set
+      descMap = map_invert (descMap, NULL);
+
+      // aliases
+      int projSetSize = descMap->inSet->size;
+      std::string projSetName = descMap->inSet->name;
+      int* indMap = descMap->indMap;
+      int* offsets = descMap->offsets;
+
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
                                   projIter2color);
-      std::fill_n (projIter2tile, projSetSize, -1);
-      std::fill_n (projIter2color, projSetSize, -1);
 
-      // iterate over the tiledLoop's iteration set, and use the map to access
-      // the touched iteration set's elements.
-      for (int i = 0; i < tiledSetSize; i++) {
-        int iterTile = iter2tile[i];
-        int iterColor = iter2color[i];
-        for (int j = 0; j < ariety; j++) {
-          int indIter = indMap[i*ariety + j];
-          int indColor = MAX(iterColor, projIter2color[indIter]);
-          if (indColor != projIter2color[indIter]) {
-            // update color and tile of the indirect touched iteration
-            projIter2tile[indIter] = iterTile;
-            projIter2color[indIter] = indColor;
+      // iterate over the projected loop's iteration set, and use the map to access
+      // the tiledLoop iteration set's elements.
+      for (int i = 0; i < projSetSize; i++) {
+        projIter2tile[i] = -1;
+        projIter2color[i] = -1;
+        // determine the projected set iteration's ariety, which may vary from
+        // iteration to iteration
+        int prevOffset = offsets[i];
+        int nextOffset = offsets[i + 1];
+        for (int j = prevOffset; j < nextOffset; j++) {
+          int indIter = indMap[j];
+          int indColor = MAX(projIter2color[i], iter2color[indIter]);
+          if (indColor != projIter2color[i]) {
+            // update color and tile of the projected iteration
+            projIter2tile[i] = iter2tile[indIter];
+            projIter2color[i] = indColor;
           }
         }
       }
@@ -130,6 +139,8 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
           }
         }
       }
+
+      map_free (descMap, true);
     }
 
     // update projections:
@@ -184,33 +195,42 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
     }
     else {
       // indirect set case
-      // aliases
-      int tiledSetSize = descMap->inSet->size;
-      int projSetSize = descMap->outSet->size;
-      std::string projSetName = descMap->outSet->name;
-      int mapSize = descMap->mapSize;
-      int* indMap = descMap->indMap;
 
-      int ariety = mapSize / tiledSetSize;
+      // use the inverted map to compute the projection for two reasons:
+      // - the outer loop along the projected set is fully parallel, so it can
+      //   be openmpized
+      // - checking conflicts requires to store only O(k) instead of O(kN) memory,
+      //   with k the average ariety of a projected set iteration and N the size of
+      //   the projected iteration set
+      descMap = map_invert (descMap, NULL);
+
+      // aliases
+      int projSetSize = descMap->inSet->size;
+      std::string projSetName = descMap->inSet->name;
+      int* indMap = descMap->indMap;
+      int* offsets = descMap->offsets;
+
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
                                   projIter2color);
-      std::fill_n (projIter2tile, projSetSize, INT_MAX);
-      std::fill_n (projIter2color, projSetSize, INT_MAX);
 
-      // iterate over the tiledLoop's iteration set, and use the map to access
-      // the touched iteration set's elements.
-      for (int i = 0; i < tiledSetSize; i++) {
-        int iterTile = iter2tile[i];
-        int iterColor = iter2color[i];
-        for (int j = 0; j < ariety; j++) {
-          int indIter = indMap[i*ariety + j];
-          int indColor = MIN(iterColor, projIter2color[indIter]);
-          if (indColor != projIter2color[indIter]) {
-            // update color and tile of the indirect touched iteration
-            projIter2tile[indIter] = iterTile;
-            projIter2color[indIter] = indColor;
+      // iterate over the projected loop's iteration set, and use the map to access
+      // the tiledLoop iteration set's elements.
+      for (int i = 0; i < projSetSize; i++) {
+        projIter2tile[i] = INT_MAX;
+        projIter2color[i] = INT_MAX;
+        // determine the projected set iteration's ariety, which may vary from
+        // iteration to iteration
+        int prevOffset = offsets[i];
+        int nextOffset = offsets[i + 1];
+        for (int j = prevOffset; j < nextOffset; j++) {
+          int indIter = indMap[j];
+          int indColor = MIN(projIter2color[i], iter2color[indIter]);
+          if (indColor != projIter2color[i]) {
+            // update color and tile of the projected iteration
+            projIter2tile[i] = iter2tile[indIter];
+            projIter2color[i] = indColor;
           }
         }
       }
@@ -228,6 +248,8 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
           }
         }
       }
+
+      map_free (descMap, true);
     }
 
     // update projections:
