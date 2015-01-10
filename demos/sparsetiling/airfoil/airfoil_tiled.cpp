@@ -126,7 +126,7 @@ int main(int argc, char **argv)
                          desc(DIRECT, WRITE)});
 
   // inspector
-  inspector_t* insp = insp_init(avgTileSize, SEQUENTIAL);
+  inspector_t* insp = insp_init(avgTileSize, OMP);
 
   insp_add_parloop (insp, "adtCalc1", cells, &adtCalcDesc);
   insp_add_parloop (insp, "resCalc1", edges, &resCalcDesc);
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
   double endInsp = time_stamp();
   printf("inspector run-time = %f\n", endInsp - startInsp);
 
-  insp_print (insp, LOW);
+  insp_print (insp, VERY_LOW);
 
   //
   // plot tiled mesh, for each parallel loop in the loop chain

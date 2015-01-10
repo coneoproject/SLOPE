@@ -21,6 +21,13 @@ tile_t* tile_init (int crossedLoops)
 
 void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter2tileMap)
 {
+  // first, remove any previously assigned iteration for loop loopIndex
+  tile_list::const_iterator tIt, tEnd;
+  for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
+    (*tIt)->iterations[loopIndex]->clear();
+  }
+
+  // then, distribute iterations among the tiles
   for (int i = 0; i < itSetSize; i++) {
     tiles->at(iter2tileMap[i])->iterations[loopIndex]->push_back(i);
   }

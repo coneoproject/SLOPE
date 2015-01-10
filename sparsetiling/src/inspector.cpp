@@ -87,98 +87,126 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   }
   tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->indMap);
 
-  // color the base loop's sets
-  map_t* iter2color;
-  switch (strategy) {
-    case SEQUENTIAL: case MPI:
-      iter2color = color_sequential (iter2tile, tiles);
-      break;
-    case OMP: case OMP_MPI:
-      iter2color = color_shm (seedLoop, iter2tile, tiles);
-      break;
-  }
-
-  // if requested at compile time, the coloring and tiling of a parloop are
-  // explicitly tracked. These can be used for debugging or visualization purposes,
-  // for example for generating VTK files showing the colored parloop
-#ifdef VTKON
-  seedLoop->tiling = new int[seedLoopSetSize];
-  seedLoop->coloring = new int[seedLoopSetSize];
-  memcpy (seedLoop->tiling, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
-  memcpy (seedLoop->coloring, iter2color->indMap, sizeof(int)*seedLoopSetSize);
-#endif
-
   // track information essential for tiling, execution, and debugging
   insp->iter2tile = iter2tile;
-  insp->iter2color = iter2color;
   insp->tiles = tiles;
 
-  // create copies of initial tiling and coloring, cause they can be manipulated
-  // during one phase of tiling (e.g. forward), so they need to be reset to their
-  // original values before the other tiling phase (e.g. backward)
-  int* tmpIter2tileMap = new int[seedLoopSetSize];
-  int* tmpIter2colorMap = new int[seedLoopSetSize];
-  memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
-  memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*seedLoopSetSize);
+  // at the first iteration, conflictsTracker is empty. As of the second iteration (if
+  // any), conflictsTracker tracks, for each tile i, the tiles that cannot be assigned
+  // the same color as i. This is because otherwise tiles would grow up to a point
+  // in which they "touch" each other (they "conflict"), leading to race conditions
+  // in shared memory parallel execution
+  tracker_t conflictsTracker;
+  bool conflicts;
+  do {
+    // assume there are no conflicts
+    conflicts = false;
 
-  // tile the loop chain. First forward, then backward. The algorithm is as follows:
-  // 1- start from the base loop, then go forward (backward)
-  // 2- make a projection of the dependencies for tiling the subsequent loop
-  // 3- tile the subsequent loop, using the projection
-  // 4- go back to point 2, and repeat till there are loop along the direction
+    // color the seed loop's sets
+    map_t* iter2color;
+    switch (strategy) {
+      case SEQUENTIAL: case MPI:
+        iter2color = color_sequential (iter2tile, tiles);
+        break;
+      case OMP: case OMP_MPI:
+        iter2color = color_shm (seedLoop, iter2tile, tiles, &conflictsTracker);
+        break;
+    }
+    insp->iter2color = iter2color;
 
-  // prepare for forward tiling
-  loop_t* prevTiledLoop = seedLoop;
-  projection_t* seedLoopProj = new projection_t (&iter2tc_cmp);
-  projection_t* prevLoopProj = new projection_t (&iter2tc_cmp);
-  iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
-                                            tmpIter2tileMap, tmpIter2colorMap);
-  iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
+    // if requested at compile time, the coloring and tiling of a parloop are
+    // explicitly tracked. These can be used for debugging or visualization purposes,
+    // for example for generating VTK files showing the colored parloop
+#ifdef VTKON
+    seedLoop->tiling = new int[seedLoopSetSize];
+    seedLoop->coloring = new int[seedLoopSetSize];
+    memcpy (seedLoop->tiling, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
+    memcpy (seedLoop->coloring, iter2color->indMap, sizeof(int)*seedLoopSetSize);
+#endif
 
-  // forward tiling
-  for (int i = seed + 1; i < nLoops; i++) {
-    loop_t* curLoop = loops->at(i);
-    iter2tc_t* curTilingInfo;
+    // create copies of initial tiling and coloring, cause they can be manipulated
+    // during one phase of tiling (e.g. forward), so they need to be reset to their
+    // original values before the other tiling phase (e.g. backward)
+    int* tmpIter2tileMap = new int[seedLoopSetSize];
+    int* tmpIter2colorMap = new int[seedLoopSetSize];
+    memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
+    memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*seedLoopSetSize);
 
-    // compute projection from i-1 for tiling loop i
-    project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj);
+    // tile the loop chain. First forward, then backward. The algorithm is as follows:
+    // 1- start from the base loop, then go forward (backward)
+    // 2- make a projection of the dependencies for tiling the subsequent loop
+    // 3- tile the subsequent loop, using the projection
+    // 4- go back to point 2, and repeat till there are loop along the direction
 
-    // tile loop i as going forward
-    curTilingInfo = tile_forward (curLoop, prevLoopProj);
-    tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
+    // reset conflictsTracker for the potential next run of tiling
+    conflictsTracker.clear();
 
-    // prepare for next iteration
-    prevTiledLoop = curLoop;
-    prevTilingInfo = curTilingInfo;
-  }
+    // prepare for forward tiling
+    loop_t* prevTiledLoop = seedLoop;
+    projection_t* seedLoopProj = new projection_t (&iter2tc_cmp);
+    projection_t* prevLoopProj = new projection_t (&iter2tc_cmp);
+    iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
+                                              tmpIter2tileMap, tmpIter2colorMap);
+    iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
 
-  // prepare for backward tiling
-  iter2tc_free (prevTilingInfo);
-  projection_free (prevLoopProj);
-  prevLoopProj = seedLoopProj;
-  prevTiledLoop = seedLoop;
-  prevTilingInfo = seedTilingInfo;
+    // forward tiling
+    for (int i = seed + 1; i < nLoops; i++) {
+      loop_t* curLoop = loops->at(i);
+      iter2tc_t* curTilingInfo;
 
-  // backward tiling
-  for (int i = seed - 1; i >= 0; i--) {
-    loop_t* curLoop = loops->at(i);
-    iter2tc_t* curTilingInfo;
+      // compute projection from i-1 for tiling loop i
+      project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj,
+                       &conflictsTracker);
 
-    // compute projection from i+1 for tiling loop i
-    project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj);
+      // tile loop i as going forward
+      curTilingInfo = tile_forward (curLoop, prevLoopProj);
+      tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
 
-    // tile loop i as going backward
-    curTilingInfo = tile_backward (curLoop, prevLoopProj);
-    tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
+      // prepare for next iteration
+      prevTiledLoop = curLoop;
+      prevTilingInfo = curTilingInfo;
+    }
 
-    // prepare for next iteration
-    prevTiledLoop = curLoop;
-    prevTilingInfo = curTilingInfo;
-  }
+    // prepare for backward tiling
+    iter2tc_free (prevTilingInfo);
+    projection_free (prevLoopProj);
+    prevLoopProj = seedLoopProj;
+    prevTiledLoop = seedLoop;
+    prevTilingInfo = seedTilingInfo;
 
-  // free memory
-  iter2tc_free (prevTilingInfo);
-  projection_free (prevLoopProj);
+    // backward tiling
+    for (int i = seed - 1; i >= 0; i--) {
+      loop_t* curLoop = loops->at(i);
+      iter2tc_t* curTilingInfo;
+
+      // compute projection from i+1 for tiling loop i
+      project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj, &conflictsTracker);
+
+      // tile loop i as going backward
+      curTilingInfo = tile_backward (curLoop, prevLoopProj);
+      tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
+
+      // prepare for next iteration
+      prevTiledLoop = curLoop;
+      prevTilingInfo = curTilingInfo;
+    }
+
+    // free memory
+    iter2tc_free (prevTilingInfo);
+    projection_free (prevLoopProj);
+
+    // if there were coloring conflicts, re-run forward and backward tiling after
+    // a "constrained" initial coloring of the seed loop.
+    tracker_t::const_iterator it, end;
+    for (it = conflictsTracker.begin(), end = conflictsTracker.end(); it != end; it++) {
+      if (it->second.size() > 0) {
+          // at least one conflict, re-run tiling
+        conflicts = true;
+        break;
+      }
+    }
+
+  } while (conflicts);
 
   return INSP_OK;
 }
@@ -227,16 +255,20 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   // set verbosity level
   int verbosityItSet, verbosityTiles;
   switch (level) {
+    case VERY_LOW:
+      verbosityItSet = 1;
+      verbosityTiles = (loopIndex == -1) ? MIN(LOW / 3, avgTileSize / 2) : INT_MAX;
+      break;
     case LOW:
-      verbosityItSet = MIN(LOW, itSetSize);
+      verbosityItSet = MIN(LOW / 4, itSetSize);
       verbosityTiles = (loopIndex == -1) ? MIN(LOW / 3, avgTileSize / 2) : INT_MAX;
       break;
     case MEDIUM:
-      verbosityItSet = MIN(MEDIUM, itSetSize);
+      verbosityItSet = MIN(MEDIUM / 2, itSetSize);
       verbosityTiles = (loopIndex == -1) ? avgTileSize : INT_MAX;
       break;
     case HIGH:
-      verbosityItSet = itSetSize;
+      verbosityItSet = avgTileSize;
       verbosityTiles = INT_MAX;
   }
 
@@ -252,23 +284,28 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   if (iter2tile && iter2color) {
     cout << endl << "Printing partioning of the base loop's iteration set:" << endl;
     cout << "  Iteration  |  Tile |  Color" << endl;
-    for (int i = 0; i < verbosityItSet; i++) {
-      cout << "         " << i
-           << "   |   " << iter2tile->indMap[i]
-           << "   |   " << iter2color->indMap[i] << endl;
-    }
-    if (verbosityItSet < itSetSize) {
+    for (int i = 0; i < itSetSize / avgTileSize; i++) {
+      int offset = i*avgTileSize;
+      for (int j = 0; j < verbosityItSet; j++) {
+        cout << "         " << offset + j
+             << "   |   " << iter2tile->indMap[offset + j]
+             << "   |   " << iter2color->indMap[offset + j] << endl;
+      }
       cout << "         ..." << endl;
-      cout << "         " << itSetSize - 1
-           << "   |   " << iter2tile->indMap[itSetSize - 1]
-           << "   |   " << iter2color->indMap[itSetSize - 1] << endl;
+    }
+    int itSetReminder = itSetSize % avgTileSize;
+    int offset = itSetSize - itSetReminder;
+    for (int i = 0; i < MIN(verbosityItSet, itSetReminder); i++) {
+      cout << "         " << offset + i
+           << "   |   " << iter2tile->indMap[offset + i]
+           << "   |   " << iter2color->indMap[offset + i] << endl;
     }
   }
   else {
     cout << "No partitioning of the base loop performed" << endl;
   }
 
-  if (tiles) {
+  if (tiles && loopIndex != -2) {
     if (loopIndex == -1) {
       cout << endl << "Printing tiles' base loop iterations" << endl;
       print_tiled_loop (tiles, loops->at(seed), verbosityTiles);

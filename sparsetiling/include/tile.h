@@ -7,7 +7,9 @@
 #define _TILE_H_
 
 #include <vector>
+#include <set>
 #include <unordered_map>
+#include <map>
 
 #include "descriptor.h"
 
@@ -28,6 +30,20 @@ typedef struct {
 } tile_t;
 
 typedef std::vector<tile_t*> tile_list;
+
+/*
+ * The domain of this map is the set of tile identifiers. The codomain is a 2-tuple of
+ * integer sets. The first set is for tracking identifiers of conflicting tiles.
+ * The second set is for tracking all colors "seen" by a tile during the tiling
+ * process. For example, an entry:
+ *   1 -> ({2, 3}, {0, 1, 2, 5})
+ * indicates that tile 1 conflicts with tiles 2 and 3 (i.e., in the tiling process,
+ * tiles 1, 2, 3 have the same color and grew up to a point in which they "touch"
+ * each other, and tile 1, in the loop chain, is adjacent to tiles having colors
+ * 0, 1, 2, 5. Note that one of {0, 1, 2, 5} must be the color of tile 1 itself.
+ */
+typedef std::set<int> index_set;
+typedef std::map<int, index_set> tracker_t;
 
 /*
  * Initialize a tile

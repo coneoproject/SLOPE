@@ -4,61 +4,42 @@
  * Collection of data structures and functions implementing the tiling engine
  */
 
+#include <algorithm>
+
 #include <string.h>
 #include <limits.h>
 
 #include "tiling.h"
 #include "utils.h"
 
-iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
-                         int* iter2color)
+
+// return true if there are at least two tiles having a same color
+inline void updateTilesTracker (tracker_t& iterTilesPerColor, index_set iterColors,
+                                tracker_t& conflictsTracker)
 {
-  iter2tc_t* iter2tc = new iter2tc_t;
-
-  iter2tc->name = name;
-  iter2tc->itSetSize = itSetSize;
-  iter2tc->iter2tile = iter2tile;
-  iter2tc->iter2color = iter2color;
-
-  return iter2tc;
-}
-
-iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
-{
-  iter2tc_t* iter2tc = new iter2tc_t;
-
-  iter2tc->name = toCopy->name;
-  iter2tc->itSetSize = toCopy->itSetSize;
-  iter2tc->iter2tile = new int[toCopy->itSetSize];
-  iter2tc->iter2color = new int[toCopy->itSetSize];
-
-  memcpy (iter2tc->iter2tile, toCopy->iter2tile, sizeof(int)*toCopy->itSetSize);
-  memcpy (iter2tc->iter2color, toCopy->iter2color, sizeof(int)*toCopy->itSetSize);
-
-  return iter2tc;
-}
-
-void iter2tc_free (iter2tc_t* iter2tc)
-{
-  if (! iter2tc) {
-    return;
+  tracker_t::const_iterator it, end;
+  for (it = iterTilesPerColor.begin(), end = iterTilesPerColor.end(); it != end; it++) {
+    index_set adjTiles = it->second;
+    index_set::const_iterator tIt, tEnd;
+    for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
+      int tileID = *tIt;;
+      // if conflicts detected on a color add the relevant information to tiles
+      // involved in the conflict
+      if (adjTiles.size() > 1) {
+        conflictsTracker[tileID].insert (adjTiles.begin(), adjTiles.end());
+      }
+    }
+    for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
+      conflictsTracker[*tIt].erase (*tIt);
+    }
   }
-  delete[] iter2tc->iter2tile;
-  delete[] iter2tc->iter2color;
-  delete iter2tc;
 }
 
-void projection_free (projection_t* projection)
-{
-  projection_t::iterator it, end;
-  for (it = projection->begin(), end = projection->end(); it != end; it++) {
-    iter2tc_free(*it);
-  }
-  delete projection;
-}
+//////////////////////////////////////////////
 
 void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProj, projection_t* baseLoopProj)
+                      projection_t* prevLoopProj, projection_t* seedLoopProj,
+                      tracker_t* conflictsTracker)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -115,15 +96,24 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
+        // temporary variables for updating the tracker
+        tracker_t iterTilesPerColor;
+        index_set iterColors;
         for (int j = prevOffset; j < nextOffset; j++) {
           int indIter = indMap[j];
-          int indColor = MAX(projIter2color[i], iter2color[indIter]);
-          if (indColor != projIter2color[i]) {
-            // update color and tile of the projected iteration
-            projIter2tile[i] = iter2tile[indIter];
-            projIter2color[i] = indColor;
+          int indTile = iter2tile[indIter];
+          int indColor = iter2color[indIter];
+          // may have to change color and tile of the projected iteration
+          int maxColor = MAX(projIter2color[i], indColor);
+          if (maxColor != projIter2color[i]) {
+            projIter2tile[i] = indTile;
+            projIter2color[i] = maxColor;
           }
+          // track adjacent tiles, stored by colors
+          iterTilesPerColor[indColor].insert (indTile);
+          iterColors.insert (indColor);
         }
+        updateTilesTracker (iterTilesPerColor, iterColors, *conflictsTracker);
       }
 
       // if projecting from a subset, an older projection must be present. This
@@ -144,16 +134,16 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
     }
 
     // update projections:
-    // - baseLoopProj is added a projection for a set X if X is not in baseLoopProj
+    // - seedLoopProj is added a projection for a set X if X is not in seedLoopProj
     //   yet. This is becase baseParLoop will be used for backward tiling, in which
     //   the sets projections closest (in time) to the seed parloop need to be seen
     // - prevLoopProj is updated everytime a new projection is available; for this,
     //   any previous projections for a same set are deleted and memory is freed
-    // Note: if the projection still has to be added to baseLoopProj, then for sure it
+    // Note: if the projection still has to be added to seedLoopProj, then for sure it
     //       is not in prevLoopProj either. On the other hand, if the projection is
-    //       in baseLoopProj, then a projection on the same set is in prevLoopProj
-    if (baseLoopProj->find (projIter2tc) == baseLoopProj->end()) {
-      baseLoopProj->insert (iter2tc_cpy(projIter2tc));
+    //       in seedLoopProj, then a projection on the same set is in prevLoopProj
+    if (seedLoopProj->find (projIter2tc) == seedLoopProj->end()) {
+      seedLoopProj->insert (iter2tc_cpy(projIter2tc));
     }
     else {
       projection_t::iterator toFree = prevLoopProj->find (projIter2tc);
@@ -167,7 +157,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 }
 
 void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                       projection_t* prevLoopProj)
+                       projection_t* prevLoopProj, tracker_t* conflictsTracker)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -224,15 +214,24 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
+        // temporary variables for updating the tracker
+        tracker_t iterTilesPerColor;
+        index_set iterColors;
         for (int j = prevOffset; j < nextOffset; j++) {
           int indIter = indMap[j];
-          int indColor = MIN(projIter2color[i], iter2color[indIter]);
-          if (indColor != projIter2color[i]) {
-            // update color and tile of the projected iteration
-            projIter2tile[i] = iter2tile[indIter];
-            projIter2color[i] = indColor;
+          int indTile = iter2tile[indIter];
+          int indColor = iter2color[indIter];
+          // may have to change color and tile of the projected iteration
+          int minColor = MIN(projIter2color[i], indColor);
+          if (minColor != projIter2color[i]) {
+            projIter2tile[i] = indTile;
+            projIter2color[i] = minColor;
           }
+          // track adjacent tiles, stored by colors
+          iterTilesPerColor[indColor].insert (indTile);
+          iterColors.insert (indColor);
         }
+        updateTilesTracker (iterTilesPerColor, iterColors, *conflictsTracker);
       }
 
       // if projecting from a subset, an older projection must be present. This
@@ -465,3 +464,51 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
 
   return loopIter2tc;
 }
+
+iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
+                         int* iter2color)
+{
+  iter2tc_t* iter2tc = new iter2tc_t;
+
+  iter2tc->name = name;
+  iter2tc->itSetSize = itSetSize;
+  iter2tc->iter2tile = iter2tile;
+  iter2tc->iter2color = iter2color;
+
+  return iter2tc;
+}
+
+iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
+{
+  iter2tc_t* iter2tc = new iter2tc_t;
+
+  iter2tc->name = toCopy->name;
+  iter2tc->itSetSize = toCopy->itSetSize;
+  iter2tc->iter2tile = new int[toCopy->itSetSize];
+  iter2tc->iter2color = new int[toCopy->itSetSize];
+
+  memcpy (iter2tc->iter2tile, toCopy->iter2tile, sizeof(int)*toCopy->itSetSize);
+  memcpy (iter2tc->iter2color, toCopy->iter2color, sizeof(int)*toCopy->itSetSize);
+
+  return iter2tc;
+}
+
+void iter2tc_free (iter2tc_t* iter2tc)
+{
+  if (! iter2tc) {
+    return;
+  }
+  delete[] iter2tc->iter2tile;
+  delete[] iter2tc->iter2color;
+  delete iter2tc;
+}
+
+void projection_free (projection_t* projection)
+{
+  projection_t::iterator it, end;
+  for (it = projection->begin(), end = projection->end(); it != end; it++) {
+    iter2tc_free(*it);
+  }
+  delete projection;
+}
+

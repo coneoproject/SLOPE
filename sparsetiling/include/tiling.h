@@ -8,9 +8,11 @@
 #define _TILING_H_
 
 #include <set>
+#include <unordered_map>
 #include <string>
 
 #include "parloop.h"
+#include "tile.h"
 
 /*
  * Bind each element of an iteration set to a tile and a color
@@ -60,6 +62,8 @@ void iter2tc_free (iter2tc_t* iter2tc);
  */
 void projection_free (projection_t* projection);
 
+/**************************************************************************/
+
 // Note: the following functions are classified as either for forward or backward
 // tiling. Since the tiling operations need to be fast, we prefer to keep them
 // separated instead of using a single "project" and a single "tile" functions plus
@@ -69,6 +73,8 @@ void projection_free (projection_t* projection);
  * Project tiling and coloring of an iteration set to all sets that are
  * touched (read, incremented, written) by a parloop i, as tiling goes forward.
  * This produces the required information for calling tile_forward on a parloop i+1.
+ * In particular, update prevLoopProj by exploiting information in tilingInfo. Also,
+ * seedLoopProj is updated if new sets are encountered.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
@@ -78,21 +84,22 @@ void projection_free (projection_t* projection);
  * @param prevLoopProj
  *   a set of iteration-sets to tile-color mappings, which represents the
  *   projection of tiling at loop_{i-1}.
- * @param baseLoopProj
+ * @param seedLoopProj
  *   the set of iteration-sets to tile-color mappings "closest" to the seed loop.
  *   Here closest means that these mappings represent the projection of the sets
  *   accessed as tiling forward that has to be used for backward tiling.
- * @return
- *   update prevLoopProj by exploiting information in tilingInfo. Also, baseLoopProj
- *   is updated if new sets are encountered.
+ * @param conflictsTracker
+ *   track conflicting tiles encountered by each tile during the tiling process
  */
 void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProj, projection_t* baseLoopProj);
+                      projection_t* prevLoopProj, projection_t* seedLoopProj,
+                      tracker_t* conflictsTracker);
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
  * touched (read, incremented, written) by a parloop i, as tiling goes backward.
  * This produces the required information for calling tile_backward on a parloop i-1.
+ * In particular, update prevLoopProj by exploiting information in tilingInfo.
  *
  * @param tiledLoop
  *   the tiled loop, which contains the descriptors required to perform the
@@ -102,12 +109,11 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
  * @param prevLoopProj
  *   a set of iteration-sets to tile-color mappings, which represents the
  *   projection of tiling at loop_{i+1}.
- * @return
- *   Update prevLoopProj by exploiting information in tilingInfo.
+ * @param conflictsTracker
+ *   track conflicting tiles encountered by each tile during the tiling process
  */
 void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                       projection_t* prevLoopProj);
-
+                       projection_t* prevLoopProj, tracker_t* conflictsTracker);
 /*
  * Tile a parloop when going forward along the loop chain.
  *
@@ -127,5 +133,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj);
  *   the projection of tiling up to curLoop
  */
 iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj);
+
+/**************************************************************************/
 
 #endif

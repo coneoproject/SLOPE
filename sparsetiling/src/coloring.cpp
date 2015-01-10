@@ -54,7 +54,8 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
               iter2tile->inSet->size*1);
 }
 
-map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles)
+map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles,
+                  tracker_t* conflictsTracker)
 {
   // aliases
   map_t* seedMap = loop->seedMap;
@@ -97,6 +98,16 @@ map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles)
       if (colors[i] == -1)
       {
         unsigned int mask = 0;
+
+        // prevent tiles that are known to conflict if a "standard" coloring is
+        // employed from being assigned the same color. For this, access the color,
+        // in the work array, of the first iteration of each conflicting tile
+        index_set tileConflicts = (*conflictsTracker)[i];
+        index_set::const_iterator it, end;
+        for (it = tileConflicts.begin(), end = tileConflicts.end(); it != end; it++) {
+          mask |= work[seedIndMap[tile2iter->offsets[*it]*seedMapAriety + 0]];
+        }
+
         for (int e = prevOffset; e < nextOffset; e++) {
           for (int j = 0; j < seedMapAriety; j++) {
             // set bits of mask

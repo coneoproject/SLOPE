@@ -73,6 +73,21 @@
                 << std::endl; \
     } while (false)
 
+#   define PRINT_TRACKER(tracker) \
+    do { \
+      std::cout << "Tracker `" #tracker "`:" << std::endl; \
+      int iTrack = 0; \
+      for (iTrack = 0; iTrack < tracker.size(); iTrack++) { \
+        std::cout << "  " << iTrack << ": "; \
+        index_set tracked = tracker[iTrack]; \
+        index_set::const_iterator isIt, isEnd; \
+        for (isIt = tracked.begin(), isEnd = tracked.end(); isIt != isEnd; isIt++) { \
+          std::cout << *isIt << ", "; \
+        } \
+        std::cout << std::endl; \
+      } \
+    } while (false)
+
 #   define PRINT_VAR(var) \
     do { \
       std::cout << "`" #var "`:" << var << std::endl; \
@@ -110,8 +125,8 @@ inline double time_stamp()
 /*
  * Generic utility functions
  */
-#define MAX(A, B) (A > B) ? A : B
-#define MIN(A, B) (A < B) ? A : B
+#define MAX(A, B) ((A > B) ? A : B)
+#define MIN(A, B) ((A < B) ? A : B)
 
 /*
  * Generate a VTK file showing the coloring of each tiled parloop once opened

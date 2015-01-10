@@ -30,10 +30,13 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles);
  *   map from iteration set to tiles
  * @param tiles
  *   list of tiles, used to assign a color to each tile
+ * @param conflictsTracker
+ *   track conflicting tiles encountered by each tile during the tiling process
  * @return
  *   a map from iteration set to colors, where tiles' colors are enforced to be
  *   different if the tiles are adjacent (e.g. there is an edge connecting them)
  */
-map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles);
+map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles,
+                  tracker_t* conflictsTracker);
 
 #endif

@@ -12,7 +12,7 @@
 
 enum insp_strategy {SEQUENTIAL, OMP, MPI, OMP_MPI};
 enum insp_info {INSP_OK, INSP_ERR};
-enum insp_verbose {LOW = 20, MEDIUM = 40, HIGH};
+enum insp_verbose {VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
 
 /*
  * The inspector main data structure.
