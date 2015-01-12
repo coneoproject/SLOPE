@@ -126,7 +126,7 @@ int main(int argc, char **argv)
                          desc(DIRECT, WRITE)});
 
   // inspector
-  inspector_t* insp = insp_init(TILE_SIZE, SEQUENTIAL);
+  inspector_t* insp = insp_init(avgTileSize, SEQUENTIAL);
 
   insp_add_parloop (insp, "adtCalc1", cells, &adtCalcDesc);
   insp_add_parloop (insp, "resCalc1", edges, &resCalcDesc);
