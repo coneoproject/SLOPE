@@ -32,7 +32,7 @@ ST_TESTS = $(TESTS)/sparsetiling
 #
 
 CXX      := $(CXX)
-CXXFLAGS := -std=c++0x $(VTKON) $(CXX_OPTS)
+CXXFLAGS := -std=c++0x $(CXX_OPTS) $(SLOPE_VTK) $(SLOPE_OMP)
 
 ifeq ($(SLOPE_ARCH),linux)
   CLOCK_LIB = -lrt

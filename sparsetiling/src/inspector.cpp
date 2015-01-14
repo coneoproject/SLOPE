@@ -117,7 +117,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // if requested at compile time, the coloring and tiling of a parloop are
     // explicitly tracked. These can be used for debugging or visualization purposes,
     // for example for generating VTK files showing the colored parloop
-#ifdef VTKON
+#ifdef SLOPE_VTK
     seedLoop->tiling = new int[seedLoopSetSize];
     seedLoop->coloring = new int[seedLoopSetSize];
     memcpy (seedLoop->tiling, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
@@ -389,7 +389,7 @@ void insp_free (inspector_t* insp)
       }
     }
     // delete loops
-#ifdef VTKON
+#ifdef SLOPE_VTK
     delete[] (*lIt)->tiling;
     delete[] (*lIt)->coloring;
 #endif

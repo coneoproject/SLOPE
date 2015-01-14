@@ -54,8 +54,6 @@
 #include "inspector.h"
 
 #define TILE_SIZE 5000
-// comment the following for sequential execution
-// #define TILE_OMP
 
 //
 // kernel routines for parallel loops
@@ -181,7 +179,7 @@ int main(int argc, char **argv)
         // for all tiles of this color
         const int nTilesPerColor = exec_tiles_per_color (exec, i);
 
-#ifdef TILE_OMP
+#ifdef SLOPE_OMP
         #pragma omp parallel
 #endif
         for (int j = 0; j < nTilesPerColor; j++) {
@@ -300,7 +298,11 @@ int main(int argc, char **argv)
 
     // print iteration history
     rms = sqrt(rms/(double) nCells);
+#ifdef SLOPE_OMP
+    if (iter%100 == 0)
+#else
     if (iter%10 == 0)
+#endif
       printf(" %d  %10.5e \n",iter,rms);
   }
 
