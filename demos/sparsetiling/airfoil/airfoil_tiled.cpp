@@ -180,7 +180,7 @@ int main(int argc, char **argv)
         const int nTilesPerColor = exec_tiles_per_color (exec, i);
 
 #ifdef SLOPE_OMP
-        #pragma omp parallel
+        #pragma omp parallel for
 #endif
         for (int j = 0; j < nTilesPerColor; j++) {
           // execute the tile
