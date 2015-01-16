@@ -41,7 +41,11 @@ endif
 
 .PHONY: clean mklib
 
-all: clean mklib sparsetiling tests demos
+all: warning clean mklib sparsetiling tests demos
+
+warning:
+	@echo "Recommended compiler options for maximum performance on an Intel processor:"
+	@echo "-O3 -fopenmp -xAVX -inline-forceinline -ipo"
 
 mklib:
 	@mkdir -p $(LIB) $(OBJ) $(ST_BIN)/airfoil $(ST_BIN)/tests
@@ -56,7 +60,7 @@ sparsetiling: mklib
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
-	ar -r $(LIB)/libst.a $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
+	xiar cru $(LIB)/libst.a $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
 		$(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o
 	ranlib $(LIB)/libst.a
 
@@ -72,6 +76,7 @@ demos: mklib
 		$(LIB)/libst.a $(CLOCK_LIB)
 
 clean:
+	@echo "Removing objects, libraries, executables"
 	-rm -if $(OBJ)/*.o
 	-rm -if $(OBJ)/*~
 	-rm -if $(LIB)/*.a
