@@ -4,3 +4,4 @@ bin
 .env
 *.swp
 new_grid.dat
+python/*.pyc
