@@ -55,7 +55,7 @@ void inspector(slope_set* sets) {
   std::cout << "Hello, World!" << std::endl;
   return;
 }
-    """
+"""
 
     def __init__(self):
         self._sets = []
@@ -83,5 +83,11 @@ void inspector(slope_set* sets) {
 
 # Utility functions for the caller
 
+def get_compile_opts():
+    """Return a list of options that are expected to be used when compiling the
+    inspector/executor code"""
+    return ["-std=c++11"]
+
 def get_lib_name():
-    return "libst.a"
+    """Return default name of the shared object resulting from compiling SLOPE"""
+    return "st"
