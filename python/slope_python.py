@@ -30,22 +30,31 @@ class Inspector(object):
     ### Templates for code generation ###
 
     struct_set = """
-    typedef struct {
-      char* name;
-      int size;
-    } slope_set;
+typedef struct {
+  char* name;
+  int size;
+} slope_set;
     """
 
+    set_def = "set_t* set_%s = set(sets[%d].name, sets[%d].size);"
+
     code = """
-    #include <stdio.h>
+#include <iostream>
 
-    %(set_decl)s
+#include "inspector.h"
 
-    void inspector(slope_set* tmp) {
-      printf("Hello, World!\\n");
-      printf("Set name: %%s, size: %%d\\n", tmp[0].name, tmp[0].size);
-      return;
-    }
+/****************************/
+// Inspector's ctypes-compatible data structures
+%(set_decl)s
+/****************************/
+
+void inspector(slope_set* sets) {
+
+  %(set_defs)s
+
+  std::cout << "Hello, World!" << std::endl;
+  return;
+}
     """
 
     def __init__(self):
@@ -63,6 +72,16 @@ class Inspector(object):
         return ctypes.byref(new_set)
 
     def generate_code(self):
+        # Sets code
+        set_defs = [Inspector.set_def % (s.name, i, i) for i, s in enumerate(self._sets)]
+
         return Inspector.code % {
-            'set_decl': Inspector.struct_set
+            'set_decl': Inspector.struct_set,
+            'set_defs': "\n  ".join(set_defs)
         }
+
+
+# Utility functions for the caller
+
+def get_lib_name():
+    return "libst.a"
