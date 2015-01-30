@@ -9,16 +9,18 @@ import ctypes
 ### SLOPE C-types for python-C interaction ###
 
 class Set(ctypes.Structure):
-    _fields_ = [('name', ctypes.c_char_p),
-                ('size', ctypes.c_int)]
+    # Not needed in this version of the Inspector
+    pass
 
 
 class Dat(ctypes.Structure):
+    # Not needed in this version of the Inspector
     pass
 
 
 class Map(ctypes.Structure):
-    pass
+    _fields_ = [('map', ctypes.POINTER(ctypes.c_int)),
+                ('size', ctypes.c_int)]
 
 
 class Loop(ctypes.Structure):
@@ -29,14 +31,15 @@ class Inspector(object):
 
     ### Templates for code generation ###
 
-    struct_set = """
+    struct_map = """
 typedef struct {
-  char* name;
+  int* map;
   int size;
-} slope_set;
+} slope_map;
 """
 
-    set_def = "set_t* set_%s = set(sets[%d].name, sets[%d].size);"
+    set_def = 'set_t* %s = set("%s", %d);'
+    map_def = 'map_t* %s = map("%s", %s, %s, maps[%d].map, maps[%d].size);'
 
     code = """
 #include <iostream>
@@ -45,13 +48,15 @@ typedef struct {
 
 /****************************/
 // Inspector's ctypes-compatible data structures and functions
-%(set_decl)s
-extern "C" void inspector(slope_set sets[%(n_sets)d]);
+%(map_decl)s
+extern "C" void inspector(slope_map maps[%(n_maps)d]);
 /****************************/
 
-void inspector(slope_set sets[%(n_sets)d]) {
-
+void inspector(slope_map maps[%(n_maps)d]) {
+  // Declare sets, maps, dats
   %(set_defs)s
+
+  %(map_defs)s
 
   std::cout << "Hello, World!" << std::endl;
   return;
@@ -59,18 +64,8 @@ void inspector(slope_set sets[%(n_sets)d]) {
 """
 
     def __init__(self):
-        self._sets, self._dats, self._maps, self._loops = [None]*4
-
-    def get_arg_types(self):
-        """This method must be called only after the Inspector has fully been
-        defined. Here ``fully defined`` means that calls to ``add_sets``,
-        ``add_dats``, ``add_maps``, and ``add_loops`` must have performed,
-        which is a requirement to return the correct data types. In such an
-        event, a ``SlopeError`` exception is raised."""
-        try:
-            return [self._sets._type_*len(self._sets)]
-        except TypeError:
-            raise SlopeError("Cannot return arguments types prior to initialization")
+        # Track arguments types
+        self._sets, self._dats, self._maps, self._loops = [], [], [], []
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -79,18 +74,32 @@ void inspector(slope_set sets[%(n_sets)d]) {
                      the set (a string), while the second entry is the size of the
                      iteration set
         """
-        sets = (Set*len(sets))(*[Set(name, size) for name, size in sets])
         self._sets = sets
-        return sets
+        return ([], [])
+
+    def add_maps(self, maps):
+        """Add ``maps`` to this Inspector
+
+        :param maps: iterator of 4-tuple, in which the first entry is the name of
+                     the map (a string); the second and third entries represent,
+                     respectively, the input and the output sets of the map (strings);
+                     follows the map itself, as a numpy array of integers
+        """
+        ctype = Map*len(maps)
+        self._maps = maps
+        return (ctype, ctype(*[Map(map.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                   map.size) for name, _, _, map in maps]))
 
     def generate_code(self):
-        # Sets code
-        set_defs = [Inspector.set_def % (s.name, i, i) for i, s in enumerate(self._sets)]
+        set_defs = [Inspector.set_def % (s[0], s[0], s[1]) for s in self._sets]
+        map_defs = [Inspector.map_def % (m[0], m[0], m[1], m[2], i, i)
+                    for i, m in enumerate(self._maps)]
 
         return Inspector.code % {
-            'set_decl': Inspector.struct_set,
+            'map_decl': Inspector.struct_map,
             'set_defs': "\n  ".join(set_defs),
-            'n_sets': len(self._sets)
+            'map_defs': "\n  ".join(map_defs),
+            'n_maps': len(self._maps)
         }
 
 
