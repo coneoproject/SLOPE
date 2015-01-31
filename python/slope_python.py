@@ -31,15 +31,11 @@ class Inspector(object):
 
     ### Templates for code generation ###
 
-    struct_map = """
-typedef struct {
-  int* map;
-  int size;
-} slope_map;
-"""
-
     set_def = 'set_t* %s = set("%s", %d);'
     map_def = 'map_t* %s = map("%s", %s, %s, maps[%d].map, maps[%d].size);'
+    desc_def = 'desc(%s, %s)'
+    desc_list_def = 'desc_list %s ({%s});'
+    loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
 
     code = """
 #include <iostream>
@@ -48,7 +44,11 @@ typedef struct {
 
 /****************************/
 // Inspector's ctypes-compatible data structures and functions
-%(map_decl)s
+typedef struct {
+  int* map;
+  int size;
+} slope_map;
+
 extern "C" void inspector(slope_map maps[%(n_maps)d]);
 /****************************/
 
@@ -58,7 +58,12 @@ void inspector(slope_map maps[%(n_maps)d]) {
 
   %(map_defs)s
 
+  %(desc_defs)s
+
   int avgTileSize = %(tile_size)d;
+  inspector_t* insp = insp_init(avgTileSize, %(mode)s);
+
+  %(loop_defs)s
 
   std::cout << "Hello, World!" << std::endl;
   return;
@@ -79,7 +84,6 @@ void inspector(slope_map maps[%(n_maps)d]) {
                      iteration set
         """
         self._sets = sets
-        return ([], [])
 
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
@@ -94,17 +98,45 @@ void inspector(slope_map maps[%(n_maps)d]) {
         return (ctype, ctype(*[Map(map.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                    map.size) for name, _, _, map in maps]))
 
+    def add_loops(self, loops):
+        """Add a list of ``loops`` to this Inspector
+
+        :param loops: iterator of 3-tuple ``(name, it_space, desc)``, where:
+            * ``name`` is the identifier name of the loop
+            * ``it_space`` is the iteration space of the loop
+            * ``desc`` represents a list of descriptors. In SLOPE, a descriptor
+                       specifies the memory access pattern in a loop. In particular,
+                       a descriptor is a 2-tuple in which the first entry is a map
+                       (previously defined through a call to ``map(...)``) and the
+                       second entry is the access mode (e.g., RW, READ, INC, ...).
+                       If the access to a dataset does not involve any map, than the
+                       first entry assumes the value of the special keyword ``DIRECT``
+        """
+        self._loops = loops
+
     def generate_code(self):
         set_defs = [Inspector.set_def % (s[0], s[0], s[1]) for s in self._sets]
         map_defs = [Inspector.map_def % (m[0], m[0], m[1], m[2], i, i)
                     for i, m in enumerate(self._maps)]
+        desc_defs, loop_defs = [], []
+        for i, loop in enumerate(self._loops):
+            loop_name, loop_it_space, loop_descs = loop
+
+            descs_name = "%s_Desc_%d" % (loop_name, i)
+            loop_name = "%s_Loop_%d" % (loop_name, i)
+
+            descs = [Inspector.desc_def % (d[0], d[1]) for d in loop_descs]
+            desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
+            loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
         return Inspector.code % {
-            'map_decl': Inspector.struct_map,
             'set_defs': "\n  ".join(set_defs),
             'map_defs': "\n  ".join(map_defs),
+            'desc_defs': "\n  ".join(desc_defs),
+            'loop_defs': "\n  ".join(loop_defs),
             'n_maps': len(self._maps),
-            'tile_size': self._tile_size
+            'tile_size': self._tile_size,
+            'mode': self._mode
         }
 
 
