@@ -58,12 +58,16 @@ void inspector(slope_map maps[%(n_maps)d]) {
 
   %(map_defs)s
 
+  int avgTileSize = %(tile_size)d;
+
   std::cout << "Hello, World!" << std::endl;
   return;
 }
 """
 
-    def __init__(self):
+    def __init__(self, mode, tile_size):
+        self._mode = mode
+        self._tile_size = tile_size
         # Track arguments types
         self._sets, self._dats, self._maps, self._loops = [], [], [], []
 
@@ -99,7 +103,8 @@ void inspector(slope_map maps[%(n_maps)d]) {
             'map_decl': Inspector.struct_map,
             'set_defs': "\n  ".join(set_defs),
             'map_defs': "\n  ".join(map_defs),
-            'n_maps': len(self._maps)
+            'n_maps': len(self._maps),
+            'tile_size': self._tile_size
         }
 
 
