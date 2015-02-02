@@ -14,8 +14,8 @@ class Set(ctypes.Structure):
 
 
 class Dat(ctypes.Structure):
-    # Not needed in this version of the Inspector
-    pass
+    _fields_ = [('data', ctypes.POINTER(ctypes.c_double)),
+                ('size', ctypes.c_int)]
 
 
 class Map(ctypes.Structure):
@@ -36,6 +36,7 @@ class Inspector(object):
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
+    output_vtk = 'generate_vtk(insp, %s, coords_dat[0].data, %s)'
 
     code = """
 #include <iostream>
@@ -49,10 +50,17 @@ typedef struct {
   int size;
 } slope_map;
 
-extern "C" void inspector(slope_map maps[%(n_maps)d]);
+typedef struct {
+  void* data;
+  int size;
+} slope_dat;
+
+extern "C" void inspector(slope_map maps[%(n_maps)d],
+                          slope_dat coords_dat[1]);
 /****************************/
 
-void inspector(slope_map maps[%(n_maps)d]) {
+void inspector(slope_map maps[%(n_maps)d],
+               slope_dat coords_dat[1]) {
   // Declare sets, maps, dats
   %(set_defs)s
 
@@ -66,6 +74,8 @@ void inspector(slope_map maps[%(n_maps)d]) {
   %(loop_defs)s
 
   std::cout << "Hello, World!" << std::endl;
+
+  %(output_vtk)s
   return;
 }
 """
@@ -75,6 +85,39 @@ void inspector(slope_map maps[%(n_maps)d]) {
         self._tile_size = tile_size
         # Track arguments types
         self._sets, self._dats, self._maps, self._loops = [], [], [], []
+        self._coords = None
+
+    def add_coords(self, coords):
+        """Add coordinates ``coords`` of some set to this Inspector
+
+        Note: this method is meant to be called after the ``add_sets`` method,
+              which is essential to tell this Inspector which sets compose the
+              domain being tiled.
+
+        :param coords: a 3-tuple, in which the first entry is the name of set the
+                       coordinates belong to; the second entry is the numpy array of
+                       coordinates values; the third entry indicates the dimension
+                       of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
+                       datasets, respectively)
+        """
+        if not self._sets:
+            raise SlopeError("`add_coords` should be called only after `add_sets`")
+
+        set_name, data, arity = coords
+
+        # Check parameters
+        try:
+            coords_size = [s[1] for s in self._sets if s[0] == set_name][0]
+        except:
+            raise SlopeError("Couldn't find set `%s` for coordinates" % set_name)
+        if arity not in [1, 2, 3]:
+            raise SlopeError("Arity should be a number between 1 and 3")
+        arity = "VTK_MESH%dD" % arity
+
+        ctype = Dat*1
+        self._coords = (set_name, data, arity)
+        return (ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                                 coords_size)))
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -129,6 +172,11 @@ void inspector(slope_map maps[%(n_maps)d]) {
             desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
+        output_vtk = ""
+        if self._coords:
+            set_name, _, arity = self._coords
+            output_vtk = Inspector.output_vtk % (set_name, arity)
+
         return Inspector.code % {
             'set_defs': "\n  ".join(set_defs),
             'map_defs': "\n  ".join(map_defs),
@@ -136,7 +184,8 @@ void inspector(slope_map maps[%(n_maps)d]) {
             'loop_defs': "\n  ".join(loop_defs),
             'n_maps': len(self._maps),
             'tile_size': self._tile_size,
-            'mode': self._mode
+            'mode': self._mode,
+            'output_vtk': output_vtk
         }
 
 
