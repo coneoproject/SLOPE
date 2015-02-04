@@ -36,12 +36,13 @@ class Inspector(object):
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
-    output_vtk = 'generate_vtk(insp, %s, coords_dat[0].data, %s)'
+    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s);'
 
     code = """
 #include <iostream>
 
 #include "inspector.h"
+#include "utils.h"
 
 /****************************/
 // Inspector's ctypes-compatible data structures and functions
@@ -203,11 +204,11 @@ class SlopeError(Exception):
 
 # Utility functions for the caller
 
-def get_compile_opts(compiler='gnu'):
+def get_compile_opts(compiler='gnu', debug_mode=False):
     """Return a list of options that are expected to be used when compiling the
     inspector/executor code. Supported compilers: [gnu (default), intel]."""
     functional_opts = ['-std=c++11']
-    debug_opts = ['-DSLOPE_VTK'] if self._coords else []
+    debug_opts = ['-DSLOPE_VTK'] if debug_mode else []
     optimization_opts = ['-O3', '-fopenmp']
     if compiler == 'intel':
         optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
