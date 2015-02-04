@@ -73,6 +73,9 @@ void inspector(slope_map maps[%(n_maps)d],
 
   %(loop_defs)s
 
+  int seedTilePoint = %(seed)d;
+  insp_run (insp, seedTilePoint);
+
   std::cout << "Hello, World!" << std::endl;
 
   %(output_vtk)s
@@ -185,6 +188,7 @@ void inspector(slope_map maps[%(n_maps)d],
             'n_maps': len(self._maps),
             'tile_size': self._tile_size,
             'mode': self._mode,
+            'seed': len(self._loops) / 2,
             'output_vtk': output_vtk
         }
 
