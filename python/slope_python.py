@@ -203,10 +203,15 @@ class SlopeError(Exception):
 
 # Utility functions for the caller
 
-def get_compile_opts():
+def get_compile_opts(compiler='gnu'):
     """Return a list of options that are expected to be used when compiling the
-    inspector/executor code"""
-    return ["-std=c++11"]
+    inspector/executor code. Supported compilers: [gnu (default), intel]."""
+    functional_opts = ['-std=c++11']
+    debug_opts = ['-DSLOPE_VTK'] if self._coords else []
+    optimization_opts = ['-O3', '-fopenmp']
+    if compiler == 'intel':
+        optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
+    return functional_opts + debug_opts + optimization_opts
 
 
 def get_lib_name():
