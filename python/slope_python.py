@@ -35,13 +35,12 @@ class Inspector(object):
     map_def = 'map_t* %s = map("%s", %s, %s, maps[%d].map, maps[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
-    loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
-    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s);'
+    loop_def = 'insp_add_parloop(inspector, "%s", %s, &%s);'
+    output_vtk = 'generate_vtk(inspector, %s, (double*)coords_dat[0].data, %s);'
 
     code = """
-#include <iostream>
-
 #include "inspector.h"
+#include "executor.h"
 #include "utils.h"
 
 /****************************/
@@ -70,16 +69,17 @@ void inspector(slope_map maps[%(n_maps)d],
   %(desc_defs)s
 
   int avgTileSize = %(tile_size)d;
-  inspector_t* insp = insp_init(avgTileSize, %(mode)s);
+  inspector_t* inspector = insp_init (avgTileSize, %(mode)s);
 
   %(loop_defs)s
 
   int seedTilePoint = %(seed)d;
-  insp_run (insp, seedTilePoint);
-
-  std::cout << "Hello, World!" << std::endl;
+  insp_run (inspector, seedTilePoint);
 
   %(output_vtk)s
+
+  executor_t* executor = exec_init (inspector);
+  insp_free (inspector);
   return;
 }
 """
@@ -192,6 +192,16 @@ void inspector(slope_map maps[%(n_maps)d],
             'seed': len(self._loops) / 2,
             'output_vtk': output_vtk
         }
+
+
+class Executor(object):
+
+    _ctype = ctypes.POINTER(ctypes.c_void_p)
+
+    ### Templates for code generation ###
+
+    def __init__(self):
+        pass
 
 
 class SlopeError(Exception):
