@@ -35,8 +35,8 @@ class Inspector(object):
     map_def = 'map_t* %s = map("%s", %s, %s, maps[%d].map, maps[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
-    loop_def = 'insp_add_parloop(inspector, "%s", %s, &%s);'
-    output_vtk = 'generate_vtk(inspector, %s, (double*)coords_dat[0].data, %s);'
+    loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
+    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s);'
 
     code = """
 #include "inspector.h"
@@ -55,12 +55,13 @@ typedef struct {
   int size;
 } slope_dat;
 
-extern "C" void inspector(slope_map maps[%(n_maps)d],
-                          slope_dat coords_dat[1]);
+extern "C" void* inspector(slope_map maps[%(n_maps)d],
+                           slope_dat coords_dat[1]);
 /****************************/
 
-void inspector(slope_map maps[%(n_maps)d],
-               slope_dat coords_dat[1]) {
+void* inspector(slope_map maps[%(n_maps)d],
+                slope_dat coords_dat[1])
+{
   // Declare sets, maps, dats
   %(set_defs)s
 
@@ -69,18 +70,18 @@ void inspector(slope_map maps[%(n_maps)d],
   %(desc_defs)s
 
   int avgTileSize = %(tile_size)d;
-  inspector_t* inspector = insp_init (avgTileSize, %(mode)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s);
 
   %(loop_defs)s
 
   int seedTilePoint = %(seed)d;
-  insp_run (inspector, seedTilePoint);
+  insp_run (insp, seedTilePoint);
 
   %(output_vtk)s
 
-  executor_t* executor = exec_init (inspector);
-  insp_free (inspector);
-  return;
+  executor_t* exec = exec_init (insp);
+  insp_free (insp);
+  return exec;
 }
 """
 
@@ -200,8 +201,31 @@ class Executor(object):
 
     ### Templates for code generation ###
 
-    def __init__(self):
-        pass
+    code = """
+#include <iostream>
+
+#include "executor.h"
+#include "utils.h"
+
+/****************************/
+// Executor's ctypes-compatible data structures and functions
+
+extern "C" void executor(void* exec);
+/****************************/
+
+void executor(void* _exec)
+{
+  executor_t* exec = (executor_t*)_exec;
+  std::cout << "nColors = " << exec_num_colors (exec) << std::endl;
+  return;
+}
+"""
+
+    def __init__(self, inspector):
+        self._inspector = inspector
+
+    def generate_code(self):
+        return Executor.code
 
 
 class SlopeError(Exception):
