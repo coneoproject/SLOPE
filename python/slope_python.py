@@ -29,6 +29,8 @@ class Loop(ctypes.Structure):
 
 class Inspector(object):
 
+    _globaldata = {}
+
     ### Templates for code generation ###
 
     set_def = 'set_t* %s = set("%s", %d);'
@@ -88,41 +90,7 @@ void* inspector(slope_map maps[%(n_maps)d],
     def __init__(self, mode, tile_size):
         self._mode = mode
         self._tile_size = tile_size
-        # Track arguments types
         self._sets, self._dats, self._maps, self._loops = [], [], [], []
-        self._coords = None
-
-    def add_coords(self, coords):
-        """Add coordinates ``coords`` of some set to this Inspector
-
-        Note: this method is meant to be called after the ``add_sets`` method,
-              which is essential to tell this Inspector which sets compose the
-              domain being tiled.
-
-        :param coords: a 3-tuple, in which the first entry is the name of set the
-                       coordinates belong to; the second entry is the numpy array of
-                       coordinates values; the third entry indicates the dimension
-                       of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
-                       datasets, respectively)
-        """
-        if not self._sets:
-            raise SlopeError("`add_coords` should be called only after `add_sets`")
-
-        set_name, data, arity = coords
-
-        # Check parameters
-        try:
-            coords_size = [s[1] for s in self._sets if s[0] == set_name][0]
-        except:
-            raise SlopeError("Couldn't find set `%s` for coordinates" % set_name)
-        if arity not in [1, 2, 3]:
-            raise SlopeError("Arity should be a number between 1 and 3")
-        arity = "VTK_MESH%dD" % arity
-
-        ctype = Dat*1
-        self._coords = (set_name, data, arity)
-        return (ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                                 coords_size)))
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -162,6 +130,37 @@ void* inspector(slope_map maps[%(n_maps)d],
         """
         self._loops = loops
 
+    def set_external_dats(self):
+        """Inspection/Execution can benefit of certain data fields that are not
+        strictly included in the loop chain definition. For example, for debugging
+        and visualization purposes, one can provide SLOPE with a coordinates field,
+        which can be used to generate VTK files displaying the colored and tiled
+        domain. Extra dats can be globally set using the functions ``set_...``
+        accessible in this python module.
+
+        The caller, which is constructing this Inspector, should call this method
+        right before ``generate_code``, and use the returned ``argtypes`` and
+        ``argvalues`` when calling the JIT-compiled inspector module, since the
+        generated code will expect some extra parameters in the main function.
+        """
+        if not Inspector._globaldata:
+            return
+        if not (self._sets and self._maps and self._loops):
+            raise SlopeError("Loop chain not constructed yet")
+
+        # Handle coordinates
+        coordinates = Inspector._globaldata.get('coordinates')
+        if not coordinates:
+            return
+        set, data, _ = coordinates
+        try:
+            set_size = [s[1] for s in self._sets if s[0] == set][0]
+        except:
+            raise SlopeError("Couldn't find set `%s` for coordinates" % set)
+        ctype = Dat*1
+        return [(ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                                  set_size)))]
+
     def generate_code(self):
         set_defs = [Inspector.set_def % (s[0], s[0], s[1]) for s in self._sets]
         map_defs = [Inspector.map_def % (m[0], m[0], m[1], m[2], i, i)
@@ -177,10 +176,11 @@ void* inspector(slope_map maps[%(n_maps)d],
             desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
+        coordinates = Inspector._globaldata.get('coordinates')
         output_vtk = ""
-        if self._coords:
-            set_name, _, arity = self._coords
-            output_vtk = Inspector.output_vtk % (set_name, arity)
+        if coordinates:
+            set, _, arity = coordinates
+            output_vtk = Inspector.output_vtk % (set, arity)
 
         return Inspector.code % {
             'set_defs': "\n  ".join(set_defs),
@@ -228,6 +228,8 @@ void executor(void* _exec)
         return Executor.code
 
 
+# Error handling
+
 class SlopeError(Exception):
     def __init__(self, value):
         self.value = value
@@ -238,11 +240,13 @@ class SlopeError(Exception):
 
 # Utility functions for the caller
 
-def get_compile_opts(compiler='gnu', debug_mode=False):
+def get_compile_opts(compiler='gnu'):
     """Return a list of options that are expected to be used when compiling the
     inspector/executor code. Supported compilers: [gnu (default), intel]."""
     functional_opts = ['-std=c++11']
-    debug_opts = ['-DSLOPE_VTK'] if debug_mode else []
+    debug_opts = []
+    if Inspector._globaldata.get('coordinates'):
+        debug_opts = ['-DSLOPE_VTK']
     optimization_opts = ['-O3', '-fopenmp']
     if compiler == 'intel':
         optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
@@ -252,3 +256,22 @@ def get_compile_opts(compiler='gnu', debug_mode=False):
 def get_lib_name():
     """Return default name of the shared object resulting from compiling SLOPE"""
     return "st"
+
+
+# Functions for setting global information for inspection
+
+def set_debug_mode(coordinates):
+    """Add a coordinates field such that inspection can generate VTK files
+    useful for debugging and visualization purposes.
+
+    :param coordinates: a 3-tuple, in which the first entry is the set name the
+                        coordinates belong to; the second entry is a numpy array of
+                        coordinates values; the third entry indicates the dimension
+                        of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
+                        datasets, respectively)
+    """
+    set, data, arity = coordinates
+    if arity not in [1, 2, 3]:
+        raise SlopeError("Arity should be a number in [1, 2, 3]")
+    arity = "VTK_MESH%dD" % arity
+    Inspector._globaldata['coordinates'] = (set, data, arity)
