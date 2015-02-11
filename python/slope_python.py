@@ -197,35 +197,118 @@ void* inspector(slope_map maps[%(n_maps)d],
 
 class Executor(object):
 
-    _ctype = ctypes.POINTER(ctypes.c_void_p)
-
     ### Templates for code generation ###
 
-    code = """
-#include <iostream>
+    meta = {
+        'tile_start': 0,
+        'tile_end': 'tileLoopSize',
+        'name_exec': 'exec',
+        'name_param_exec': '_exec',
+        'name_local_map': 'loc_%(gmap)s_%(loop_id)d',
+        'name_local_iters': 'iterations_%(loop_id)d',
+        'loop_chain_body': '%(loop_chain_body)s',  # Instantiated user side
+        'headers': ['#include "%s"' % h for h in ['inspector.h', 'executor.h',
+                                                  'utils.h']],
+        'ctype_exec': 'void*',
+        'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p)
+    }
 
-#include "executor.h"
-#include "utils.h"
+    init_code = """
+executor_t* %(name_exec)s = (executor_t*)_%(name_exec)s;
+int nColors = exec_num_colors (%(name_exec)s);
+"""
+    outer_tiles_loop = """\
+for (int i = 0; i < nColors; i++) {
+  const int nTilesPerColor = exec_tiles_per_color (%(name_exec)s, i);
+  #ifdef SLOPE_OMP
+  #pragma omp parallel for
+  #endif
+  for (int j = 0; j < nTilesPerColor; j++) {
+    // execute tile j for color i
+    tile_t* tile = exec_tile_at (%(name_exec)s, i, j);
+    int %(tile_end)s;
 
-/****************************/
-// Executor's ctypes-compatible data structures and functions
-
-extern "C" void executor(void* exec);
-/****************************/
-
-void executor(void* _exec)
-{
-  executor_t* exec = (executor_t*)_exec;
-  std::cout << "nColors = " << exec_num_colors (exec) << std::endl;
-  return;
+    %(loop_chain_body)s
+  }
 }
+"""
+    local_map_def = """
+iterations_list& %(lmap)s = tile_get_local_map (tile, %(loop_id)d, "%(gmap)s");
+"""
+    local_iters = """\
+iterations_list& %(local_iters)s = tile_get_iterations (tile, %(loop_id)d);
+tileLoopSize = iterations_%(loop_id)d.size();
 """
 
     def __init__(self, inspector):
-        self._inspector = inspector
+        self._code = "\n".join([Executor.init_code % Executor.meta,
+                                Executor.outer_tiles_loop % Executor.meta])
+        self._loop_init, self._gtl_maps = self._generate_loops(inspector._loops)
 
-    def generate_code(self):
-        return Executor.code
+    def _generate_loops(self, loops):
+        """Return a 2-tuple, in which:
+
+            * the first entry represents initialization code to be executed right
+              before the tile's loop invoking the kernel;
+            * the second entry is a list of dict that binds, for each loop, global
+              maps to local maps, as well as local iterations to the actual tile's
+              iterations.
+        """
+        header_code = []
+        gtl_maps = []  # gtl stands for global-to-local
+        for i, loop in enumerate(loops):
+            descs = loop[2]
+            global_maps = set(desc[0] for desc in descs if desc[0] != 'DIRECT')
+            local_maps = [Executor.meta['name_local_map'] % {'gmap': gmap, 'loop_id': i}
+                          for gmap in global_maps]
+            gtl_map = dict(zip(global_maps, local_maps))
+            local_maps_def = "".join([Executor.local_map_def % {
+                'gmap': gmap,
+                'lmap': lmap,
+                'loop_id': i} for gmap, lmap in gtl_map.items()])
+            name_local_iters = Executor.meta['name_local_iters'] % {
+                'loop_id': i
+            }
+            local_iters = Executor.local_iters % {
+                'local_iters': name_local_iters,
+                'loop_id': i
+            }
+            header_code.append(("%s%s" % (local_maps_def, local_iters)).strip('\n'))
+            gtl_map.update({'DIRECT': name_local_iters})
+            gtl_maps.append(gtl_map)
+
+        return (header_code, gtl_maps)
+
+    @property
+    def c_type_exec(self):
+        return Executor.meta['type_exec']
+
+    @property
+    def c_name_exec(self):
+        return "_%s" % Executor.meta['name_exec']
+
+    @property
+    def c_loop_start_name(self):
+        return Executor.meta['tile_start']
+
+    @property
+    def c_loop_end_name(self):
+        return Executor.meta['tile_end']
+
+    @property
+    def c_loop_init(self):
+        return self._loop_init
+
+    @property
+    def c_headers(self):
+        return Executor.meta['headers']
+
+    @property
+    def gtl_maps(self):
+        return self._gtl_maps
+
+    def c_code(self, loop_chain_body):
+        return self._code % {'loop_chain_body': loop_chain_body}
 
 
 # Error handling
@@ -256,6 +339,16 @@ def get_compile_opts(compiler='gnu'):
 def get_lib_name():
     """Return default name of the shared object resulting from compiling SLOPE"""
     return "st"
+
+
+def get_include_dir():
+    """Return the include directory relative to the main folder"""
+    return "sparsetiling/include"
+
+
+def get_lib_dir():
+    """Return the lib directory relative to the main folder"""
+    return "lib"
 
 
 # Functions for setting global information for inspection
