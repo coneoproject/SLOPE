@@ -9,8 +9,8 @@ import ctypes
 ### SLOPE C-types for python-C interaction ###
 
 class Set(ctypes.Structure):
-    # Not needed in this version of the Inspector
-    pass
+    _fields_ = [('name', ctypes.c_char_p),
+                ('size', ctypes.c_int)]
 
 
 class Dat(ctypes.Structure):
@@ -19,12 +19,9 @@ class Dat(ctypes.Structure):
 
 
 class Map(ctypes.Structure):
-    _fields_ = [('map', ctypes.POINTER(ctypes.c_int)),
+    _fields_ = [('name', ctypes.c_char_p),
+                ('map', ctypes.POINTER(ctypes.c_int)),
                 ('size', ctypes.c_int)]
-
-
-class Loop(ctypes.Structure):
-    pass
 
 
 class Inspector(object):
@@ -33,8 +30,8 @@ class Inspector(object):
 
     ### Templates for code generation ###
 
-    set_def = 'set_t* %s = set("%s", %d);'
-    map_def = 'map_t* %s = map("%s", %s, %s, maps[%d].map, maps[%d].size);'
+    set_def = 'set_t* %s = set(sets[%d].name, sets[%d].size);'
+    map_def = 'map_t* %s = map(maps[%d].name, %s, %s, maps[%d].map, maps[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
@@ -48,6 +45,12 @@ class Inspector(object):
 /****************************/
 // Inspector's ctypes-compatible data structures and functions
 typedef struct {
+  char* name;
+  int size;
+} slope_set;
+
+typedef struct {
+  char* name;
   int* map;
   int size;
 } slope_map;
@@ -57,12 +60,16 @@ typedef struct {
   int size;
 } slope_dat;
 
-extern "C" void* inspector(slope_map maps[%(n_maps)d],
-                           slope_dat coords_dat[1]);
+extern "C" void* inspector(slope_set sets[%(n_sets)d],
+                           slope_map maps[%(n_maps)d],
+                           slope_dat coords_dat[1],
+                           int tileSize);
 /****************************/
 
-void* inspector(slope_map maps[%(n_maps)d],
-                slope_dat coords_dat[1])
+void* inspector(slope_set sets[%(n_sets)d],
+                slope_map maps[%(n_maps)d],
+                slope_dat coords_dat[1],
+                int tileSize)
 {
   // Declare sets, maps, dats
   %(set_defs)s
@@ -71,7 +78,7 @@ void* inspector(slope_map maps[%(n_maps)d],
 
   %(desc_defs)s
 
-  int avgTileSize = %(tile_size)d;
+  int avgTileSize = tileSize;
   inspector_t* insp = insp_init (avgTileSize, %(mode)s);
 
   %(loop_defs)s
@@ -87,9 +94,8 @@ void* inspector(slope_map maps[%(n_maps)d],
 }
 """
 
-    def __init__(self, mode, tile_size):
+    def __init__(self, mode):
         self._mode = mode
-        self._tile_size = tile_size
         self._sets, self._dats, self._maps, self._loops = [], [], [], []
 
     def add_sets(self, sets):
@@ -99,7 +105,9 @@ void* inspector(slope_map maps[%(n_maps)d],
                      the set (a string), while the second entry is the size of the
                      iteration set
         """
+        ctype = Set*len(sets)
         self._sets = sets
+        return (ctype, ctype(*[Set(name, size) for name, size in sets]))
 
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
@@ -111,7 +119,8 @@ void* inspector(slope_map maps[%(n_maps)d],
         """
         ctype = Map*len(maps)
         self._maps = maps
-        return (ctype, ctype(*[Map(map.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        return (ctype, ctype(*[Map(name,
+                                   map.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                    map.size) for name, _, _, map in maps]))
 
     def add_loops(self, loops):
@@ -129,6 +138,11 @@ void* inspector(slope_map maps[%(n_maps)d],
                        first entry assumes the value of the special keyword ``DIRECT``
         """
         self._loops = loops
+
+    def set_tile_size(self, tile_size):
+        """Set a tile size for this Inspector"""
+        ctype = ctypes.c_int
+        return (ctype, ctype(tile_size))
 
     def set_external_dats(self):
         """Inspection/Execution can benefit of certain data fields that are not
@@ -158,12 +172,12 @@ void* inspector(slope_map maps[%(n_maps)d],
         except:
             raise SlopeError("Couldn't find set `%s` for coordinates" % set)
         ctype = Dat*1
-        return [(ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                                  set_size)))]
+        return (ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                                 set_size)))
 
     def generate_code(self):
-        set_defs = [Inspector.set_def % (s[0], s[0], s[1]) for s in self._sets]
-        map_defs = [Inspector.map_def % (m[0], m[0], m[1], m[2], i, i)
+        set_defs = [Inspector.set_def % (s[0], i, i) for i, s in enumerate(self._sets)]
+        map_defs = [Inspector.map_def % (m[0], i, m[1], m[2], i, i)
                     for i, m in enumerate(self._maps)]
         desc_defs, loop_defs = [], []
         for i, loop in enumerate(self._loops):
@@ -188,7 +202,7 @@ void* inspector(slope_map maps[%(n_maps)d],
             'desc_defs': "\n  ".join(desc_defs),
             'loop_defs': "\n  ".join(loop_defs),
             'n_maps': len(self._maps),
-            'tile_size': self._tile_size,
+            'n_sets': len(self._sets),
             'mode': self._mode,
             'seed': len(self._loops) / 2,
             'output_vtk': output_vtk
