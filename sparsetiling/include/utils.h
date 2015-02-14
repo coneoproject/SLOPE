@@ -205,8 +205,10 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
   loop_list::const_iterator it, end;
   int i = 0;
   for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+    // aliases
     loop_t* loop = *it;
     int loopSetSize = loop->set->size;
+    std::string loopSetName = loop->set->name;
     std::string loopName = loop->name;
     desc_list* descriptors = loop->descriptors;
 
@@ -268,6 +270,12 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
           }
           vtkfile << std::endl;
         }
+        found = true;
+        break;
+      }
+      if (map == DIRECT && loopSetName == nodesSetName) {
+        // What was tiled was a direct loop over nodes, so can still output the
+        // computed tiling/coloring
         found = true;
         break;
       }
