@@ -135,7 +135,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
     // update projections:
     // - seedLoopProj is added a projection for a set X if X is not in seedLoopProj
-    //   yet. This is becase baseParLoop will be used for backward tiling, in which
+    //   yet. This is because seedLoopProj will be used for backward tiling, in which
     //   the sets projections closest (in time) to the seed parloop need to be seen
     // - prevLoopProj is updated everytime a new projection is available; for this,
     //   any previous projections for a same set are deleted and memory is freed
@@ -341,10 +341,14 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
           int indColor = MAX(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
             // update color and tile of the loop being tiled
-            loopIter2tile[i] = indTile;
-            loopIter2color[i] = indColor;
+            iterTile = indTile;
+            iterColor = indColor;
           }
         }
+        // now all adjacent iterations have been examined, so assign the MAX
+        // color found and the corresponding tile
+        loopIter2tile[i] = iterTile;
+        loopIter2color[i] = iterColor;
       }
     }
 
@@ -442,10 +446,14 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
           int indColor = MIN(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
             // update color and tile of the loop being tiled
-            loopIter2tile[i] = indTile;
-            loopIter2color[i] = indColor;
+            iterTile = indTile;
+            iterColor = indColor;
           }
         }
+        // now all adjacent iterations have been examined, so assign the MIN
+        // color found and the corresponding tile
+        loopIter2tile[i] = iterTile;
+        loopIter2color[i] = iterColor;
       }
     }
 

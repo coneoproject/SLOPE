@@ -125,8 +125,8 @@ inline double time_stamp()
 /*
  * Generic utility functions
  */
-#define MAX(A, B) ((A > B) ? A : B)
-#define MIN(A, B) ((A < B) ? A : B)
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 /*
  * Generate a VTK file showing the coloring of each tiled parloop once opened
