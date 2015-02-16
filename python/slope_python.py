@@ -36,6 +36,7 @@ class Inspector(object):
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
     output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s);'
+    output_insp = 'insp_print (insp, %s);'
 
     code = """
 #include "inspector.h"
@@ -86,6 +87,7 @@ void* inspector(slope_set sets[%(n_sets)d],
   int seedTilePoint = %(seed)d;
   insp_run (insp, seedTilePoint);
 
+  %(output_insp)s
   %(output_vtk)s
 
   executor_t* exec = exec_init (insp);
@@ -196,6 +198,11 @@ void* inspector(slope_set sets[%(n_sets)d],
             set, _, arity = coordinates
             output_vtk = Inspector.output_vtk % (set, arity)
 
+        debug_mode = Inspector._globaldata.get('debug_mode')
+        output_insp = ""
+        if debug_mode:
+            output_insp = Inspector.output_insp % debug_mode
+
         return Inspector.code % {
             'set_defs': "\n  ".join(set_defs),
             'map_defs': "\n  ".join(map_defs),
@@ -205,7 +212,8 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': self._mode,
             'seed': len(self._loops) / 2,
-            'output_vtk': output_vtk
+            'output_vtk': output_vtk,
+            'output_insp': output_insp
         }
 
 
@@ -367,16 +375,24 @@ def get_lib_dir():
 
 # Functions for setting global information for inspection
 
-def set_debug_mode(coordinates):
+def set_debug_mode(mode, coordinates):
     """Add a coordinates field such that inspection can generate VTK files
     useful for debugging and visualization purposes.
 
+    :param mode: the level of verbosity of the debug mode (LOW, MEDIUM, HIGH)
     :param coordinates: a 3-tuple, in which the first entry is the set name the
                         coordinates belong to; the second entry is a numpy array of
                         coordinates values; the third entry indicates the dimension
                         of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
                         datasets, respectively)
     """
+
+    modes = ['VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
+    if mode not in modes:
+        print "Warning: debugging set to LOW (%s not in: %s)" % (mode, str(modes))
+        mode = 'LOW'
+    Inspector._globaldata['debug_mode'] = mode
+
     set, data, arity = coordinates
     if arity not in [1, 2, 3]:
         raise SlopeError("Arity should be a number in [1, 2, 3]")
