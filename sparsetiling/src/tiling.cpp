@@ -22,11 +22,10 @@ inline void updateTilesTracker (tracker_t& iterTilesPerColor, index_set iterColo
     index_set adjTiles = it->second;
     index_set::const_iterator tIt, tEnd;
     for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
-      int tileID = *tIt;;
       // if conflicts detected on a color add the relevant information to tiles
       // involved in the conflict
       if (adjTiles.size() > 1) {
-        conflictsTracker[tileID].insert (adjTiles.begin(), adjTiles.end());
+        conflictsTracker[*tIt].insert (adjTiles.begin(), adjTiles.end());
       }
     }
     for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
