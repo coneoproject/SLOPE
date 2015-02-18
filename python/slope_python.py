@@ -107,6 +107,7 @@ void* inspector(slope_set sets[%(n_sets)d],
                      the set (a string), while the second entry is the size of the
                      iteration set
         """
+        sets = [(self._fix_c(name), size) for name, size in sets]
         ctype = Set*len(sets)
         self._sets = sets
         return (ctype, ctype(*[Set(name, size) for name, size in sets]))
@@ -119,6 +120,8 @@ void* inspector(slope_set sets[%(n_sets)d],
                      respectively, the input and the output sets of the map (strings);
                      follows the map itself, as a numpy array of integers
         """
+        maps = [(name, self._fix_c(in_set), self._fix_c(out_set), map)
+                for name, in_set, out_set, map in maps]
         ctype = Map*len(maps)
         self._maps = maps
         return (ctype, ctype(*[Map(name,
@@ -128,9 +131,9 @@ void* inspector(slope_set sets[%(n_sets)d],
     def add_loops(self, loops):
         """Add a list of ``loops`` to this Inspector
 
-        :param loops: iterator of 3-tuple ``(name, it_space, desc)``, where:
+        :param loops: iterator of 3-tuple ``(name, set, desc)``, where:
             * ``name`` is the identifier name of the loop
-            * ``it_space`` is the iteration space of the loop
+            * ``set`` is the iteration space of the loop
             * ``desc`` represents a list of descriptors. In SLOPE, a descriptor
                        specifies the memory access pattern in a loop. In particular,
                        a descriptor is a 2-tuple in which the first entry is a map
@@ -139,7 +142,7 @@ void* inspector(slope_set sets[%(n_sets)d],
                        If the access to a dataset does not involve any map, than the
                        first entry assumes the value of the special keyword ``DIRECT``
         """
-        self._loops = loops
+        self._loops = [(name, self._fix_c(set), descs) for name, set, descs in loops]
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -215,6 +218,12 @@ void* inspector(slope_set sets[%(n_sets)d],
             'output_vtk': output_vtk,
             'output_insp': output_insp
         }
+
+    def _fix_c(self, var):
+        """Make string ``var`` a valid C literal removing invalid characters."""
+        for ch in ['/', '#']:
+            var = var.replace(ch, '')
+        return var.split('.')[-1]
 
 
 class Executor(object):
