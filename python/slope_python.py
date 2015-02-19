@@ -26,7 +26,7 @@ class Map(ctypes.Structure):
 
 class Inspector(object):
 
-    _globaldata = {}
+    _globaldata = {'mode': 'SEQUENTIAL'}
 
     ### Templates for code generation ###
 
@@ -95,10 +95,6 @@ void* inspector(slope_set sets[%(n_sets)d],
   return exec;
 }
 """
-
-    def __init__(self, mode):
-        self._mode = mode
-        self._sets, self._dats, self._maps, self._loops = [], [], [], []
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -213,7 +209,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'loop_defs': "\n  ".join(loop_defs),
             'n_maps': len(self._maps),
             'n_sets': len(self._sets),
-            'mode': self._mode,
+            'mode': Inspector._globaldata['mode'],
             'seed': len(self._loops) / 2,
             'output_vtk': output_vtk,
             'output_insp': output_insp
@@ -361,7 +357,10 @@ def get_compile_opts(compiler='gnu'):
     debug_opts = []
     if Inspector._globaldata.get('coordinates'):
         debug_opts = ['-DSLOPE_VTK']
-    optimization_opts = ['-O3', '-fopenmp']
+    optimization_opts = ['-O3']
+    if Inspector._globaldata['mode'] == 'OMP':
+        optimization_opts.append('-fopenmp')
+        functional_opts.append('-DSLOPE_OMP')
     if compiler == 'intel':
         optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
     return functional_opts + debug_opts + optimization_opts
@@ -382,7 +381,7 @@ def get_lib_dir():
     return "lib"
 
 
-# Functions for setting global information for inspection
+# Functions for setting global information for inspection and execution
 
 def set_debug_mode(mode, coordinates):
     """Add a coordinates field such that inspection can generate VTK files
@@ -395,7 +394,6 @@ def set_debug_mode(mode, coordinates):
                         of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
                         datasets, respectively)
     """
-
     modes = ['VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
         print "Warning: debugging set to LOW (%s not in: %s)" % (mode, str(modes))
@@ -407,3 +405,10 @@ def set_debug_mode(mode, coordinates):
         raise SlopeError("Arity should be a number in [1, 2, 3]")
     arity = "VTK_MESH%dD" % arity
     Inspector._globaldata['coordinates'] = (set, data, arity)
+
+
+def set_exec_mode(mode):
+    """Set an execution mode (accepted: [SEQUENTIAL, OMP])."""
+    modes = ['SEQUENTIAL', 'OMP']
+    mode = mode if mode in modes else modes[0]
+    Inspector._globaldata['mode'] = mode
