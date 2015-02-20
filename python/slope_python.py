@@ -248,7 +248,7 @@ int nColors = exec_num_colors (%(name_exec)s);
 for (int i = 0; i < nColors; i++) {
   const int nTilesPerColor = exec_tiles_per_color (%(name_exec)s, i);
   #ifdef SLOPE_OMP
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(dynamic)
   #endif
   for (int j = 0; j < nTilesPerColor; j++) {
     // execute tile j for color i
@@ -361,6 +361,8 @@ def get_compile_opts(compiler='gnu'):
     if Inspector._globaldata['mode'] == 'OMP':
         optimization_opts.append('-fopenmp')
         functional_opts.append('-DSLOPE_OMP')
+        if compiler == 'intel':
+            optimization_opts.append('-par-affinity=scatter,verbose')
     if compiler == 'intel':
         optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
     return functional_opts + debug_opts + optimization_opts
