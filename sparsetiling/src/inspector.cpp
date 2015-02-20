@@ -309,8 +309,19 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     cout << "No partitioning of the base loop performed" << endl;
   }
 
+  cout << endl << "Coloring summary (color:tile):" << endl;
+  std::map<int, int> colors;
+  tile_list::const_iterator it, end;
+  for (it = tiles->begin(), end = tiles->end(); it != end; it++) {
+    colors[(*it)->color]++;
+  }
+  std::map<int, int>::const_iterator mIt, mEnd;
+  for (mIt = colors.begin(), mEnd = colors.end(); mIt != mEnd; mIt++) {
+    cout << mIt->first << " : " << mIt->second << endl;
+  }
+
   if (tiles && loopIndex != -2) {
-    cout << endl << "Tiling computed in " << insp->nSweeps << "sweeps" << endl;
+    cout << endl << "Tiling computed in " << insp->nSweeps << " sweeps" << endl;
     if (loopIndex == -1) {
       cout << "Printing tiles' base loop iterations" << endl;
       print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
