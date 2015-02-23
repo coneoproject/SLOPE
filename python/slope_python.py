@@ -338,6 +338,47 @@ tileLoopSize = iterations_%(loop_id)d.size();
         return self._code % {'loop_chain_body': loop_chain_body}
 
 
+class HardFusion(object):
+
+    _maps = []
+
+    def __init__(self, loops):
+        """Initialize a HardFusion object.
+
+        :param loops: iterator of loops to be hardly fused.
+        :type loops: iterator of 3-tuple ``(name, set, desc)``, where:
+            * ``name`` is the identifier name of the loop
+            * ``set`` is the iteration space of the loop
+            * ``desc`` represents a list of descriptors. In SLOPE, a descriptor
+                       specifies the memory access pattern in a loop. In particular,
+                       a descriptor is a 2-tuple in which the first entry is a map
+                       (previously defined through a call to ``map(...)``) and the
+                       second entry is the access mode (e.g., RW, READ, INC, ...).
+                       If the access to a dataset does not involve any map, than the
+                       first entry assumes the value of the special keyword ``DIRECT``
+        """
+        self._loops = loops
+
+    def __call__(self):
+        pass
+
+    @staticmethod
+    def add_maps(maps):
+        """Add maps between sets of mesh components that may not be employed in
+        loops execution. For example, there can be a loop over cells followed by a
+        loop over edges, both accessing vertices, although in the definition of
+        the two loops there may be no trace at all of a map from cells to edges.
+        This method allows adding such additional maps, which would make hard fusion
+        possible.
+
+        :param maps: iterator of 4-tuple, in which the first entry is the name of
+                     the map (a string); the second and third entries represent,
+                     respectively, the input and the output sets of the map (strings);
+                     follows the map itself, as a numpy array of integers
+        """
+        HardFusion._maps.extend(maps)
+
+
 # Error handling
 
 class SlopeError(Exception):
