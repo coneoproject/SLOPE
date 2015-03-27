@@ -125,8 +125,8 @@ inline double time_stamp()
 /*
  * Generic utility functions
  */
-#define MAX(A, B) ((A > B) ? A : B)
-#define MIN(A, B) ((A < B) ? A : B)
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 /*
  * Generate a VTK file showing the coloring of each tiled parloop once opened
@@ -199,14 +199,31 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
 
   // create directory in which VTK files will be stored, if not exists
   struct stat st = {0};
-  if (stat(VTK_DIR, &st) == -1)
+  if (stat(VTK_DIR, &st) == -1) {
     mkdir(VTK_DIR, 0700);
+  }
 
   loop_list::const_iterator it, end;
+  // first, search for a map towards coordinates that can be used for those
+  // direct loops over the coordinates' set
+  map_t* toCoordinates = NULL;
+  for (it = loops->begin(), end = loops->end(); !toCoordinates && (it != end); it++) {
+    desc_list* descriptors = (*it)->descriptors;
+    desc_list::const_iterator dIt, dEnd;
+    for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+      map_t* map = (*dIt)->map;
+      if (map != DIRECT && map->outSet->name == nodes->name) {
+        toCoordinates = map;
+        break;
+      }
+    }
+  }
   int i = 0;
   for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+    // aliases
     loop_t* loop = *it;
     int loopSetSize = loop->set->size;
+    std::string loopSetName = loop->set->name;
     std::string loopName = loop->name;
     desc_list* descriptors = loop->descriptors;
 
@@ -251,35 +268,46 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
     vtkfile << std::endl;
 
     // write iteration set map to nodes; if not available in the loop's descriptors,
-    // just skip the file generation for the loop
-    desc_list::const_iterator dIt, dEnd;
-    bool found = false;
-    for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
-      map_t* map = (*dIt)->map;
-      if (map != DIRECT && map->outSet->name == nodesSetName) {
-        int ariety = map->mapSize / loopSetSize;
-        std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
-        stream << shape << loopSetSize << " " << loopSetSize*(ariety + 1) << std::endl;
-        vtkfile << stream.str();
-        for (int k = 0; k < loopSetSize; k++) {
-          vtkfile << ariety;
-          for (int l = 0; l < ariety; l++) {
-            vtkfile << " " << map->indMap[k*ariety + l];
-          }
-          vtkfile << std::endl;
+    // just skip the file generation for the loop, unless this is a loop over the
+    // toCoordinates' set
+    std::string type;
+    map_t* map = NULL;
+    if (loopSetName == nodesSetName && toCoordinates) {
+      map = toCoordinates;
+      type = "POINT_DATA";
+    }
+    else {
+      desc_list::const_iterator dIt, dEnd;
+      for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+        if ((*dIt)->map != DIRECT && (*dIt)->map->outSet->name == nodesSetName) {
+          map = (*dIt)->map;
+          type = "CELL_DATA";
+          break;
         }
-        found = true;
-        break;
       }
     }
-    if (! found) {
+    if (map) {
+      int toNodesSize = map->inSet->size;
+      int ariety = map->mapSize / toNodesSize;
+      std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
+      stream << shape << toNodesSize << " " << toNodesSize*(ariety + 1) << std::endl;
+      vtkfile << stream.str();
+      for (int k = 0; k < toNodesSize; k++) {
+        vtkfile << ariety;
+        for (int l = 0; l < ariety; l++) {
+          vtkfile << " " << map->indMap[k*ariety + l];
+        }
+        vtkfile << std::endl;
+      }
+    }
+    else {
       std::cout << "Couldn't find a map to nodes for loop " << loopName << std::endl;
       vtkfile.close();
       continue;
     }
 
     // write colors of the iteration set elements
-    vtkfile << std::endl << "CELL_DATA " << loopSetSize << std::endl;
+    vtkfile << std::endl << type << " " << loopSetSize << std::endl;
     vtkfile << "SCALARS colors int" << std::endl;
     vtkfile << "LOOKUP_TABLE default" << std::endl;
     for (int k = 0; k < loopSetSize; k++) {

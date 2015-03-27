@@ -30,11 +30,12 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
   insp->iter2tile = NULL;
   insp->iter2color = NULL;
   insp->tiles = NULL;
+  insp->nSweeps = 0;
 
   return insp;
 }
 
-insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
+insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
                             desc_list* descriptors)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
@@ -72,7 +73,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // aliases
   loop_t* seedLoop = loops->at(seed);
-  std::string seedLoopSetName = seedLoop->set->name;
+  string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
   ASSERT((seed >= 0) && (seed < nLoops), "Invalid tiling start point");
@@ -91,12 +92,12 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   insp->iter2tile = iter2tile;
   insp->tiles = tiles;
 
-  // at the first iteration, conflictsTracker is empty. As of the second iteration (if
-  // any), conflictsTracker tracks, for each tile i, the tiles that cannot be assigned
-  // the same color as i. This is because otherwise tiles would grow up to a point
-  // in which they "touch" each other (they "conflict"), leading to race conditions
-  // in shared memory parallel execution
-  tracker_t conflictsTracker;
+  // `crossSweepconflictsTracker` is empty in the first tiling sweep. As of the
+  // second sweeps (if any), it keeps, for each tile i, the tiles that cannot be
+  // assigned the same color as i. This is because, otherwise, same colored tiles
+  // would end up "touching" each other (i.e., they would "conflict"), leading to
+  // race conditions in shared memory parallel execution
+  tracker_t crossSweepConflictsTracker;
   bool conflicts;
   do {
     // assume there are no conflicts
@@ -109,7 +110,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
         iter2color = color_sequential (iter2tile, tiles);
         break;
       case OMP: case OMP_MPI:
-        iter2color = color_shm (seedLoop, iter2tile, tiles, &conflictsTracker);
+        iter2color = color_shm (seedLoop, iter2tile, tiles, &crossSweepConflictsTracker);
         break;
     }
     insp->iter2color = iter2color;
@@ -138,8 +139,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // 3- tile the subsequent loop, using the projection
     // 4- go back to point 2, and repeat till there are loop along the direction
 
-    // reset conflictsTracker for the potential next run of tiling
-    conflictsTracker.clear();
+    // conflicts tracker for this tiling sweep attempt
+    tracker_t conflictsTracker;
 
     // prepare for forward tiling
     loop_t* prevTiledLoop = seedLoop;
@@ -162,7 +163,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       curTilingInfo = tile_forward (curLoop, prevLoopProj);
       tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
 
-      // prepare for next iteration
+      // prepare for next loop
       prevTiledLoop = curLoop;
       prevTilingInfo = curTilingInfo;
     }
@@ -186,7 +187,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       curTilingInfo = tile_backward (curLoop, prevLoopProj);
       tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
 
-      // prepare for next iteration
+      // prepare for next loop
       prevTiledLoop = curLoop;
       prevTilingInfo = curTilingInfo;
     }
@@ -195,17 +196,20 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     iter2tc_free (prevTilingInfo);
     projection_free (prevLoopProj);
 
-    // if there were coloring conflicts, re-run forward and backward tiling after
-    // a "constrained" initial coloring of the seed loop.
+    // if there were coloring conflicts, need to do another tiling sweep on a more
+    // "constrained" coloring of the seed loop.
     tracker_t::const_iterator it, end;
     for (it = conflictsTracker.begin(), end = conflictsTracker.end(); it != end; it++) {
       if (it->second.size() > 0) {
-          // at least one conflict, re-run tiling
+        // at least one conflict, so execute another tiling sweep
         conflicts = true;
-        break;
       }
+      // update the cross-sweep tracker, in case there will be another sweep
+      crossSweepConflictsTracker[it->first].insert(it->second.begin(), it->second.end());
     }
 
+    // increment sweers counter
+    insp->nSweeps++;
   } while (conflicts);
 
   return INSP_OK;
@@ -305,9 +309,21 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     cout << "No partitioning of the base loop performed" << endl;
   }
 
+  cout << endl << "Coloring summary (color:tile):" << endl;
+  std::map<int, int> colors;
+  tile_list::const_iterator it, end;
+  for (it = tiles->begin(), end = tiles->end(); it != end; it++) {
+    colors[(*it)->color]++;
+  }
+  std::map<int, int>::const_iterator mIt, mEnd;
+  for (mIt = colors.begin(), mEnd = colors.end(); mIt != mEnd; mIt++) {
+    cout << mIt->first << " : " << mIt->second << endl;
+  }
+
   if (tiles && loopIndex != -2) {
+    cout << endl << "Tiling computed in " << insp->nSweeps << " sweeps" << endl;
     if (loopIndex == -1) {
-      cout << endl << "Printing tiles' base loop iterations" << endl;
+      cout << "Printing tiles' base loop iterations" << endl;
       print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
       if (seed + 1 < nLoops) {
         cout << endl << "Printing result of forward tiling..." << endl;

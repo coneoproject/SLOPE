@@ -20,7 +20,7 @@ enum insp_verbose {VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
 typedef struct {
   /* tiling strategy: can be for sequential, openmp, or mpi execution */
   insp_strategy strategy;
-  /* the base loop index */
+  /* the seed loop index */
   int seed;
   /* partitioning of the base loop */
   map_t* iter2tile;
@@ -32,6 +32,8 @@ typedef struct {
   loop_list* loops;
   /* list of tiles */
   tile_list* tiles;
+  /* number of tiling sweeps */
+  int nSweeps;
 
 } inspector_t;
 
