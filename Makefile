@@ -36,6 +36,7 @@ ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile
 #
 
 CXX := $(CXX)
+MPICXX := $(MPICXX)
 CXXFLAGS := -std=c++0x $(CXX_OPTS) $(SLOPE_VTK) $(SLOPE_OMP)
 
 ifeq ($(SLOPE_ARCH),linux)
@@ -76,6 +77,7 @@ endif
 tests: mklib
 	@echo "Compiling the tests"
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 $(LIB)/libst.a $(CLOCK_LIB)
+	$(MPICXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_mpi.cpp -o $(ST_BIN)/tests/test_mpi $(LIB)/libst.a $(CLOCK_LIB)
 
 demos: mklib
 	@echo "Compiling the demos"
