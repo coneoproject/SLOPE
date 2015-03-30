@@ -10,7 +10,7 @@
 #include "parloop.h"
 #include "tile.h"
 
-enum insp_strategy {SEQUENTIAL, OMP, MPI, OMP_MPI};
+enum insp_strategy {SEQUENTIAL, OMP, ONLY_MPI, OMP_MPI};
 enum insp_info {INSP_OK, INSP_ERR};
 enum insp_verbose {VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
 
@@ -43,7 +43,8 @@ typedef struct {
  * @param tileSize
  *   average tile size after partitioning of the base loop's iteration set
  * @param strategy
- *   tiling strategy (SEQUENTIAL, OMP - openmp, MPI, OMP_MPI)
+ *   tiling strategy (SEQUENTIAL; OMP - openmp; ONLY_MPI - pure MPI, even within
+ *   a node; OMP_MPI - mixed OMP (:ithin node) and MPI (cross-node))
  * @return
  *   an inspector data structure
  */

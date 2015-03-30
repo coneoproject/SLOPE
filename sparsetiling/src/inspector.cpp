@@ -106,7 +106,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // color the seed loop's sets
     map_t* iter2color;
     switch (strategy) {
-      case SEQUENTIAL: case MPI:
+      case SEQUENTIAL: case ONLY_MPI:
         iter2color = color_sequential (iter2tile, tiles);
         break;
       case OMP: case OMP_MPI:
