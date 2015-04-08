@@ -443,15 +443,28 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 
 static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy)
 {
-  if (! (strategy == OMP || strategy == OMP_MPI)) {
+  if (strategy == ONLY_MPI || strategy == OMP_MPI) {
+    // at the moment, we only allow tiling from the bottom of the loop chain.
+    // In this way, we don't have to determine the /owned/ region which would be
+    // required to separate the /halo/ and /size/ regions to prevent tiles from
+    // growing over /halo/.
+    suggestedSeed = 0;
+    if (loops->at(suggestedSeed)->set->execHalo == 0) {
+      return -1;
+    }
+    if (strategy == OMP_MPI && !loop_load_full_map (loops->at(suggestedSeed))) {
+      return -1;
+    }
+    return suggestedSeed;
+  }
+  if (strategy == SEQUENTIAL) {
     return suggestedSeed;
   }
 
-  // tiling for shared memory parallelism:
-  // need to be sure the suggested seed loop is an indirect one. This is because
-  // an indirect map is required to reassign a same color to tiles that are not
-  // adjacent. If the suggested seed loop is a direct one (or it only has maps to
-  // subsets), then another loop is selected as seed.
+  // otherwise, the strategy involves shared memory parallelism, so we need to
+  // check whether the suggested seed loop is indirect or not. This is because
+  // an indirect map is required to set the initial colors of tiles, such that
+  // the same color can be assigned to non-adjacent tiles.
   if (! loop_load_full_map (loops->at(suggestedSeed))) {
     int i = 0;
     loop_list::const_iterator it, end;
