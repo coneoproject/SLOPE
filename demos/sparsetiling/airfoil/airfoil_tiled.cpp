@@ -99,10 +99,11 @@ int main(int argc, char **argv)
   double startInsp = time_stamp();
 
   // sets
-  set_t* nodes = set("nodes", nNodes);
-  set_t* edges = set("edges", nEdges);
-  set_t* bedges = set("bedges", nBedges, true);
-  set_t* cells = set("cells", nCells);
+  // note: the 0s indicate that MPI execution is not supported
+  set_t* nodes = set("nodes", nNodes, 0, 0, 0);
+  set_t* edges = set("edges", nEdges, 0, 0, 0);
+  set_t* bedges = set("bedges", nBedges, 0, 0, 0, true);
+  set_t* cells = set("cells", nCells, 0, 0, 0);
 
   // maps
   map_t* c2nMap = map("c2n", cells, nodes, c2n, nCells*4);
