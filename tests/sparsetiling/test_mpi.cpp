@@ -64,6 +64,8 @@ int main (int argc, char* argv[])
 
   insp_print (insp, HIGH);
 
+  generate_vtk (insp, vertices, mesh.vertices, VTK_MESH2D);
+
   // executor
   executor_t* exec = exec_init (insp);
 
