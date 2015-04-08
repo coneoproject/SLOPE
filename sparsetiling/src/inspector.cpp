@@ -18,6 +18,12 @@
 
 using namespace std;
 
+
+// prototypes of static functions
+static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy);
+static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
+
+
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
 {
   inspector_t* insp = new inspector_t;
@@ -54,8 +60,6 @@ insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
   return INSP_OK;
 }
 
-bool select_seed_loop (loop_list* loops, int& suggestedSeed, insp_strategy strategy);
-
 insp_info insp_run (inspector_t* insp, int suggestedSeed)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
@@ -67,8 +71,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   int nLoops = loops->size();
 
   // establish seed loop
-  select_seed_loop (loops, suggestedSeed, strategy);
-  int seed = suggestedSeed;  // possibly modified in select_seed_loop
+  int seed = select_seed_loop (loops, suggestedSeed, strategy);
+  ASSERT((seed >= 0) && (seed < nLoops), "Could not find a valid seed loop");
   insp->seed = seed;
 
   // aliases
@@ -76,7 +80,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
-  ASSERT((seed >= 0) && (seed < nLoops), "Invalid tiling start point");
   ASSERT(! seedLoop->set->isSubset, "Seed loop cannot be a subset");
 
   // partition the iteration set of the base loop and create empty tiles
@@ -215,32 +218,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   return INSP_OK;
 }
 
-bool select_seed_loop (loop_list* loops, int& suggestedSeed, insp_strategy strategy)
-{
-  if (! (strategy == OMP || strategy == OMP_MPI)) {
-    return true;
-  }
-
-  // tiling for shared memory parallelism:
-  // need to be sure the suggested seed loop is an indirect one. This is because
-  // an indirect map is required to reassign a same color to tiles that are not
-  // adjacent. If the suggested seed loop is a direct one (or it only has maps to
-  // subsets), then another loop is selected as seed.
-  if (! loop_load_full_map (loops->at(suggestedSeed))) {
-    int i = 0;
-    loop_list::const_iterator it, end;
-    for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
-      if (loop_load_full_map (*it)) {
-        suggestedSeed = i;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
-
 void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
@@ -356,6 +333,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
 
 void insp_free (inspector_t* insp)
 {
+  ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
+
   // Note that tiles are not freed because they are already freed in the
   // executor's free function
 
@@ -460,4 +439,27 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
   }
   cout << "Summary: assigned " << totalIterationsAssigned << "/"
        << loop->set->size << " iterations" << endl;
+}
+
+static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy)
+{
+  if (! (strategy == OMP || strategy == OMP_MPI)) {
+    return suggestedSeed;
+  }
+
+  // tiling for shared memory parallelism:
+  // need to be sure the suggested seed loop is an indirect one. This is because
+  // an indirect map is required to reassign a same color to tiles that are not
+  // adjacent. If the suggested seed loop is a direct one (or it only has maps to
+  // subsets), then another loop is selected as seed.
+  if (! loop_load_full_map (loops->at(suggestedSeed))) {
+    int i = 0;
+    loop_list::const_iterator it, end;
+    for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+      if (loop_load_full_map (*it)) {
+        return i;
+      }
+    }
+  }
+  return -1;
 }
