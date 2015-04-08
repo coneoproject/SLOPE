@@ -35,8 +35,8 @@ int main (int argc, char* argv[])
    */
 
   // sets
-  set_t* vertices = set("vertices", mesh->vertices, 0, mesh->vertices_halo, 0);
-  set_t* cells = set("cells", mesh->cells, 0, mesh->cells_halo, 0);
+  set_t* vertices = set("vertices", mesh->vertices, mesh->vertices_halo, 0);
+  set_t* cells = set("cells", mesh->cells, mesh->cells_halo, 0);
 
   // maps
   map_t* c2vMap = map("c2v", cells, vertices, mesh->c2v, mesh->c2vSize);
