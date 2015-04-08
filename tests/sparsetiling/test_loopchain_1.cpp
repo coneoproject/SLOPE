@@ -11,7 +11,7 @@
 int main ()
 {
   const int nLoops = 3;
-  ExampleMesh mesh = example_mesh(RECT);
+  ExampleMesh* mesh = example_mesh(RECT);
   /*
    * Sample program structure:
    * - loop over edges (PL0):
@@ -27,13 +27,13 @@ int main ()
    */
 
   // sets
-  set_t* vertices = set("vertices", mesh.vertices);
-  set_t* edges = set("edges", mesh.edges);
-  set_t* cells = set("cells", mesh.cells);
+  set_t* vertices = set("vertices", mesh->vertices);
+  set_t* edges = set("edges", mesh->edges);
+  set_t* cells = set("cells", mesh->cells);
 
   // maps
-  map_t* e2vMap = map("e2v", edges, vertices, mesh.e2v, mesh.e2vSize);
-  map_t* c2vMap = map("c2v", cells, vertices, mesh.c2v, mesh.c2vSize);
+  map_t* e2vMap = map("e2v", edges, vertices, mesh->e2v, mesh->e2vSize);
+  map_t* c2vMap = map("c2v", cells, vertices, mesh->c2v, mesh->c2vSize);
 
   // descriptors
   desc_list pl0Desc ({desc(e2vMap, READ),
@@ -64,6 +64,7 @@ int main ()
   // free memory
   insp_free (insp);
   exec_free (exec);
+  delete mesh;
 
   return 0;
 }

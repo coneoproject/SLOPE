@@ -19,7 +19,7 @@ int main (int argc, char* argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   std::cout << "MPI Rank " << rank << ": loading mesh..." << std::endl;
-  ExampleMesh mesh = example_mesh(RECT_MPI, rank);
+  ExampleMeshMPI* mesh = example_mpi_mesh(RECT, rank);
   std::cout << "MPI Rank " << rank << ": loaded!" << std::endl;
 
   /*
@@ -35,11 +35,11 @@ int main (int argc, char* argv[])
    */
 
   // sets
-  set_t* vertices = set("vertices", mesh.vertices);
-  set_t* cells = set("cells", mesh.cells);
+  set_t* vertices = set("vertices", mesh->vertices, 0, mesh->vertices_halo, 0);
+  set_t* cells = set("cells", mesh->cells, 0, mesh->cells_halo, 0);
 
   // maps
-  map_t* c2vMap = map("c2v", cells, vertices, mesh.c2v, mesh.c2vSize);
+  map_t* c2vMap = map("c2v", cells, vertices, mesh->c2v, mesh->c2vSize);
 
   // descriptors
   desc_list pl0Desc ({desc(c2vMap, INC)});
@@ -64,7 +64,7 @@ int main (int argc, char* argv[])
 
   insp_print (insp, HIGH);
 
-  generate_vtk (insp, vertices, mesh.vertices, VTK_MESH2D);
+  generate_vtk (insp, vertices, mesh->vertices, VTK_MESH2D);
 
   // executor
   executor_t* exec = exec_init (insp);
@@ -73,6 +73,7 @@ int main (int argc, char* argv[])
   insp_free (insp);
   exec_free (exec);
   */
+  delete mesh;
 
   MPI_Finalize();
   return 0;

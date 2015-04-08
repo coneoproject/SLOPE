@@ -8,7 +8,9 @@
 
 #include <iostream>
 
-enum mesh_t {TRI = 3, RECT, RECT_MPI};
+enum mesh_t {TRI = 3, RECT};
+
+// Meshes for sequential execution
 
 class ExampleMesh
 {
@@ -38,8 +40,6 @@ public:
     this->c2vSize = cells*type;
   }
 };
-
-// Meshes expressed through edges2vertices maps
 
 /*
  * Mesh 1
@@ -72,10 +72,45 @@ static int mesh2_e2v[] = {0,1 , 0,2 , 1,3 , 0,3 , 1,4 , 2,3 , 3,4 , 2,5 , 3,6,
                           2,6 , 6,4 , 5,6};
 static int mesh2_c2v[] = {0,2,3 , 0,1,3 , 1,3,4 , 2,5,6 , 2,3,6 , 3,4,6};
 
+
+ExampleMesh* example_mesh(mesh_t type)
+{
+  switch(type)
+  {
+    case RECT:
+    {
+      return new ExampleMesh(15, 22, 8, mesh1_e2v, mesh1_c2v, mesh1_coords, RECT);
+    }
+    case TRI:
+    {
+      return new ExampleMesh(7, 12, 6, mesh2_e2v, mesh2_c2v, NULL, TRI);
+    }
+  }
+}
+
+
 // Meshes for MPI execution
 
+class ExampleMeshMPI: public ExampleMesh
+{
+public:
+  // Topology
+  int vertices_halo;
+  int edges_halo;
+  int cells_halo;
+
+  ExampleMeshMPI(int vertices[2], int edges[2], int cells[2], int* e2v, int* c2v,
+                 double* coords, mesh_t type)
+  : ExampleMesh(vertices[0], edges[0], cells[0], e2v, c2v, coords, type)
+  {
+    this->vertices_halo = vertices[1];
+    this->edges_halo = edges[1];
+    this->cells_halo = cells[1];
+  }
+};
+
 /*
- * Mesh MPI 1 - For 2 MPI processes
+ * Mesh 1 - For 2 MPI processes
  *
  * Global mesh:
  *
@@ -99,18 +134,18 @@ static int mesh2_c2v[] = {0,2,3 , 0,1,3 , 1,3,4 , 2,5,6 , 2,3,6 , 3,4,6};
  *
  * RANK 1:
  *
- * 16 -- 17 --  0 --  1 --  2 --  3
+ * 12 -- 13 -- 14 --  0 --  1 --  2
  *  |  9  | 10  |  0  |  1  |  2  |
- * 18 -- 19 --  4 --  5 --  6 --  7
+ * 15 -- 16 -- 17 --  3 --  4 --  5
  *  | 11  | 12  |  3  |  4  |  5  |
- * 20 -- 21 --  8 --  9 -- 10 -- 11
+ * 18 -- 19 -- 20 --  6 --  7 --  8
  *  | 13  | 14  |  6  |  7  |  8  |
- * 22 -- 23 -- 12 -- 13 -- 14 -- 15
+ * 21 -- 22 -- 23 --  9 -- 10 -- 11
  *
- * Where vertices {0, 1, 2, 3, 6, 7, 8, 9, 13, 14, 15, 16, 20, 21, 21 , 23} are
+ * Where vertices {0, 1, 2, 3, 6, 7, 8, 9, 13, 14, 15, 16, 20, 21, 21, 23} are
  * owned by Rank 0, while {4, 5, 6, 10, 11, 12, 17, 18, 19, 24, 25, 26} by Rank 1.
  *
- * The halo regions are such that:
+ * The halo regions for cells are such that:
  * Cells:
  *   Rank 0:
  *     Local --- Global  --- Rank 1
@@ -121,7 +156,7 @@ static int mesh2_c2v[] = {0,2,3 , 0,1,3 , 1,3,4 , 2,5,6 , 2,3,6 , 3,4,6};
  *      13        17           6
  *      14        18           7
  *   Rank 1:
- *     Local --- Global  --- Rank 1
+ *     Local --- Global  --- Rank 0
  *       9         1           1
  *      10         2           2
  *      11         4           4
@@ -130,7 +165,13 @@ static int mesh2_c2v[] = {0,2,3 , 0,1,3 , 1,3,4 , 2,5,6 , 2,3,6 , 3,4,6};
  *      14        16           8
  */
 
-static int mesh_mpi1_c2v[][60] = {{0,1,4,5 , 1,2,5,6 , 2,3,6,7, 3,16,7,18 , 16,17,18,19,
+static int mesh_mpi1_v_set[][2] = {{16, 8},  // (local size, halo size)
+                                   {12, 12}};
+static int mesh_mpi1_e_set[][2] = {{-1, -1},  // (local size, halo size)
+                                   {-1, -1}};
+static int mesh_mpi1_c_set[][2] = {{9, 6},  // (local size, halo size)
+                                   {9, 6}};
+static int mesh_mpi1_c2v[][60] = {{0,1,4,5 , 1,2,5,6 , 2,3,6,7 , 3,16,7,18 , 16,17,18,19,
                                    4,5,8,9 , 5,6,9,10 , 6,7,10,11 , 7,18,11,20, 18,19,20,21,
                                    8,9,12,13 , 9,10,13,14 , 10,11,14,15 , 11,20,15,22 , 20,21,22,3},
                                   {16,17,18,19 , 17,0,19,4 , 0,1,4,5 , 1,2,5,6 , 2,3,6,7,
@@ -145,21 +186,16 @@ static double mesh_mpi1_coords[][60] = {{0,0 , 0,1 , 0,2 , 0,3 , 0,4 , 0,5,
                                          2,1 , 2,2 , 2,3 , 2,4 , 2,5 , 2,6,
                                          3,1 , 3,2 , 3,3 , 3,4 , 3,5 , 3,6}};
 
-inline ExampleMesh example_mesh(mesh_t type, int rank=0)
+
+ExampleMeshMPI* example_mpi_mesh(mesh_t type, int rank)
 {
   switch(type)
   {
     case RECT:
     {
-      return ExampleMesh(15, 22, 8, mesh1_e2v, mesh1_c2v, mesh1_coords, RECT);
-    }
-    case RECT_MPI:
-    {
-      return ExampleMesh(24, -1, 15, NULL, mesh_mpi1_c2v[rank], mesh_mpi1_coords[rank], RECT);
-    }
-    case TRI:
-    {
-      return ExampleMesh(7, 12, 6, mesh2_e2v, mesh2_c2v, NULL, TRI);
+      return new ExampleMeshMPI(mesh_mpi1_v_set[rank], mesh_mpi1_e_set[rank],
+                                mesh_mpi1_c_set[rank], NULL, mesh_mpi1_c2v[rank],
+                                mesh_mpi1_coords[rank], RECT);
     }
   }
 }
