@@ -6,37 +6,31 @@
 #ifndef _COLORING_H_
 #define _COLORING_H_
 
-#include "parloop.h"
-#include "tile.h"
+#include "inspector.h"
 
 /*
  * Assign increasing colors to the various tiles.
  *
- * @param iter2tile
- *   map from iteration set to tiles
- * @param tiles
- *   list of tiles, used to assign a color to each tile
+ * @param insp
+ *   the inspector data structure
  * @return
  *   a map from iteration set to colors
  */
-map_t* color_sequential (map_t* iter2tile, tile_list* tiles);
+map_t* color_sequential (inspector_t* insp);
 
 /*
  * Assign colors to tiles such that two adjacent tiles are not assigned the same color.
  *
- * @param loop
- *   the loop to be colored
- * @param iter2tile
- *   map from iteration set to tiles
- * @param tiles
- *   list of tiles, used to assign a color to each tile
+ * @param insp
+ *   the inspector data structure
+ * @param seedMap
+ *   a map used in the indirect seed loop
  * @param conflictsTracker
- *   track conflicting tiles encountered by each tile during the tiling process
+ *   track conflicting tiles encountered during the tiling process
  * @return
- *   a map from iteration set to colors, where tiles' colors are enforced to be
- *   different if the tiles are adjacent (e.g. there is an edge connecting them)
+ *   a map from iteration set elements to colors, where tile colors are enforced to be
+ *   different if tiles are adjacent (e.g., there is an edge connecting them)
  */
-map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles,
-                  tracker_t* conflictsTracker);
+map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker);
 
 #endif

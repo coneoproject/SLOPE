@@ -106,10 +106,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     map_t* iter2color;
     switch (strategy) {
       case SEQUENTIAL: case ONLY_MPI:
-        iter2color = color_sequential (iter2tile, tiles);
+        iter2color = color_sequential (insp);
         break;
       case OMP: case OMP_MPI:
-        iter2color = color_shm (seedLoop, iter2tile, tiles, &crossSweepConflictsTracker);
+        iter2color = color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
         break;
     }
     insp->iter2color = iter2color;

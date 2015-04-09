@@ -30,9 +30,11 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
   return iter2color;
 }
 
-map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
+map_t* color_sequential (inspector_t* insp)
 {
   // aliases
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
   int nTiles = iter2tile->outSet->size;
 
   // each tile is assigned a different color. This way, the tiling algorithm,
@@ -54,11 +56,11 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
               iter2tile->inSet->size*1);
 }
 
-map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles,
-                  tracker_t* conflictsTracker)
+map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
 {
   // aliases
-  map_t* seedMap = loop->seedMap;
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
   int nTiles = tiles->size();
   int seedSetSize = seedMap->inSet->size;
   int seedMapSize = seedMap->mapSize;
