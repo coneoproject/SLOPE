@@ -9,25 +9,25 @@
 std::pair<map_t*, tile_list*> partition (loop_t* loop, int tileSize, int crossedLoops)
 {
   // aliases
-  int setSize = loop->set->size;
+  int setCore = loop->set->core;
   int setExecHalo = loop->set->execHalo;
   int setNonExecHalo = loop->set->nonExecHalo;
-  int setTotalSize = loop->set->totalSize;
+  int setSize = loop->set->size;
 
-  int* indMap = new int[setTotalSize];
+  int* indMap = new int[setSize];
 
   // tile the local iteration space
-  int nParts = setSize / tileSize;
-  int reminderTileSize = setSize % tileSize;
+  int nParts = setCore / tileSize;
+  int reminderTileSize = setCore % tileSize;
   int nTiles = nParts + ((reminderTileSize > 0) ? 1 : 0);
   int tileID = -1;
   int i = 0;
-  for (; i < setSize - reminderTileSize; i++) {
+  for (; i < setCore - reminderTileSize; i++) {
     tileID = (i % tileSize == 0) ? tileID + 1 : tileID;
     indMap[i] = tileID;
   }
   tileID++;
-  for (; i < setSize; i++) {
+  for (; i < setCore; i++) {
     indMap[i] = tileID;
   }
 
@@ -42,22 +42,21 @@ std::pair<map_t*, tile_list*> partition (loop_t* loop, int tileSize, int crossed
   // a single tile spanning /nonExecHalo/
   if (setExecHalo > 0) {
     tileID++; nTiles++;
-    for (; i < setSize + setExecHalo; i++) {
+    for (; i < setCore + setExecHalo; i++) {
       indMap[i] = tileID;
     }
     tiles->push_back (tile_init(crossedLoops, EXEC_HALO));
   }
   if (setNonExecHalo > 0) {
     tileID++; nTiles++;
-    for (; i < setTotalSize; i++) {
+    for (; i < setSize; i++) {
       indMap[i] = tileID;
     }
     tiles->push_back (tile_init(crossedLoops, NON_EXEC_HALO));
   }
 
   // bind loop iterations to tiles
-  map_t* iter2tile = map ("i2t", set_cpy(loop->set), set("tiles", nTiles), indMap,
-                          setTotalSize*1);
+  map_t* iter2tile = map ("i2t", set_cpy(loop->set), set("tiles", nTiles), indMap, setSize);
 
   return std::make_pair(iter2tile, tiles);
 }

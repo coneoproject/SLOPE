@@ -17,13 +17,13 @@ typedef struct {
   /* identifier name of the set */
   std::string name;
   /* size of the local set not touching halo regions */
-  int size;
+  int core;
   /* size of the halo region (will be executed over redundantly) */
   int execHalo;
   /* size of the halo region that will only be read */
   int nonExecHalo;
   /* size of the whole iteration space, including halo */
-  int totalSize;
+  int size;
   /* subset flag */
   bool isSubset;
 } set_t;
@@ -36,27 +36,27 @@ typedef std::set<set_t*> set_list;
  * If any of {execHalo, nonExecHalo} are not specified, sequential execution
  * is assumed. Otherwise, the logical division into set elements is: ::
  *
- *     [0, size)
- *     [size, execHalo)
+ *     [0, core)
+ *     [core, execHalo)
  *     [execHalo, nonExecHalo).
  *
  * Where:
  *
- *    - `size`: all of the owned set elements not touching the halo region
+ *    - `core`: all of the owned set elements not touching the halo region
  *    - `execHalo`: off-processor set elements plus owned set elements touching \
  *                  off-processor set elements. The extent of this region \
  *                  this region should be proportial to the depth of tiling
  *    - `nonExecHalo`: read when executing the halo region
  */
-inline set_t* set (std::string name, int size, int execHalo = 0, int nonExecHalo = 0,
+inline set_t* set (std::string name, int core, int execHalo = 0, int nonExecHalo = 0,
                    bool isSubset = false)
 {
   set_t* set =  new set_t;
   set->name = name;
-  set->size = size;
+  set->core = core;
   set->execHalo = execHalo;
   set->nonExecHalo = nonExecHalo;
-  set->totalSize = size + execHalo + nonExecHalo;
+  set->size = core + execHalo + nonExecHalo;
   set->isSubset = isSubset;
   return set;
 }
@@ -66,7 +66,7 @@ inline set_t* set (std::string name, int size, int execHalo = 0, int nonExecHalo
  */
 inline set_t* set_cpy (set_t* toCopy)
 {
-  return set(toCopy->name, toCopy->size, toCopy->execHalo, toCopy->nonExecHalo,
+  return set(toCopy->name, toCopy->core, toCopy->execHalo, toCopy->nonExecHalo,
              toCopy->isSubset);
 }
 
