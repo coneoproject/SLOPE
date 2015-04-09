@@ -39,7 +39,8 @@ map_t* color_sequential (inspector_t* insp)
 
   // each tile is assigned a different color. This way, the tiling algorithm,
   // which is based on colors, works seamless regardless of whether the
-  // execution strategy is seqeuntial or parallel (shared memory)
+  // execution strategy is sequential or parallel (shared memory).
+  // Note: halo tiles always get the maximum colors
   int* colors = new int[nTiles];
   for (int i = 0; i < nTiles; i++) {
     colors[i] = i;
@@ -138,6 +139,15 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
     }
     // increment base level
     nColor += 32;
+  }
+
+  // assign maximum color to halo tiles, since these must be executed last
+  set_t* tileRegions = insp->tileRegions;
+  if (tileRegions->execHalo > 0) {
+    colors[tileRegions->core] = nColors++;
+  }
+  if (tileRegions->nonExecHalo > 0) {
+    colors[tileRegions->core + tileRegions->execHalo] = nColors++;
   }
 
   // create the iteration to colors map
