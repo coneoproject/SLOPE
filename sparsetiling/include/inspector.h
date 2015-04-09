@@ -32,6 +32,8 @@ typedef struct {
   loop_list* loops;
   /* list of tiles */
   tile_list* tiles;
+  /* track local, exec_halo, and non_exec_halo tiles */
+  set_t* tileRegions;
   /* number of tiling sweeps */
   int nSweeps;
 

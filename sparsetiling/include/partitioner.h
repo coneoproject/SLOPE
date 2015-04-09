@@ -7,22 +7,21 @@
 #ifndef _PARTITIONER_H_
 #define _PARTITIONER_H_
 
-#include "parloop.h"
-#include "tile.h"
+#include "inspector.h"
 
 /*
  * Partition the /loop/ iteration set.
  *
+ * @param insp
+ *   the inspector data structure
  * @param loop
  *   the loop whose iteration set is partitioned
  * @param partSize
  *   average tile size for partitioning
- * @param crossedLoops
- *   number of loops crossed by a tile (i.e., length of the loop chain)
  * @return
  *   a 2-tuple, in which the first entry is map from /loop/ iterations to tiles,
  *   while the second entry is the list of created tiles
  */
-std::pair<map_t*, tile_list*> partition (loop_t* loop, int tileSize, int crossedLoops);
+std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int tileSize);
 
 #endif

@@ -84,7 +84,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   // partition the iteration set of the base loop and create empty tiles
   map_t* iter2tile;
   tile_list* tiles;
-  tie(iter2tile, tiles) = partition (seedLoop, avgTileSize, nLoops);
+  tie(iter2tile, tiles) = partition (insp, seedLoop, avgTileSize);
   tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->indMap);
 
   // track information essential for tiling, execution, and debugging
