@@ -77,10 +77,9 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // aliases
   loop_t* seedLoop = loops->at(seed);
+  ASSERT(! seedLoop->set->isSubset, "Seed loop cannot be a subset");
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
-
-  ASSERT(! seedLoop->set->isSubset, "Seed loop cannot be a subset");
 
   // partition the iteration set of the base loop and create empty tiles
   map_t* iter2tile;
