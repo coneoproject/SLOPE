@@ -12,8 +12,8 @@ map_t* partition (loop_t* loop, int tileSize)
   int setSize = loop->set->size;
   int setExecHalo = loop->set->execHalo;
   int setNonExecHalo = loop->set->nonExecHalo;
+  int setTotalSize = loop->set->totalSize;
 
-  int setTotalSize = setSize + setExecHalo + setNonExecHalo;
   int* indMap = new int[setTotalSize];
 
   // tile the local iteration space

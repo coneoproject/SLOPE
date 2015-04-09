@@ -22,6 +22,8 @@ typedef struct {
   int execHalo;
   /* size of the halo region that will only be read */
   int nonExecHalo;
+  /* size of the whole iteration space, including halo */
+  int totalSize;
   /* subset flag */
   bool isSubset;
 } set_t;
@@ -54,6 +56,7 @@ inline set_t* set (std::string name, int size, int execHalo = 0, int nonExecHalo
   set->size = size;
   set->execHalo = execHalo;
   set->nonExecHalo = nonExecHalo;
+  set->totalSize = size + execHalo + nonExecHalo;
   set->isSubset = isSubset;
   return set;
 }
