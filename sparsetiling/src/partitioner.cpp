@@ -31,23 +31,28 @@ std::pair<map_t*, tile_list*> partition (loop_t* loop, int tileSize, int crossed
     indMap[i] = tileID;
   }
 
-  // tile the halo region. We create a single tile spanning /execHalo/ as well as
-  // a single tile spanning /nonExecHalo/
-  tileID++;
-  for (; i < setExecHalo; i++) {
-    indMap[i] = tileID;
-  }
-  nTiles = nTiles + ((setExecHalo > 0) ? 1 : 0);
-  tileID++;
-  for (; i < setNonExecHalo; i++) {
-    indMap[i] = tileID;
-  }
-  nTiles = nTiles + ((setExecHalo > 0) ? 1 : 0);
-
   // create the list of tiles
   tile_list* tiles = new tile_list (nTiles);
-  for (i = 0; i < nTiles; i++) {
-    tiles->at(i) = tile_init (crossedLoops);
+  int t = 0;
+  for (; t < nTiles; t++) {
+    tiles->at(t) = tile_init (crossedLoops);
+  }
+
+  // tile the halo region. We create a single tile spanning /execHalo/ as well as
+  // a single tile spanning /nonExecHalo/
+  if (setExecHalo > 0) {
+    tileID++; nTiles++;
+    for (; i < setSize + setExecHalo; i++) {
+      indMap[i] = tileID;
+    }
+    tiles->push_back (tile_init(crossedLoops, EXEC_HALO));
+  }
+  if (setNonExecHalo > 0) {
+    tileID++; nTiles++;
+    for (; i < setTotalSize; i++) {
+      indMap[i] = tileID;
+    }
+    tiles->push_back (tile_init(crossedLoops, NON_EXEC_HALO));
   }
 
   // bind loop iterations to tiles

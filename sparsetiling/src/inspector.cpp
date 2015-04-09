@@ -410,8 +410,9 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
   for (int i = 0; i < tilesRange; i++) {
     int tileSize = tiles->at(i)->iterations[loop->index]->size();
     totalIterationsAssigned += tileSize;
+    string tileInfo = (tiles->at(i)->region == LOCAL) ? "      " : "(HALO)";
     int range = MIN(tileSize, verbosityTiles);
-    cout << "         " << i << "   |    " << tiles->at(i)->color << "    |   "
+    cout << " " << tileInfo << " " << i << "   |    " << tiles->at(i)->color << "    |   "
          << tileSize << " : {";
     if (tileSize == 0) {
       cout << "No iterations}" << endl;

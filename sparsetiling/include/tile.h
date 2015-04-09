@@ -17,6 +17,8 @@ typedef std::vector<int> iterations_list;
 typedef std::unordered_map<std::string, iterations_list*> mapname_iterations;
 typedef std::pair<std::string, iterations_list*> mi_pair;
 
+enum tile_region {LOCAL, EXEC_HALO, NON_EXEC_HALO};
+
 typedef struct {
   /* number of parloops crossed by the tile */
   int crossedLoops;
@@ -27,6 +29,8 @@ typedef struct {
   mapname_iterations** localMaps;
   /* color of the tile */
   int color;
+  /* a tile can either be local, exec_halo, or non_exec_halo */
+  tile_region region;
 } tile_t;
 
 typedef std::vector<tile_t*> tile_list;
@@ -48,8 +52,11 @@ typedef std::map<int, index_set> tracker_t;
  *
  * @param crossedLoops
  *   number of loops the tile crosses
+ * @param region
+ *   the iteration space region (local, exec_halo, non_exec_halo) in which the
+ *   tile lives
  */
-tile_t* tile_init (int crossedLoops);
+tile_t* tile_init (int crossedLoops, tile_region region = LOCAL);
 
 /*
  * Distribute the iteration set of a loop over a list of tiles according to what
