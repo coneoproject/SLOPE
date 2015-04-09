@@ -6,7 +6,7 @@
 
 #include "partitioner.h"
 
-map_t* partition (loop_t* loop, int tileSize)
+std::pair<map_t*, tile_list*> partition (loop_t* loop, int tileSize, int crossedLoops)
 {
   // aliases
   int setSize = loop->set->size;
@@ -44,5 +44,15 @@ map_t* partition (loop_t* loop, int tileSize)
   }
   nTiles = nTiles + ((setExecHalo > 0) ? 1 : 0);
 
-  return map ("i2t", set_cpy(loop->set), set("tiles", nTiles), indMap, setTotalSize*1);
+  // create the list of tiles
+  tile_list* tiles = new tile_list (nTiles);
+  for (i = 0; i < nTiles; i++) {
+    tiles->at(i) = tile_init (crossedLoops);
+  }
+
+  // bind loop iterations to tiles
+  map_t* iter2tile = map ("i2t", set_cpy(loop->set), set("tiles", nTiles), indMap,
+                          setTotalSize*1);
+
+  return std::make_pair(iter2tile, tiles);
 }
