@@ -14,30 +14,14 @@
 
 
 // return true if there are at least two tiles having a same color
-inline void updateTilesTracker (tracker_t& iterTilesPerColor, index_set iterColors,
-                                tracker_t& conflictsTracker)
-{
-  tracker_t::const_iterator it, end;
-  for (it = iterTilesPerColor.begin(), end = iterTilesPerColor.end(); it != end; it++) {
-    index_set adjTiles = it->second;
-    index_set::const_iterator tIt, tEnd;
-    for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
-      // if conflicts detected on a color add the relevant information to tiles
-      // involved in the conflict
-      if (adjTiles.size() > 1) {
-        conflictsTracker[*tIt].insert (adjTiles.begin(), adjTiles.end());
-      }
-    }
-    for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
-      conflictsTracker[*tIt].erase (*tIt);
-    }
-  }
-}
+inline static void updateTilesTracker (tracker_t& iterTilesPerColor,
+                                       index_set iterColors,
+                                       tracker_t& conflictsTracker);
 
-//////////////////////////////////////////////
-
-void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProj, projection_t* seedLoopProj,
+void project_forward (loop_t* tiledLoop,
+                      iter2tc_t* tilingInfo,
+                      projection_t* prevLoopProj,
+                      projection_t* seedLoopProj,
                       tracker_t* conflictsTracker)
 {
   // aliases
@@ -69,7 +53,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
       // use the inverted map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
-      //   be openmpizable
+      //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
       //   with k the average ariety of a projected set iteration and N the size of
       //   the projected iteration set
@@ -83,8 +67,7 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
-      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
-                                  projIter2color);
+      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
       // iterate over the projected loop's iteration set, and use the map to access
       // the tiledLoop iteration set's elements.
@@ -155,8 +138,10 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
   }
 }
 
-void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                       projection_t* prevLoopProj, tracker_t* conflictsTracker)
+void project_backward (loop_t* tiledLoop,
+                       iter2tc_t* tilingInfo,
+                       projection_t* prevLoopProj,
+                       tracker_t* conflictsTracker)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -187,7 +172,7 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
       // use the inverted map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
-      //   be openmpized
+      //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
       //   with k the average ariety of a projected set iteration and N the size of
       //   the projected iteration set
@@ -201,8 +186,7 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
 
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
-      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile,
-                                  projIter2color);
+      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
       // iterate over the projected loop's iteration set, and use the map to access
       // the tiledLoop iteration set's elements.
@@ -262,7 +246,8 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
   }
 }
 
-iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
+iter2tc_t* tile_forward (loop_t* curLoop,
+                         projection_t* prevLoopProj)
 {
   // aliases
   set_t* toTile = curLoop->set;
@@ -280,8 +265,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   int* loopIter2color = new int[toTileSetSize];
   std::fill_n (loopIter2tile, toTileSetSize, -1);
   std::fill_n (loopIter2color, toTileSetSize, -1);
-  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile,
-                              loopIter2color);
+  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
 
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
@@ -297,7 +281,7 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
       continue;
     }
 
-    // retrieve projected iteration-set to tile-color info
+    // retrieve projected iteration set to tile-color info
     // if no projection is present, just go on to the next descriptor because it
     // means that the touched set, regardless of whether it is touched directly
     // or indirectly, does not introduce any dependency with the loop being tiled
@@ -329,8 +313,8 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
 
       int ariety = mapSize / toTileSetSize;
 
-      // iterate over the being-tiled loop's iteration set, and use the map to
-      // access the touched iteration set's elements.
+      // iterate over the iteration set of the loop we are tiling, and use the map
+      // to access the indirectly touched elements
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
@@ -354,10 +338,10 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
     checkedSets.insert (touchedSet);
   }
 
+#ifdef SLOPE_VTK
   // if requested at compile time, the coloring and tiling of a parloop are
   // explicitly tracked. These can be used for debugging or visualization purposes,
   // for example for generating VTK files showing the colored parloop
-#ifdef SLOPE_VTK
   curLoop->tiling = new int[toTileSetSize];
   curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
@@ -367,7 +351,8 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj)
   return loopIter2tc;
 }
 
-iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
+iter2tc_t* tile_backward (loop_t* curLoop,
+                          projection_t* prevLoopProj)
 {
   // aliases
   set_t* toTile = curLoop->set;
@@ -385,8 +370,7 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
   int* loopIter2color = new int[toTileSetSize];
   std::fill_n (loopIter2tile, toTileSetSize, INT_MAX);
   std::fill_n (loopIter2color, toTileSetSize, INT_MAX);
-  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile,
-                              loopIter2color);
+  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
 
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
@@ -402,7 +386,7 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
       continue;
     }
 
-    // retrieve projected iteration-set to tile-color info
+    // retrieve projected iteration set to tile-color info
     // if no projection is present, just go on to the next descriptor because it
     // means that the touched set, regardless of whether it is touched directly
     // or indirectly, does not introduce any dependency with the loop being tiled
@@ -434,8 +418,8 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
 
       int ariety = mapSize / toTileSetSize;
 
-      // iterate over the being-tiled loop's iteration set, and use the map to
-      // access the touched iteration set's elements.
+      // iterate over the iteration set of the loop we are tiling, and use the map
+      // to access the indirectly touched elements
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
@@ -459,10 +443,10 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
     checkedSets.insert (touchedSet);
   }
 
+#ifdef SLOPE_VTK
   // if requested at compile time, the coloring and tiling of the parloop are
   // explicitly tracked. These can be used for debugging or visualization purposes,
   // for example for generating VTK files showing the colored parloop
-#ifdef SLOPE_VTK
   curLoop->tiling = new int[toTileSetSize];
   curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
@@ -472,8 +456,7 @@ iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj)
   return loopIter2tc;
 }
 
-iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
-                         int* iter2color)
+iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile, int* iter2color)
 {
   iter2tc_t* iter2tc = new iter2tc_t;
 
@@ -519,3 +502,25 @@ void projection_free (projection_t* projection)
   delete projection;
 }
 
+/***** Static / utility functions *****/
+
+inline static void updateTilesTracker (tracker_t& iterTilesPerColor,
+                                       index_set iterColors,
+                                       tracker_t& conflictsTracker)
+{
+  tracker_t::const_iterator it, end;
+  for (it = iterTilesPerColor.begin(), end = iterTilesPerColor.end(); it != end; it++) {
+    index_set adjTiles = it->second;
+    index_set::const_iterator tIt, tEnd;
+    for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
+      // if conflicts detected on a color add the relevant information to tiles
+      // involved in the conflict
+      if (adjTiles.size() > 1) {
+        conflictsTracker[*tIt].insert (adjTiles.begin(), adjTiles.end());
+      }
+    }
+    for (tIt = adjTiles.begin(), tEnd = adjTiles.end(); tIt != tEnd; tIt++) {
+      conflictsTracker[*tIt].erase (*tIt);
+    }
+  }
+}

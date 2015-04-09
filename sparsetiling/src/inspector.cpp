@@ -114,10 +114,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     }
     insp->iter2color = iter2color;
 
+#ifdef SLOPE_VTK
     // if requested at compile time, the coloring and tiling of a parloop are
     // explicitly tracked. These can be used for debugging or visualization purposes,
     // for example for generating VTK files showing the colored parloop
-#ifdef SLOPE_VTK
     seedLoop->tiling = new int[seedLoopSetSize];
     seedLoop->coloring = new int[seedLoopSetSize];
     memcpy (seedLoop->tiling, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
