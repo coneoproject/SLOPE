@@ -19,23 +19,22 @@ std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int ti
 
   // tile the local iteration space
   int nParts = setCore / tileSize;
-  int reminderTileSize = setCore % tileSize;
-  int nCoreTiles = nParts + ((reminderTileSize > 0) ? 1 : 0);
+  int remainderTileSize = setCore % tileSize;
+  int nCoreTiles = nParts + ((remainderTileSize > 0) ? 1 : 0);
   int tileID = -1;
   int i = 0;
-  for (; i < setCore - reminderTileSize; i++) {
+  for (; i < setCore - remainderTileSize; i++) {
     tileID = (i % tileSize == 0) ? tileID + 1 : tileID;
     indMap[i] = tileID;
   }
-  tileID++;
+  tileID = (remainderTileSize > 0) ? tileID + 1 : tileID;
   for (; i < setCore; i++) {
     indMap[i] = tileID;
   }
 
   // create the list of tiles
   tile_list* tiles = new tile_list (nCoreTiles);
-  int t = 0;
-  for (; t < nCoreTiles; t++) {
+  for (int t = 0; t < nCoreTiles; t++) {
     tiles->at(t) = tile_init (nLoops);
   }
 
