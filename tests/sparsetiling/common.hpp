@@ -106,6 +106,8 @@ public:
     this->vertices_halo = vertices[1];
     this->edges_halo = edges[1];
     this->cells_halo = cells[1];
+    this->e2vSize = (this->edges + this->edges_halo)*2;
+    this->c2vSize = (this->cells + this->cells_halo)*type;
   }
 };
 
