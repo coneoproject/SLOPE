@@ -85,7 +85,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   map_t* iter2tile;
   tile_list* tiles;
   tie(iter2tile, tiles) = partition (insp, seedLoop, avgTileSize);
-  tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->indMap);
+  tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->values);
 
   // track information essential for tiling, execution, and debugging
   insp->iter2tile = iter2tile;
@@ -120,8 +120,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // for example for generating VTK files showing the colored parloop
     seedLoop->tiling = new int[seedLoopSetSize];
     seedLoop->coloring = new int[seedLoopSetSize];
-    memcpy (seedLoop->tiling, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
-    memcpy (seedLoop->coloring, iter2color->indMap, sizeof(int)*seedLoopSetSize);
+    memcpy (seedLoop->tiling, iter2tile->values, sizeof(int)*seedLoopSetSize);
+    memcpy (seedLoop->coloring, iter2color->values, sizeof(int)*seedLoopSetSize);
 #endif
 
     // create copies of initial tiling and coloring, cause they can be manipulated
@@ -129,8 +129,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // original values before the other tiling phase (e.g. backward)
     int* tmpIter2tileMap = new int[seedLoopSetSize];
     int* tmpIter2colorMap = new int[seedLoopSetSize];
-    memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
-    memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*seedLoopSetSize);
+    memcpy (tmpIter2tileMap, iter2tile->values, sizeof(int)*seedLoopSetSize);
+    memcpy (tmpIter2colorMap, iter2color->values, sizeof(int)*seedLoopSetSize);
 
     // tile the loop chain. First forward, then backward. The algorithm is as follows:
     // 1- start from the base loop, then go forward (backward)
@@ -265,8 +265,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       int offset = i*avgTileSize;
       for (int j = 0; j < verbosityItSet; j++) {
         cout << "         " << offset + j
-             << "   |   " << iter2tile->indMap[offset + j]
-             << "   |   " << iter2color->indMap[offset + j] << endl;
+             << "   |   " << iter2tile->values[offset + j]
+             << "   |   " << iter2color->values[offset + j] << endl;
       }
       cout << "         ..." << endl;
     }
@@ -274,8 +274,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     int offset = itSetSize - itSetReminder;
     for (int i = 0; i < MIN(verbosityItSet, itSetReminder); i++) {
       cout << "         " << offset + i
-           << "   |   " << iter2tile->indMap[offset + i]
-           << "   |   " << iter2color->indMap[offset + i] << endl;
+           << "   |   " << iter2tile->values[offset + i]
+           << "   |   " << iter2color->values[offset + i] << endl;
     }
   }
   else {

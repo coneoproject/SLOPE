@@ -295,7 +295,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
       for (int k = 0; k < toNodesSize; k++) {
         vtkfile << ariety;
         for (int l = 0; l < ariety; l++) {
-          vtkfile << " " << map->indMap[k*ariety + l];
+          vtkfile << " " << map->values[k*ariety + l];
         }
         vtkfile << std::endl;
       }

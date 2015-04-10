@@ -62,7 +62,7 @@ void project_forward (loop_t* tiledLoop,
       // aliases
       int projSetSize = descMap->inSet->size;
       std::string projSetName = descMap->inSet->name;
-      int* indMap = descMap->indMap;
+      int* indMap = descMap->values;
       int* offsets = descMap->offsets;
 
       int* projIter2tile = new int[projSetSize];
@@ -181,7 +181,7 @@ void project_backward (loop_t* tiledLoop,
       // aliases
       int projSetSize = descMap->inSet->size;
       std::string projSetName = descMap->inSet->name;
-      int* indMap = descMap->indMap;
+      int* indMap = descMap->values;
       int* offsets = descMap->offsets;
 
       int* projIter2tile = new int[projSetSize];
@@ -309,7 +309,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
       // aliases
       int touchedSetSize = touchedSet->size;
       int mapSize = descMap->size;
-      int* indMap = descMap->indMap;
+      int* indMap = descMap->values;
 
       int ariety = mapSize / toTileSetSize;
 
@@ -414,7 +414,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
       // aliases
       int touchedSetSize = touchedSet->size;
       int mapSize = descMap->size;
-      int* indMap = descMap->indMap;
+      int* indMap = descMap->values;
 
       int ariety = mapSize / toTileSetSize;
 
