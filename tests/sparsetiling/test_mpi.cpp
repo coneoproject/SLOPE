@@ -61,9 +61,13 @@ int main (int argc, char* argv[])
   const int seed = 0;
   insp_run (insp, seed);
 
-  insp_print (insp, HIGH);
-
-  generate_vtk (insp, vertices, mesh->coords, DIM2);
+  for (int i = 0; i < nMPI; i++) {
+    if (i == rank) {
+      insp_print (insp, HIGH);
+      generate_vtk (insp, vertices, mesh->coords, DIM2, rank);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 
   // executor
   executor_t* exec = exec_init (insp);
