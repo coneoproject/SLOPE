@@ -145,7 +145,7 @@ int main(int argc, char **argv)
   // plot tiled mesh, for each parallel loop in the loop chain
   //
 
-  generate_vtk (insp, nodes, x, VTK_MESH2D);
+  generate_vtk (insp, nodes, x, DIM2);
 
   //
   // executor

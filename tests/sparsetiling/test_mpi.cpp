@@ -63,7 +63,7 @@ int main (int argc, char* argv[])
 
   insp_print (insp, HIGH);
 
-  generate_vtk (insp, vertices, mesh->coords, VTK_MESH2D);
+  generate_vtk (insp, vertices, mesh->coords, DIM2);
 
   // executor
   executor_t* exec = exec_init (insp);

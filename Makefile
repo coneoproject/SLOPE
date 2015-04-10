@@ -29,7 +29,7 @@ ST_DEMOS = $(DEMOS)/sparsetiling
 ST_TESTS = $(TESTS)/sparsetiling
 
 ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
-		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o
+		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o
 
 #
 # Compiler settings
@@ -68,6 +68,7 @@ sparsetiling: mklib
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
 	xiar cru $(LIB)/libst.a $(ALL_OBJS)
 	ranlib $(LIB)/libst.a
 ifeq ($(SLOPE_LIB),shared)
