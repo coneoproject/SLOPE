@@ -15,8 +15,15 @@ int main (int argc, char* argv[])
   MPI_Init(&argc, &argv);
 
   const int nMPI = 2;
-  int rank;
+  int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+  if (size > nMPI) {
+    std::cout << "This test is only executable with at most 2 processes. Exiting." << std::endl;
+    MPI_Finalize();
+    return 0;
+  }
 
   std::cout << "MPI Rank " << rank << ": loading mesh..." << std::endl;
   ExampleMeshMPI* mesh = example_mpi_mesh(RECT, rank);
