@@ -50,9 +50,8 @@ int main (int argc, char* argv[])
                       desc(DIRECT, WRITE)});
 
   // inspector
-  /*
   const int tileSize = 3;
-  inspector_t* insp = insp_init(tileSize, MPI);
+  inspector_t* insp = insp_init(tileSize, ONLY_MPI);
 
   insp_add_parloop (insp, "pl0", cells, &pl0Desc);
   insp_add_parloop (insp, "pl1", vertices, &pl1Desc);
@@ -64,7 +63,7 @@ int main (int argc, char* argv[])
 
   insp_print (insp, HIGH);
 
-  generate_vtk (insp, vertices, mesh->vertices, VTK_MESH2D);
+  generate_vtk (insp, vertices, mesh->coords, VTK_MESH2D);
 
   // executor
   executor_t* exec = exec_init (insp);
@@ -72,7 +71,7 @@ int main (int argc, char* argv[])
   // free memory
   insp_free (insp);
   exec_free (exec);
-  */
+
   delete mesh;
 
   MPI_Finalize();
