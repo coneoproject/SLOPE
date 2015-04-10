@@ -94,7 +94,7 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
         }
 
         int* globalIndMap = globalMap->indMap;
-        int ariety = globalMap->mapSize / globalMap->inSet->size;
+        int ariety = globalMap->size / globalMap->inSet->size;
         int tileLoopSize = (*tIt)->iterations[i]->size();
 
         iterations_list* localMap = new iterations_list (tileLoopSize*ariety);

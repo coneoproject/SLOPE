@@ -308,7 +308,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
       // indirect set case
       // aliases
       int touchedSetSize = touchedSet->size;
-      int mapSize = descMap->mapSize;
+      int mapSize = descMap->size;
       int* indMap = descMap->indMap;
 
       int ariety = mapSize / toTileSetSize;
@@ -413,7 +413,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
       // indirect set case
       // aliases
       int touchedSetSize = touchedSet->size;
-      int mapSize = descMap->mapSize;
+      int mapSize = descMap->size;
       int* indMap = descMap->indMap;
 
       int ariety = mapSize / toTileSetSize;

@@ -8,14 +8,14 @@
 #include "map.h"
 #include "utils.h"
 
-map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int mapSize)
+map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int size)
 {
   map_t* map = new map_t;
   map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
-  map->mapSize = mapSize;
+  map->size = size;
   map->offsets = NULL;
   return map;
 }
@@ -27,7 +27,7 @@ map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* indMap, int* of
   map->inSet = inSet;
   map->outSet = outSet;
   map->indMap = indMap;
-  map->mapSize = offsets[inSet->size];
+  map->size = offsets[inSet->size];
   map->offsets = offsets;
   return map;
 }
@@ -53,7 +53,7 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
   int xSize = x2y->inSet->size;
   int ySize = x2y->outSet->size;
   int* x2yMap = x2y->indMap;
-  int x2yMapSize = x2y->mapSize;
+  int x2yMapSize = x2y->size;
 
   int x2yAriety = x2yMapSize / xSize;
 

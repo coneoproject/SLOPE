@@ -65,7 +65,7 @@
     do { \
       std::cout << "Map `" #mapping "`:" << std::endl \
                 << "  name: " << mapping->name << std::endl \
-                << "  size: " << mapping->mapSize << std::endl \
+                << "  size: " << mapping->size << std::endl \
                 << "    inSet: " << mapping->inSet->name \
                 << ", size: " << mapping->inSet->size << std::endl \
                 << "    outSet: " << mapping->outSet->name \
@@ -288,7 +288,7 @@ inline void generate_vtk (inspector_t* insp, set_t* nodes, double* coordinates,
     }
     if (map) {
       int toNodesSize = map->inSet->size;
-      int ariety = map->mapSize / toNodesSize;
+      int ariety = map->size / toNodesSize;
       std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
       stream << shape << toNodesSize << " " << toNodesSize*(ariety + 1) << std::endl;
       vtkfile << stream.str();
