@@ -56,7 +56,7 @@ int main (int argc, char* argv[])
   insp_add_parloop (insp, "pl0", cells, &pl0Desc);
   insp_add_parloop (insp, "pl1", vertices, &pl1Desc);
   insp_add_parloop (insp, "pl2", cells, &pl2Desc);
-  insp_add_parloop (insp, "pl2", vertices, &pl3Desc);
+  insp_add_parloop (insp, "pl3", vertices, &pl3Desc);
 
   const int seed = 0;
   insp_run (insp, seed);
