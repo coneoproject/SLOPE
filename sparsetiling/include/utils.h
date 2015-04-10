@@ -56,8 +56,12 @@
       std::cout << "  Sets touched in previous tiled loop:" << std::endl; \
       projection_t::const_iterator it, end; \
       for (it = _projection->begin(), end = _projection->end(); it != end; it++) { \
-        std::cout << "    " << (*it)->name \
-                  << ", size: " << (*it)->itSetSize << std::endl; \
+        std::cout << "    " << (*it)->name  << std::endl \
+                  << "      size: " << (*it)->itSetSize << std::endl \
+                  << "      tiling: "; \
+        PRINT_INTARR((*it)->iter2tile, 0, (*it)->itSetSize); \
+        std::cout << "      coloring: "; \
+        PRINT_INTARR((*it)->iter2color, 0, (*it)->itSetSize); \
       } \
     } while (false)
 
