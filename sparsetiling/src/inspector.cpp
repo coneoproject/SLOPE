@@ -268,7 +268,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
              << "   |   " << iter2tile->values[offset + j]
              << "   |   " << iter2color->values[offset + j] << endl;
       }
-      cout << "         ..." << endl;
+      string separator = (verbosityItSet != avgTileSize) ? "         ...\n" : "";
+      cout << separator;
     }
     int itSetReminder = itSetSize % avgTileSize;
     int offset = itSetSize - itSetReminder;
@@ -282,7 +283,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     cout << "No partitioning of the base loop performed" << endl;
   }
 
-  cout << endl << "Coloring summary (color:tile):" << endl;
+  cout << endl << "Coloring summary (color:#tiles):" << endl;
   std::map<int, int> colors;
   tile_list::const_iterator it, end;
   for (it = tiles->begin(), end = tiles->end(); it != end; it++) {
