@@ -113,13 +113,12 @@ void* inspector(slope_set sets[%(n_sets)d],
         :param maps: iterator of 4-tuple:
                      (name, input_set, output_set, map_values)
         """
-        maps = [(name, self._fix_c(in_set), self._fix_c(out_set), map)
-                for name, in_set, out_set, map in maps]
+        maps = [(n, self._fix_c(i), self._fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
-        return (ctype, ctype(*[Map(name,
-                                   map.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-                                   map.size) for name, _, _, map in maps]))
+        return (ctype, ctype(*[Map(n,
+                                   v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                   v.size) for n, _, _, v in maps]))
 
     def add_loops(self, loops):
         """Add a list of ``loops`` to this Inspector
@@ -135,7 +134,7 @@ void* inspector(slope_set sets[%(n_sets)d],
                     If the access to a dataset does not involve any map, than the
                     first entry assumes the value of the special keyword ``DIRECT``
         """
-        self._loops = [(name, self._fix_c(set), descs) for name, set, descs in loops]
+        self._loops = [(n, self._fix_c(s), d) for n, s, d in loops]
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
