@@ -10,7 +10,9 @@ import ctypes
 
 class Set(ctypes.Structure):
     _fields_ = [('name', ctypes.c_char_p),
-                ('size', ctypes.c_int)]
+                ('core', ctypes.c_int),
+                ('exec', ctypes.c_int),
+                ('nonexec', ctypes.c_int)]
 
 
 class Dat(ctypes.Structure):
@@ -30,7 +32,7 @@ class Inspector(object):
 
     ### Templates for code generation ###
 
-    set_def = 'set_t* %s = set(sets[%d].name, sets[%d].size);'
+    set_def = 'set_t* %s = set(sets[%d].name, sets[%d].core, sets[%d].exec, sets[%d].nonexec, %s);'
     map_def = 'map_t* %s = map(maps[%d].name, %s, %s, maps[%d].map, maps[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
@@ -47,7 +49,9 @@ class Inspector(object):
 // Inspector's ctypes-compatible data structures and functions
 typedef struct {
   char* name;
-  int size;
+  int core;
+  int exec;
+  int nonexec;
 } slope_set;
 
 typedef struct {
@@ -99,13 +103,13 @@ void* inspector(slope_set sets[%(n_sets)d],
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
 
-        :param sets: iterator of 2-tuple:
-                     (name, core_size)
+        :param sets: iterator of 5-tuple:
+                     (name, core_size, exec_size, nonexec_size, issubset)
         """
-        sets = [(self._fix_c(name), size) for name, size in sets]
+        sets = [(self._fix_c(n), cs, es, ns, issub) for n, cs, es, ns, issub in sets]
         ctype = Set*len(sets)
         self._sets = sets
-        return (ctype, ctype(*[Set(name, size) for name, size in sets]))
+        return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, issub in sets]))
 
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
@@ -173,7 +177,8 @@ void* inspector(slope_set sets[%(n_sets)d],
                                  set_size)))
 
     def generate_code(self):
-        set_defs = [Inspector.set_def % (s[0], i, i) for i, s in enumerate(self._sets)]
+        set_defs = [Inspector.set_def % (s[0], i, i, i, i, str(s[4]).lower())
+                    for i, s in enumerate(self._sets)]
         map_defs = [Inspector.map_def % (m[0], i, m[1], m[2], i, i)
                     for i, m in enumerate(self._maps)]
         desc_defs, loop_defs = [], []
