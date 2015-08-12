@@ -44,8 +44,7 @@ typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> pr
  * Note: the caller loses ownership of iter2tile and iter2color after calling
  * this function. Access to these two maps becomes therefore undefined.
  */
-iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile,
-                         int* iter2color);
+iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile, int* iter2color);
 
 /*
  * Clone an iter2tc_t
@@ -91,8 +90,10 @@ void projection_free (projection_t* projection);
  * @param conflictsTracker
  *   track conflicting tiles encountered by each tile during the tiling process
  */
-void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                      projection_t* prevLoopProj, projection_t* seedLoopProj,
+void project_forward (loop_t* tiledLoop,
+                      iter2tc_t* tilingInfo,
+                      projection_t* prevLoopProj,
+                      projection_t* seedLoopProj,
                       tracker_t* conflictsTracker);
 
 /*
@@ -112,8 +113,11 @@ void project_forward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
  * @param conflictsTracker
  *   track conflicting tiles encountered by each tile during the tiling process
  */
-void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
-                       projection_t* prevLoopProj, tracker_t* conflictsTracker);
+void project_backward (loop_t* tiledLoop,
+                       iter2tc_t* tilingInfo,
+                       projection_t* prevLoopProj,
+                       tracker_t* conflictsTracker);
+
 /*
  * Tile a parloop when going forward along the loop chain.
  *
@@ -122,7 +126,8 @@ void project_backward (loop_t* tiledLoop, iter2tc_t* tilingInfo,
  * @param prevLoopProj
  *   the projection of tiling up to curLoop
  */
-iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj);
+iter2tc_t* tile_forward (loop_t* curLoop,
+                         projection_t* prevLoopProj);
 
 /*
  * Tile a parloop when going backward along the loop chain.
@@ -132,7 +137,8 @@ iter2tc_t* tile_forward (loop_t* curLoop, projection_t* prevLoopProj);
  * @param prevLoopProj
  *   the projection of tiling up to curLoop
  */
-iter2tc_t* tile_backward (loop_t* curLoop, projection_t* prevLoopProj);
+iter2tc_t* tile_backward (loop_t* curLoop,
+                          projection_t* prevLoopProj);
 
 /**************************************************************************/
 

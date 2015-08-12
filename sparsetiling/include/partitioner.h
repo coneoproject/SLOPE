@@ -7,20 +7,21 @@
 #ifndef _PARTITIONER_H_
 #define _PARTITIONER_H_
 
-#include "parloop.h"
-
-enum part_info {PART_OK, PART_ERR};
+#include "inspector.h"
 
 /*
- * Partition the mesh based on a map from entities to vertices.
+ * Partition the /loop/ iteration set.
  *
- * input:
- * loop: the loop whose iteration set is partitioned
- * partSize: average size of the tiles the partitioning returns
- *
- * output:
- * a map from the loop's iteration set to tiles
+ * @param insp
+ *   the inspector data structure
+ * @param loop
+ *   the loop whose iteration set is partitioned
+ * @param partSize
+ *   average tile size for partitioning
+ * @return
+ *   a 2-tuple, in which the first entry is map from /loop/ iterations to tiles,
+ *   while the second entry is the list of created tiles
  */
-map_t* partition (loop_t* loop, int tileSize);
+std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int tileSize);
 
 #endif

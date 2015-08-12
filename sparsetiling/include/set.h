@@ -16,7 +16,13 @@
 typedef struct {
   /* identifier name of the set */
   std::string name;
-  /* size of the set */
+  /* size of the local set not touching halo regions */
+  int core;
+  /* size of the halo region (will be executed over redundantly) */
+  int execHalo;
+  /* size of the halo region that will only be read */
+  int nonExecHalo;
+  /* size of the whole iteration space, including halo */
   int size;
   /* subset flag */
   bool isSubset;
@@ -26,12 +32,31 @@ typedef std::set<set_t*> set_list;
 
 /*
  * Initialize a set
+ *
+ * If any of {execHalo, nonExecHalo} are not specified, sequential execution
+ * is assumed. Otherwise, the logical division into set elements is: ::
+ *
+ *     [0, core)
+ *     [core, execHalo)
+ *     [execHalo, nonExecHalo).
+ *
+ * Where:
+ *
+ *    - `core`: all of the owned set elements not touching the halo region
+ *    - `execHalo`: off-processor set elements plus owned set elements touching \
+ *                  off-processor set elements. The extent of this region \
+ *                  this region should be proportial to the depth of tiling
+ *    - `nonExecHalo`: read when executing the halo region
  */
-inline set_t* set (std::string name, int size, bool isSubset = false)
+inline set_t* set (std::string name, int core, int execHalo = 0, int nonExecHalo = 0,
+                   bool isSubset = false)
 {
   set_t* set =  new set_t;
   set->name = name;
-  set->size = size;
+  set->core = core;
+  set->execHalo = execHalo;
+  set->nonExecHalo = nonExecHalo;
+  set->size = core + execHalo + nonExecHalo;
   set->isSubset = isSubset;
   return set;
 }
@@ -41,10 +66,8 @@ inline set_t* set (std::string name, int size, bool isSubset = false)
  */
 inline set_t* set_cpy (set_t* toCopy)
 {
-  set_t* set =  new set_t;
-  set->name = toCopy->name;
-  set->size = toCopy->size;
-  return set;
+  return set(toCopy->name, toCopy->core, toCopy->execHalo, toCopy->nonExecHalo,
+             toCopy->isSubset);
 }
 
 /*

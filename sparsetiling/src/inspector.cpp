@@ -18,6 +18,12 @@
 
 using namespace std;
 
+
+// prototypes of static functions
+static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy);
+static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
+
+
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
 {
   inspector_t* insp = new inspector_t;
@@ -54,8 +60,6 @@ insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
   return INSP_OK;
 }
 
-bool select_seed_loop (loop_list* loops, int& suggestedSeed, insp_strategy strategy);
-
 insp_info insp_run (inspector_t* insp, int suggestedSeed)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
@@ -67,26 +71,21 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   int nLoops = loops->size();
 
   // establish seed loop
-  select_seed_loop (loops, suggestedSeed, strategy);
-  int seed = suggestedSeed;  // possibly modified in select_seed_loop
+  int seed = select_seed_loop (loops, suggestedSeed, strategy);
+  ASSERT((seed >= 0) && (seed < nLoops), "Could not find a valid seed loop");
   insp->seed = seed;
 
   // aliases
   loop_t* seedLoop = loops->at(seed);
+  ASSERT(! seedLoop->set->isSubset, "Seed loop cannot be a subset");
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
-  ASSERT((seed >= 0) && (seed < nLoops), "Invalid tiling start point");
-  ASSERT(! seedLoop->set->isSubset, "Seed loop cannot be a subset");
-
   // partition the iteration set of the base loop and create empty tiles
-  map_t* iter2tile = partition (seedLoop, avgTileSize);
-  int nTiles = iter2tile->outSet->size;
-  tile_list* tiles = new tile_list (nTiles);
-  for (int i = 0; i < nTiles; i++) {
-    tiles->at(i) = tile_init (nLoops);
-  }
-  tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->indMap);
+  map_t* iter2tile;
+  tile_list* tiles;
+  tie(iter2tile, tiles) = partition (insp, seedLoop, avgTileSize);
+  tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->values);
 
   // track information essential for tiling, execution, and debugging
   insp->iter2tile = iter2tile;
@@ -106,23 +105,23 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // color the seed loop's sets
     map_t* iter2color;
     switch (strategy) {
-      case SEQUENTIAL: case MPI:
-        iter2color = color_sequential (iter2tile, tiles);
+      case SEQUENTIAL: case ONLY_MPI:
+        iter2color = color_sequential (insp);
         break;
       case OMP: case OMP_MPI:
-        iter2color = color_shm (seedLoop, iter2tile, tiles, &crossSweepConflictsTracker);
+        iter2color = color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
         break;
     }
     insp->iter2color = iter2color;
 
+#ifdef SLOPE_VTK
     // if requested at compile time, the coloring and tiling of a parloop are
     // explicitly tracked. These can be used for debugging or visualization purposes,
     // for example for generating VTK files showing the colored parloop
-#ifdef SLOPE_VTK
     seedLoop->tiling = new int[seedLoopSetSize];
     seedLoop->coloring = new int[seedLoopSetSize];
-    memcpy (seedLoop->tiling, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
-    memcpy (seedLoop->coloring, iter2color->indMap, sizeof(int)*seedLoopSetSize);
+    memcpy (seedLoop->tiling, iter2tile->values, sizeof(int)*seedLoopSetSize);
+    memcpy (seedLoop->coloring, iter2color->values, sizeof(int)*seedLoopSetSize);
 #endif
 
     // create copies of initial tiling and coloring, cause they can be manipulated
@@ -130,8 +129,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // original values before the other tiling phase (e.g. backward)
     int* tmpIter2tileMap = new int[seedLoopSetSize];
     int* tmpIter2colorMap = new int[seedLoopSetSize];
-    memcpy (tmpIter2tileMap, iter2tile->indMap, sizeof(int)*seedLoopSetSize);
-    memcpy (tmpIter2colorMap, iter2color->indMap, sizeof(int)*seedLoopSetSize);
+    memcpy (tmpIter2tileMap, iter2tile->values, sizeof(int)*seedLoopSetSize);
+    memcpy (tmpIter2colorMap, iter2color->values, sizeof(int)*seedLoopSetSize);
 
     // tile the loop chain. First forward, then backward. The algorithm is as follows:
     // 1- start from the base loop, then go forward (backward)
@@ -215,32 +214,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   return INSP_OK;
 }
 
-bool select_seed_loop (loop_list* loops, int& suggestedSeed, insp_strategy strategy)
-{
-  if (! (strategy == OMP || strategy == OMP_MPI)) {
-    return true;
-  }
-
-  // tiling for shared memory parallelism:
-  // need to be sure the suggested seed loop is an indirect one. This is because
-  // an indirect map is required to reassign a same color to tiles that are not
-  // adjacent. If the suggested seed loop is a direct one (or it only has maps to
-  // subsets), then another loop is selected as seed.
-  if (! loop_load_full_map (loops->at(suggestedSeed))) {
-    int i = 0;
-    loop_list::const_iterator it, end;
-    for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
-      if (loop_load_full_map (*it)) {
-        suggestedSeed = i;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
-
 void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
@@ -292,24 +265,25 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       int offset = i*avgTileSize;
       for (int j = 0; j < verbosityItSet; j++) {
         cout << "         " << offset + j
-             << "   |   " << iter2tile->indMap[offset + j]
-             << "   |   " << iter2color->indMap[offset + j] << endl;
+             << "   |   " << iter2tile->values[offset + j]
+             << "   |   " << iter2color->values[offset + j] << endl;
       }
-      cout << "         ..." << endl;
+      string separator = (verbosityItSet != avgTileSize) ? "         ...\n" : "";
+      cout << separator;
     }
     int itSetReminder = itSetSize % avgTileSize;
     int offset = itSetSize - itSetReminder;
     for (int i = 0; i < MIN(verbosityItSet, itSetReminder); i++) {
       cout << "         " << offset + i
-           << "   |   " << iter2tile->indMap[offset + i]
-           << "   |   " << iter2color->indMap[offset + i] << endl;
+           << "   |   " << iter2tile->values[offset + i]
+           << "   |   " << iter2color->values[offset + i] << endl;
     }
   }
   else {
     cout << "No partitioning of the base loop performed" << endl;
   }
 
-  cout << endl << "Coloring summary (color:tile):" << endl;
+  cout << endl << "Coloring summary (color:#tiles):" << endl;
   std::map<int, int> colors;
   tile_list::const_iterator it, end;
   for (it = tiles->begin(), end = tiles->end(); it != end; it++) {
@@ -356,6 +330,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
 
 void insp_free (inspector_t* insp)
 {
+  ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
+
   // Note that tiles are not freed because they are already freed in the
   // executor's free function
 
@@ -434,8 +410,9 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
   for (int i = 0; i < tilesRange; i++) {
     int tileSize = tiles->at(i)->iterations[loop->index]->size();
     totalIterationsAssigned += tileSize;
+    string tileInfo = (tiles->at(i)->region == LOCAL) ? "      " : "(HALO)";
     int range = MIN(tileSize, verbosityTiles);
-    cout << "         " << i << "   |    " << tiles->at(i)->color << "    |   "
+    cout << " " << tileInfo << " " << i << "   |    " << tiles->at(i)->color << "    |   "
          << tileSize << " : {";
     if (tileSize == 0) {
       cout << "No iterations}" << endl;
@@ -460,4 +437,40 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
   }
   cout << "Summary: assigned " << totalIterationsAssigned << "/"
        << loop->set->size << " iterations" << endl;
+}
+
+static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy)
+{
+  if (strategy == ONLY_MPI || strategy == OMP_MPI) {
+    // at the moment, we only allow tiling from the bottom of the loop chain.
+    // In this way, we don't have to determine the /owned/ region which would be
+    // required to separate the /halo/ and /size/ regions to prevent tiles from
+    // growing over /halo/.
+    suggestedSeed = 0;
+    if (loops->at(suggestedSeed)->set->execHalo == 0) {
+      return -1;
+    }
+    if (strategy == OMP_MPI && !loop_load_full_map (loops->at(suggestedSeed))) {
+      return -1;
+    }
+    return suggestedSeed;
+  }
+  if (strategy == SEQUENTIAL) {
+    return suggestedSeed;
+  }
+
+  // otherwise, the strategy involves shared memory parallelism, so we need to
+  // check whether the suggested seed loop is indirect or not. This is because
+  // an indirect map is required to set the initial colors of tiles, such that
+  // the same color can be assigned to non-adjacent tiles.
+  if (! loop_load_full_map (loops->at(suggestedSeed))) {
+    int i = 0;
+    loop_list::const_iterator it, end;
+    for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+      if (loop_load_full_map (*it)) {
+        return i;
+      }
+    }
+  }
+  return -1;
 }

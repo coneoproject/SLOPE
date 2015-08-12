@@ -30,14 +30,17 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
   return iter2color;
 }
 
-map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
+map_t* color_sequential (inspector_t* insp)
 {
   // aliases
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
   int nTiles = iter2tile->outSet->size;
 
   // each tile is assigned a different color. This way, the tiling algorithm,
   // which is based on colors, works seamless regardless of whether the
-  // execution strategy is seqeuntial or parallel (shared memory)
+  // execution strategy is sequential or parallel (shared memory).
+  // Note: halo tiles always get the maximum colors
   int* colors = new int[nTiles];
   for (int i = 0; i < nTiles; i++) {
     colors[i] = i;
@@ -54,15 +57,15 @@ map_t* color_sequential (map_t* iter2tile, tile_list* tiles)
               iter2tile->inSet->size*1);
 }
 
-map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles,
-                  tracker_t* conflictsTracker)
+map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
 {
   // aliases
-  map_t* seedMap = loop->seedMap;
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
   int nTiles = tiles->size();
   int seedSetSize = seedMap->inSet->size;
-  int seedMapSize = seedMap->mapSize;
-  int* seedIndMap = seedMap->indMap;
+  int seedMapSize = seedMap->size;
+  int* seedIndMap = seedMap->values;
 
   ASSERT (seedMap, "Couldn't find a valid map for coloring a seed iteration space");
 
@@ -136,6 +139,15 @@ map_t* color_shm (loop_t* loop, map_t* iter2tile, tile_list* tiles,
     }
     // increment base level
     nColor += 32;
+  }
+
+  // assign maximum color to halo tiles, since these must be executed last
+  set_t* tileRegions = insp->tileRegions;
+  if (tileRegions->execHalo > 0) {
+    colors[tileRegions->core] = nColors++;
+  }
+  if (tileRegions->nonExecHalo > 0) {
+    colors[tileRegions->core + tileRegions->execHalo] = nColors++;
   }
 
   // create the iteration to colors map

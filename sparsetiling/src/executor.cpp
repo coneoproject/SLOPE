@@ -53,7 +53,7 @@ int exec_tiles_per_color (executor_t* exec, int color)
 
 tile_t* exec_tile_at (executor_t* exec, int color, int ithTile)
 {
-  int tileID = exec->color2tile->indMap[exec->color2tile->offsets[color] + ithTile];
+  int tileID = exec->color2tile->values[exec->color2tile->offsets[color] + ithTile];
   return exec->tiles->at (tileID);
 }
 
@@ -93,8 +93,8 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
           continue;
         }
 
-        int* globalIndMap = globalMap->indMap;
-        int ariety = globalMap->mapSize / globalMap->inSet->size;
+        int* globalIndMap = globalMap->values;
+        int ariety = globalMap->size / globalMap->inSet->size;
         int tileLoopSize = (*tIt)->iterations[i]->size();
 
         iterations_list* localMap = new iterations_list (tileLoopSize*ariety);

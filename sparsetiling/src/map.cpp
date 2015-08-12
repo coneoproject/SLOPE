@@ -8,26 +8,26 @@
 #include "map.h"
 #include "utils.h"
 
-map_t* map (std::string name, set_t* inSet, set_t* outSet, int* indMap, int mapSize)
+map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size)
 {
   map_t* map = new map_t;
   map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
-  map->indMap = indMap;
-  map->mapSize = mapSize;
+  map->values = values;
+  map->size = size;
   map->offsets = NULL;
   return map;
 }
 
-map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* indMap, int* offsets)
+map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* values, int* offsets)
 {
   map_t* map = new map_t;
   map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
-  map->indMap = indMap;
-  map->mapSize = offsets[inSet->size];
+  map->values = values;
+  map->size = offsets[inSet->size];
   map->offsets = offsets;
   return map;
 }
@@ -42,7 +42,7 @@ void map_free (map_t* map, bool freeIndMap)
   set_free (map->outSet);
   delete[] map->offsets;
   if (freeIndMap) {
-    delete[] map->indMap;
+    delete[] map->values;
   }
   delete map;
 }
@@ -52,8 +52,8 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
   // aliases
   int xSize = x2y->inSet->size;
   int ySize = x2y->outSet->size;
-  int* x2yMap = x2y->indMap;
-  int x2yMapSize = x2y->mapSize;
+  int* x2yMap = x2y->values;
+  int x2yMapSize = x2y->size;
 
   int x2yAriety = x2yMapSize / xSize;
 

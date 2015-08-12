@@ -29,13 +29,14 @@ ST_DEMOS = $(DEMOS)/sparsetiling
 ST_TESTS = $(TESTS)/sparsetiling
 
 ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
-		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o
+		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o
 
 #
 # Compiler settings
 #
 
 CXX := $(CXX)
+MPICXX := $(MPICXX)
 CXXFLAGS := -std=c++0x $(CXX_OPTS) $(SLOPE_VTK) $(SLOPE_OMP)
 
 ifeq ($(SLOPE_ARCH),linux)
@@ -67,6 +68,7 @@ sparsetiling: mklib
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
 	xiar cru $(LIB)/libst.a $(ALL_OBJS)
 	ranlib $(LIB)/libst.a
 ifeq ($(SLOPE_LIB),shared)
@@ -76,6 +78,7 @@ endif
 tests: mklib
 	@echo "Compiling the tests"
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 $(LIB)/libst.a $(CLOCK_LIB)
+	$(MPICXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_mpi.cpp -o $(ST_BIN)/tests/test_mpi $(LIB)/libst.a $(CLOCK_LIB)
 
 demos: mklib
 	@echo "Compiling the demos"

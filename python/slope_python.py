@@ -405,8 +405,7 @@ def set_debug_mode(mode, coordinates):
     set, data, arity = coordinates
     if arity not in [1, 2, 3]:
         raise SlopeError("Arity should be a number in [1, 2, 3]")
-    arity = "VTK_MESH%dD" % arity
-    Inspector._globaldata['coordinates'] = (set, data, arity)
+    Inspector._globaldata['coordinates'] = (set, data, "DIM%d" % arity)
 
 
 def set_exec_mode(mode):

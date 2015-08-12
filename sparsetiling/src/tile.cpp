@@ -6,7 +6,7 @@
 #include "tile.h"
 #include "utils.h"
 
-tile_t* tile_init (int crossedLoops)
+tile_t* tile_init (int crossedLoops, tile_region region)
 {
   tile_t* tile = new tile_t;
   tile->iterations = new iterations_list*[crossedLoops];
@@ -15,6 +15,7 @@ tile_t* tile_init (int crossedLoops)
   }
   tile->localMaps = new mapname_iterations*[crossedLoops];
   tile->crossedLoops = crossedLoops;
+  tile->region = region;
   tile->color = -1;
   return tile;
 }
