@@ -99,9 +99,8 @@ void* inspector(slope_set sets[%(n_sets)d],
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
 
-        :param sets: iterator of 2-tuple, in which the first entry is the name of
-                     the set (a string), while the second entry is the size of the
-                     iteration set
+        :param sets: iterator of 2-tuple:
+                     (name, core_size)
         """
         sets = [(self._fix_c(name), size) for name, size in sets]
         ctype = Set*len(sets)
@@ -111,10 +110,8 @@ void* inspector(slope_set sets[%(n_sets)d],
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
 
-        :param maps: iterator of 4-tuple, in which the first entry is the name of
-                     the map (a string); the second and third entries represent,
-                     respectively, the input and the output sets of the map (strings);
-                     follows the map itself, as a numpy array of integers
+        :param maps: iterator of 4-tuple:
+                     (name, input_set, output_set, map_values)
         """
         maps = [(name, self._fix_c(in_set), self._fix_c(out_set), map)
                 for name, in_set, out_set, map in maps]
@@ -128,15 +125,15 @@ void* inspector(slope_set sets[%(n_sets)d],
         """Add a list of ``loops`` to this Inspector
 
         :param loops: iterator of 3-tuple ``(name, set, desc)``, where:
-            * ``name`` is the identifier name of the loop
-            * ``set`` is the iteration space of the loop
-            * ``desc`` represents a list of descriptors. In SLOPE, a descriptor
-                       specifies the memory access pattern in a loop. In particular,
-                       a descriptor is a 2-tuple in which the first entry is a map
-                       (previously defined through a call to ``map(...)``) and the
-                       second entry is the access mode (e.g., RW, READ, INC, ...).
-                       If the access to a dataset does not involve any map, than the
-                       first entry assumes the value of the special keyword ``DIRECT``
+            * name: the identifier of the loop
+            * set: the iteration space of the loop
+            * desc: represents a list of descriptors. In SLOPE, a descriptor
+                    specifies the memory access pattern in a loop. In particular,
+                    a descriptor is a 2-tuple in which the first entry is a map
+                    (previously defined through a call to ``map(...)``) and the
+                    second entry is the access mode (e.g., RW, READ, INC, ...).
+                    If the access to a dataset does not involve any map, than the
+                    first entry assumes the value of the special keyword ``DIRECT``
         """
         self._loops = [(name, self._fix_c(set), descs) for name, set, descs in loops]
 
