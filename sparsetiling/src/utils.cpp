@@ -117,14 +117,14 @@ void generate_vtk (inspector_t* insp,
     }
     if (map) {
       int toNodesSize = map->inSet->size;
-      int ariety = map->size / toNodesSize;
-      std::string shape = (ariety == 2) ? "LINES " : "POLYGONS ";
-      stream << shape << toNodesSize << " " << toNodesSize*(ariety + 1) << std::endl;
+      int arity = map->size / toNodesSize;
+      std::string shape = (arity == 2) ? "LINES " : "POLYGONS ";
+      stream << shape << toNodesSize << " " << toNodesSize*(arity + 1) << std::endl;
       vtkfile << stream.str();
       for (int k = 0; k < toNodesSize; k++) {
-        vtkfile << ariety;
-        for (int l = 0; l < ariety; l++) {
-          vtkfile << " " << map->values[k*ariety + l];
+        vtkfile << arity;
+        for (int l = 0; l < arity; l++) {
+          vtkfile << " " << map->values[k*arity + l];
         }
         vtkfile << std::endl;
       }

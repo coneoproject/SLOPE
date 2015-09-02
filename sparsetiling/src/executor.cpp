@@ -94,16 +94,16 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
         }
 
         int* globalIndMap = globalMap->values;
-        int ariety = globalMap->size / globalMap->inSet->size;
+        int arity = globalMap->size / globalMap->inSet->size;
         int tileLoopSize = (*tIt)->iterations[i]->size();
 
-        iterations_list* localMap = new iterations_list (tileLoopSize*ariety);
+        iterations_list* localMap = new iterations_list (tileLoopSize*arity);
         localMaps->insert (mi_pair(globalMap->name, localMap));
 
         for (int e = 0; e < tileLoopSize; e++) {
           int element = (*tIt)->iterations[i]->at(e);
-          for (int j = 0; j < ariety; j++) {
-            localMap->at(e*ariety + j) = globalIndMap[element*ariety + j];
+          for (int j = 0; j < arity; j++) {
+            localMap->at(e*arity + j) = globalIndMap[element*arity + j];
           }
         }
       }

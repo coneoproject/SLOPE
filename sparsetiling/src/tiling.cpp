@@ -55,7 +55,7 @@ void project_forward (loop_t* tiledLoop,
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
-      //   with k the average ariety of a projected set iteration and N the size of
+      //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
       descMap = map_invert (descMap, NULL);
 
@@ -74,7 +74,7 @@ void project_forward (loop_t* tiledLoop,
       for (int i = 0; i < projSetSize; i++) {
         projIter2tile[i] = -1;
         projIter2color[i] = -1;
-        // determine the projected set iteration's ariety, which may vary from
+        // determine the projected set iteration's arity, which may vary from
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
@@ -174,7 +174,7 @@ void project_backward (loop_t* tiledLoop,
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
-      //   with k the average ariety of a projected set iteration and N the size of
+      //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
       descMap = map_invert (descMap, NULL);
 
@@ -193,7 +193,7 @@ void project_backward (loop_t* tiledLoop,
       for (int i = 0; i < projSetSize; i++) {
         projIter2tile[i] = INT_MAX;
         projIter2color[i] = INT_MAX;
-        // determine the projected set iteration's ariety, which may vary from
+        // determine the projected set iteration's arity, which may vary from
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
@@ -311,15 +311,15 @@ iter2tc_t* tile_forward (loop_t* curLoop,
       int mapSize = descMap->size;
       int* indMap = descMap->values;
 
-      int ariety = mapSize / toTileSetSize;
+      int arity = mapSize / toTileSetSize;
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
-        for (int j = 0; j < ariety; j++) {
-          int indIter = indMap[i*ariety + j];
+        for (int j = 0; j < arity; j++) {
+          int indIter = indMap[i*arity + j];
           int indTile = projIter2tile[indIter];
           int indColor = MAX(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
@@ -416,15 +416,15 @@ iter2tc_t* tile_backward (loop_t* curLoop,
       int mapSize = descMap->size;
       int* indMap = descMap->values;
 
-      int ariety = mapSize / toTileSetSize;
+      int arity = mapSize / toTileSetSize;
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
-        for (int j = 0; j < ariety; j++) {
-          int indIter = indMap[i*ariety + j];
+        for (int j = 0; j < arity; j++) {
+          int indIter = indMap[i*arity + j];
           int indTile = projIter2tile[indIter];
           int indColor = MIN(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
