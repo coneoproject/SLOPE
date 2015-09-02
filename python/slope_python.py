@@ -37,7 +37,7 @@ class Inspector(object):
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
-    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s);'
+    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s, rank);'
     output_insp = 'insp_print (insp, %s);'
 
     code = """
@@ -68,13 +68,15 @@ typedef struct {
 extern "C" void* inspector(slope_set sets[%(n_sets)d],
                            slope_map maps[%(n_maps)d],
                            slope_dat coords_dat[1],
-                           int tileSize);
+                           int tileSize,
+                           int rank);
 /****************************/
 
 void* inspector(slope_set sets[%(n_sets)d],
                 slope_map maps[%(n_maps)d],
                 slope_dat coords_dat[1],
-                int tileSize)
+                int tileSize,
+                int rank)
 {
   // Declare sets, maps, dats
   %(set_defs)s
@@ -144,6 +146,11 @@ void* inspector(slope_set sets[%(n_sets)d],
         """Set a tile size for this Inspector"""
         ctype = ctypes.c_int
         return (ctype, ctype(tile_size))
+
+    def set_mpi_rank(self, rank):
+        """Inform about the process MPI rank."""
+        ctype = ctypes.c_int
+        return (ctype, ctype(rank))
 
     def set_external_dats(self):
         """Inspection/Execution can benefit of certain data fields that are not
