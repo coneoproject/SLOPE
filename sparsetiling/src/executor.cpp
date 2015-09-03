@@ -51,10 +51,11 @@ int exec_tiles_per_color (executor_t* exec, int color)
   return offsets[color + 1] - offsets[color];
 }
 
-tile_t* exec_tile_at (executor_t* exec, int color, int ithTile)
+tile_t* exec_tile_at (executor_t* exec, int color, int ithTile, tile_region region)
 {
   int tileID = exec->color2tile->values[exec->color2tile->offsets[color] + ithTile];
-  return exec->tiles->at (tileID);
+  tile_t* tile = exec->tiles->at (tileID);
+  return (tile->region == region) ? tile : NULL;
 }
 
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
