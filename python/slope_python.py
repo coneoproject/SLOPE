@@ -242,10 +242,11 @@ class Executor(object):
         'name_local_map': 'loc_%(gmap)s_%(loop_id)d',
         'name_local_iters': 'iterations_%(loop_id)d',
         'loop_chain_body': '%(loop_chain_body)s',  # Instantiated user side
-        'headers': ['#include "%s"' % h for h in ['inspector.h', 'executor.h',
-                                                  'utils.h']],
+        'headers': ['#include "%s"' % h for h in ['inspector.h', 'executor.h', 'utils.h']],
         'ctype_exec': 'void*',
-        'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p)
+        'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p),
+        'ctype_region_flag': 'tile_region',
+        'region_flag': 'region'
     }
 
     init_code = """
@@ -260,7 +261,11 @@ for (int i = 0; i < nColors; i++) {
   #endif
   for (int j = 0; j < nTilesPerColor; j++) {
     // execute tile j for color i
-    tile_t* tile = exec_tile_at (%(name_exec)s, i, j);
+    tile_t* tile = exec_tile_at (%(name_exec)s, i, j, %(region_flag)s);
+    if (! tile) {
+      // this might be the case if the tile region does not match
+      continue;
+    }
     int %(tile_end)s;
 
     %(loop_chain_body)s
