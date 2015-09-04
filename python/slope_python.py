@@ -174,11 +174,8 @@ void* inspector(slope_set sets[%(n_sets)d],
         coordinates = Inspector._globaldata.get('coordinates')
         if not coordinates:
             return
-        set, data, _ = coordinates
-        try:
-            set_size = [s[1] for s in self._sets if s[0] == set][0]
-        except:
-            raise SlopeError("Couldn't find set `%s` for coordinates" % set)
+        _, data, arity = coordinates
+        set_size = data.size / arity
         ctype = Dat*1
         return (ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                                  set_size)))
@@ -203,7 +200,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         output_vtk = ""
         if coordinates:
             set, _, arity = coordinates
-            output_vtk = Inspector.output_vtk % (set, arity)
+            output_vtk = Inspector.output_vtk % (set, "DIM%d" % arity)
 
         debug_mode = Inspector._globaldata.get('debug_mode')
         output_insp = ""
@@ -415,10 +412,10 @@ def set_debug_mode(mode, coordinates):
         mode = 'LOW'
     Inspector._globaldata['debug_mode'] = mode
 
-    set, data, arity = coordinates
+    _, _, arity = coordinates
     if arity not in [1, 2, 3]:
         raise SlopeError("Arity should be a number in [1, 2, 3]")
-    Inspector._globaldata['coordinates'] = (set, data, "DIM%d" % arity)
+    Inspector._globaldata['coordinates'] = coordinates
 
 
 def set_exec_mode(mode):
