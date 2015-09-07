@@ -102,7 +102,7 @@ int main(int argc, char **argv)
   // note: the 0s indicate that MPI execution is not supported
   set_t* nodes = set("nodes", nNodes);
   set_t* edges = set("edges", nEdges);
-  set_t* bedges = set("bedges", nBedges, 0, 0, true);
+  set_t* bedges = set("bedges", nBedges, 0, 0, edges);
   set_t* cells = set("cells", nCells);
 
   // maps
