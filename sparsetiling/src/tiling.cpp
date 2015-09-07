@@ -99,8 +99,9 @@ void project_forward (loop_t* tiledLoop,
       }
 
       // if projecting from a subset, an older projection must be present. This
-      // is used to replicate non-touched iterations' color and tile.
-      if (tiledLoop->set->superset) {
+      // is used to replicate an untouched iteration color and tile.
+      set_t* superset = set_super(tiledLoop->set);
+      if (superset && ! set_cmp(descMap->outSet, superset)) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
         ASSERT (oldProjIter2tc != prevLoopProj->end(),
                 "Projecting from subset lacks old projection");
@@ -218,8 +219,9 @@ void project_backward (loop_t* tiledLoop,
       }
 
       // if projecting from a subset, an older projection must be present. This
-      // is used to replicate non-touched iterations' color and tile.
-      if (tiledLoop->set->superset) {
+      // is used to replicate an untouched iteration color and tile.
+      set_t* superset = set_super(tiledLoop->set);
+      if (superset && ! set_cmp(descMap->outSet, superset)) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
         ASSERT (oldProjIter2tc != prevLoopProj->end(),
                 "Projecting from subset lacks old projection");
