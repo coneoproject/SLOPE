@@ -106,12 +106,16 @@ void* inspector(slope_set sets[%(n_sets)d],
         """Add ``sets`` to this Inspector
 
         :param sets: iterator of 5-tuple:
-                     (name, core_size, exec_size, nonexec_size, issubset)
+                     (name, core_size, exec_size, nonexec_size, superset)
         """
-        sets = [(self._fix_c(n), cs, es, ns, issub) for n, cs, es, ns, issub in sets]
+        # Subsets should come at last to avoid "undefined identifiers" when
+        # compiling the generated code
+        sets = sorted(list(sets), key=lambda x: x[4])
+        # Now extract and format info for each set
+        sets = [(self._fix_c(n), cs, es, ns, sset) for n, cs, es, ns, sset in sets]
         ctype = Set*len(sets)
         self._sets = sets
-        return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, issub in sets]))
+        return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, sset in sets]))
 
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
@@ -181,7 +185,7 @@ void* inspector(slope_set sets[%(n_sets)d],
                                  set_size)))
 
     def generate_code(self):
-        set_defs = [Inspector.set_def % (s[0], i, i, i, i, str(s[4]).lower())
+        set_defs = [Inspector.set_def % (s[0], i, i, i, i, s[4] if s[4] else "NULL")
                     for i, s in enumerate(self._sets)]
         map_defs = [Inspector.map_def % (m[0], i, m[1], m[2], i, i)
                     for i, m in enumerate(self._maps)]
