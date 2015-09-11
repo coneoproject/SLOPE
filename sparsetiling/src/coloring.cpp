@@ -57,6 +57,40 @@ map_t* color_sequential (inspector_t* insp)
               iter2tile->inSet->size*1);
 }
 
+map_t* color_fully_parallel (inspector_t* insp)
+{
+  // aliases
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
+  int nTiles = iter2tile->outSet->size;
+
+  // A same color is assigned to all tiles. This is because it was found that
+  // all tiles can safely run in parallel.
+  // Note: halo tiles are an exception, since they always get a higher color
+  int* colors = new int[nTiles];
+  for (int i = 0; i < nTiles; i++) {
+    if (tiles->at(i)->region == LOCAL) {
+      colors[i] = 0;
+    }
+    if (tiles->at(i)->region == EXEC_HALO) {
+      colors[i] = 1;
+    }
+    if (tiles->at(i)->region == NON_EXEC_HALO) {
+      colors[i] = 2;
+    }
+  }
+
+  map_t* tile2iter = map_invert (iter2tile, NULL);
+  int* iter2color = color_apply(tiles, tile2iter, colors);
+
+  map_free (tile2iter, true);
+  delete[] colors;
+
+  // note we have as many colors as the number of tiles
+  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color,
+              iter2tile->inSet->size*1);
+}
+
 map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
 {
   // aliases

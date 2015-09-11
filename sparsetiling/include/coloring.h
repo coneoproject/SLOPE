@@ -19,6 +19,17 @@
 map_t* color_sequential (inspector_t* insp);
 
 /*
+ * Assign a same color to all tiles. This means all tiles will run in parallel.
+ * The only exceptions are the halo tiles, which get assigned a higher color
+ *
+ * @param insp
+ *   the inspector data structure
+ * @return
+ *   a map from iteration set to colors
+ */
+map_t* color_fully_parallel (inspector_t* insp);
+
+/*
  * Assign colors to tiles such that two adjacent tiles are not assigned the same color.
  *
  * @param insp
