@@ -99,18 +99,22 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   tracker_t crossSweepConflictsTracker;
   bool conflicts;
   do {
-    // assume there are no conflicts
+    // assume there are no color conflicts
     conflicts = false;
 
-    // color the seed loop's sets
+    // color the seed loop iteration set
     map_t* iter2color;
-    switch (strategy) {
-      case SEQUENTIAL: case ONLY_MPI:
-        iter2color = color_sequential (insp);
-        break;
-      case OMP: case OMP_MPI:
-        iter2color = color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
-        break;
+    if (nLoops == 1 && loop_is_direct(seedLoop)) {
+      iter2color = color_fully_parallel (insp);
+    }
+    else if (strategy == SEQUENTIAL || strategy == ONLY_MPI) {
+      iter2color = color_sequential (insp);
+    }
+    else if (strategy == OMP || strategy == OMP_MPI) {
+      iter2color = color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
+    }
+    else {
+      ASSERT(false, "Cannot compute a seed coloring");
     }
     insp->iter2color = iter2color;
 
