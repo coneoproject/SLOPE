@@ -70,7 +70,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
 
-  // establish seed loop
+  // establish the seed loop
   int seed = select_seed_loop (strategy, loops, suggestedSeed);
   ASSERT((seed >= 0) && (seed < nLoops), "Could not find a valid seed loop");
   insp->seed = seed;
@@ -81,7 +81,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
-  // partition the iteration set of the base loop and create empty tiles
+  // partition the base loop iteration set, and create empty tiles
   map_t* iter2tile;
   tile_list* tiles;
   tie(iter2tile, tiles) = partition (insp, seedLoop, avgTileSize);
@@ -91,11 +91,11 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   insp->iter2tile = iter2tile;
   insp->tiles = tiles;
 
-  // `crossSweepconflictsTracker` is empty in the first tiling sweep. As of the
-  // second sweeps (if any), it keeps, for each tile i, the tiles that cannot be
-  // assigned the same color as i. This is because, otherwise, same colored tiles
-  // would end up "touching" each other (i.e., they would "conflict"), leading to
-  // race conditions in shared memory parallel execution
+  // /crossSweepConflictsTracker/ tracks color conflicts due to tiling for shared
+  // memory parallelism. The data structure is empty before the first tiling attempt.
+  // After each tiling sweep, it tracks, for each tile /i/, the tiles that, if assigned
+  // the same color as /i/, would end up "touching" /i/ (i.e., the "conflicting" tiles),
+  // leading to potential race conditions during shared memory parallel execution
   tracker_t crossSweepConflictsTracker;
   bool conflicts;
   do {
@@ -115,30 +115,29 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     insp->iter2color = iter2color;
 
 #ifdef SLOPE_VTK
-    // if requested at compile time, the coloring and tiling of a parloop are
-    // explicitly tracked. These can be used for debugging or visualization purposes,
-    // for example for generating VTK files showing the colored parloop
+    // track coloring and tiling of a parloop. These can be used for debugging or
+    // visualization purpose, e.g. for generating VTK files.
     seedLoop->tiling = new int[seedLoopSetSize];
     seedLoop->coloring = new int[seedLoopSetSize];
     memcpy (seedLoop->tiling, iter2tile->values, sizeof(int)*seedLoopSetSize);
     memcpy (seedLoop->coloring, iter2color->values, sizeof(int)*seedLoopSetSize);
 #endif
 
-    // create copies of initial tiling and coloring, cause they can be manipulated
-    // during one phase of tiling (e.g. forward), so they need to be reset to their
-    // original values before the other tiling phase (e.g. backward)
+    // create copies of seed tiling and coloring, which will be used for
+    // backward tiling (forward tiling uses and modifies the original copies)
     int* tmpIter2tileMap = new int[seedLoopSetSize];
     int* tmpIter2colorMap = new int[seedLoopSetSize];
     memcpy (tmpIter2tileMap, iter2tile->values, sizeof(int)*seedLoopSetSize);
     memcpy (tmpIter2colorMap, iter2color->values, sizeof(int)*seedLoopSetSize);
 
     // tile the loop chain. First forward, then backward. The algorithm is as follows:
-    // 1- start from the base loop, then go forward (backward)
-    // 2- make a projection of the dependencies for tiling the subsequent loop
-    // 3- tile the subsequent loop, using the projection
+    // 1- start from the seed loop; for each loop in the forward direction
+    // 2- project the data dependencies that loop /i-1/ induces to loop /i/
+    // 3- tile loop /i/, using the aforementioned projection
     // 4- go back to point 2, and repeat till there are loop along the direction
+    // do the same for backward tiling
 
-    // conflicts tracker for this tiling sweep attempt
+    // the tracker for conflicts arising in this tiling sweep
     tracker_t conflictsTracker;
 
     // prepare for forward tiling
@@ -154,11 +153,11 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       loop_t* curLoop = loops->at(i);
       iter2tc_t* curTilingInfo;
 
-      // compute projection from i-1 for tiling loop i
+      // compute projection from loop /i-1/ for tiling loop /i/
       project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj,
                        &conflictsTracker);
 
-      // tile loop i as going forward
+      // tile loop /i/
       curTilingInfo = tile_forward (curLoop, prevLoopProj);
       tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
 
@@ -179,10 +178,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       loop_t* curLoop = loops->at(i);
       iter2tc_t* curTilingInfo;
 
-      // compute projection from i+1 for tiling loop i
+      // compute projection from loop /i+1/ for tiling loop /i/
       project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj, &conflictsTracker);
 
-      // tile loop i as going backward
+      // tile loop /i/
       curTilingInfo = tile_backward (curLoop, prevLoopProj);
       tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
 
@@ -195,8 +194,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     iter2tc_free (prevTilingInfo);
     projection_free (prevLoopProj);
 
-    // if there were coloring conflicts, need to do another tiling sweep on a more
-    // "constrained" coloring of the seed loop.
+    // if color conflicts are found, we need to perform another tiling sweep this
+    // time starting off with a "constrained" seed coloring
     tracker_t::const_iterator it, end;
     for (it = conflictsTracker.begin(), end = conflictsTracker.end(); it != end; it++) {
       if (it->second.size() > 0) {
@@ -207,7 +206,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       crossSweepConflictsTracker[it->first].insert(it->second.begin(), it->second.end());
     }
 
-    // increment sweers counter
     insp->nSweeps++;
   } while (conflicts);
 
@@ -333,7 +331,7 @@ void insp_free (inspector_t* insp)
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
   // Note that tiles are not freed because they are already freed in the
-  // executor's free function
+  // executor free function
 
   // aliases
   loop_list* loops = insp->loops;
@@ -472,7 +470,6 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
       }
     }
     ASSERT(false, "Couldn't load a map for coloring");
-    return -1;
   }
   if (strategy == SEQUENTIAL) {
     return suggestedSeed;

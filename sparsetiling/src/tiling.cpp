@@ -69,12 +69,12 @@ void project_forward (loop_t* tiledLoop,
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
-      // iterate over the projected loop's iteration set, and use the map to access
+      // iterate over the projected loop iteration set, and use the map to access
       // the tiledLoop iteration set's elements.
       for (int i = 0; i < projSetSize; i++) {
         projIter2tile[i] = -1;
         projIter2color[i] = -1;
-        // determine the projected set iteration's arity, which may vary from
+        // determine the projected set iteration arity, which may vary from
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
@@ -189,12 +189,12 @@ void project_backward (loop_t* tiledLoop,
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
-      // iterate over the projected loop's iteration set, and use the map to access
+      // iterate over the projected loop iteration set, and use the map to access
       // the tiledLoop iteration set's elements.
       for (int i = 0; i < projSetSize; i++) {
         projIter2tile[i] = INT_MAX;
         projIter2color[i] = INT_MAX;
-        // determine the projected set iteration's arity, which may vary from
+        // determine the projected set iteration arity, which may vary from
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
@@ -341,9 +341,8 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   }
 
 #ifdef SLOPE_VTK
-  // if requested at compile time, the coloring and tiling of a parloop are
-  // explicitly tracked. These can be used for debugging or visualization purposes,
-  // for example for generating VTK files showing the colored parloop
+  // track coloring and tiling of a parloop. These can be used for debugging or
+  // visualization purpose, e.g. for generating VTK files.
   curLoop->tiling = new int[toTileSetSize];
   curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
@@ -446,9 +445,8 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   }
 
 #ifdef SLOPE_VTK
-  // if requested at compile time, the coloring and tiling of the parloop are
-  // explicitly tracked. These can be used for debugging or visualization purposes,
-  // for example for generating VTK files showing the colored parloop
+  // track coloring and tiling of a parloop. These can be used for debugging or
+  // visualization purpose, e.g. for generating VTK files.
   curLoop->tiling = new int[toTileSetSize];
   curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);

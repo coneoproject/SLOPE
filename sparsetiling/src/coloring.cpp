@@ -101,8 +101,6 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
   int seedMapSize = seedMap->size;
   int* seedIndMap = seedMap->values;
 
-  ASSERT (seedMap, "Couldn't find a valid map for coloring a seed iteration space");
-
   map_t* tile2iter = map_invert (iter2tile, NULL);
   int seedMapAriety = seedMapSize / seedSetSize;
 
