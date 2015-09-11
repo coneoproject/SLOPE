@@ -22,3 +22,15 @@ bool loop_load_full_map (loop_t* loop)
   }
   return found;
 }
+
+bool loop_is_direct (loop_t* loop)
+{
+  desc_list* descriptors = loop->descriptors;
+  desc_list::const_iterator it, end;
+  for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
+    if ((*it)->map != DIRECT) {
+      return false;
+    }
+  }
+  return true;
+}
