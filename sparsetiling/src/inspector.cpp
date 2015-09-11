@@ -20,7 +20,7 @@ using namespace std;
 
 
 // prototypes of static functions
-static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy);
+static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed);
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
 
 
@@ -71,7 +71,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   int nLoops = loops->size();
 
   // establish seed loop
-  int seed = select_seed_loop (loops, suggestedSeed, strategy);
+  int seed = select_seed_loop (strategy, loops, suggestedSeed);
   ASSERT((seed >= 0) && (seed < nLoops), "Could not find a valid seed loop");
   insp->seed = seed;
 
@@ -439,38 +439,42 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
        << loop->set->size << " iterations" << endl;
 }
 
-static int select_seed_loop (loop_list* loops, int suggestedSeed, insp_strategy strategy)
+static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed)
 {
-  if (strategy == ONLY_MPI || strategy == OMP_MPI) {
-    // at the moment, we only allow tiling from the bottom of the loop chain.
-    // In this way, we don't have to determine the /owned/ region which would be
-    // required to separate the /halo/ and /size/ regions to prevent tiles from
-    // growing over /halo/.
-    suggestedSeed = 0;
-    if (loops->at(suggestedSeed)->set->execHalo == 0) {
-      return -1;
+  // with MPI, we only allow tiling from the bottom of the loop chain.
+  // In this way, we don't have to determine the /owned/ region which would be
+  // required to separate the /halo/ and /size/ regions to prevent tiles from
+  // growing over /halo/.
+
+  if (strategy == ONLY_MPI) {
+    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
+    return 0;
+  }
+  if (strategy == OMP_MPI) {
+    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
+    ASSERT (loop_load_full_map (loops->at(0)), "Couldn't load a map for coloring");
+    return 0;
+  }
+  if (strategy == OMP) {
+    if (loops->size() == 1 && loop_is_direct(loops->at(0))) {
+      // only one loop and the loop is direct, we can fully parallelize it
+      return 0;
     }
-    if (strategy == OMP_MPI && !loop_load_full_map (loops->at(suggestedSeed))) {
-      return -1;
+    // the strategy involves shared memory parallelism with indirect memory
+    // accesses, so we need coloring through a suitable indirection map
+    if (! loop_load_full_map (loops->at(suggestedSeed))) {
+      int i = 0;
+      loop_list::const_iterator it, end;
+      for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+        if (loop_load_full_map (*it)) {
+          return i;
+        }
+      }
     }
-    return suggestedSeed;
+    ASSERT(false, "Couldn't load a map for coloring");
+    return -1;
   }
   if (strategy == SEQUENTIAL) {
     return suggestedSeed;
   }
-
-  // otherwise, the strategy involves shared memory parallelism, so we need to
-  // check whether the suggested seed loop is indirect or not. This is because
-  // an indirect map is required to set the initial colors of tiles, such that
-  // the same color can be assigned to non-adjacent tiles.
-  if (! loop_load_full_map (loops->at(suggestedSeed))) {
-    int i = 0;
-    loop_list::const_iterator it, end;
-    for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
-      if (loop_load_full_map (*it)) {
-        return i;
-      }
-    }
-  }
-  return -1;
 }
