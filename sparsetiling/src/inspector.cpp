@@ -450,7 +450,7 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
   }
   if (strategy == OMP_MPI) {
     ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
-    ASSERT (loop_load_full_map (loops->at(0)), "Couldn't load a map for coloring");
+    ASSERT (loop_load_seed_map (loops->at(0), loops), "Couldn't load a map for coloring");
     return 0;
   }
   if (strategy == OMP) {
@@ -460,11 +460,11 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
     }
     // the strategy involves shared memory parallelism with indirect memory
     // accesses, so we need coloring through a suitable indirection map
-    if (! loop_load_full_map (loops->at(suggestedSeed))) {
+    if (! loop_load_seed_map (loops->at(suggestedSeed))) {
       int i = 0;
       loop_list::const_iterator it, end;
       for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
-        if (loop_load_full_map (*it)) {
+        if (loop_load_seed_map (*it)) {
           return i;
         }
       }
