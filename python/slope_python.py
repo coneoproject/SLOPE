@@ -247,9 +247,12 @@ class Executor(object):
         'ctype_exec': 'void*',
         'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p),
         'ctype_region_flag': 'tile_region',
-        'region_flag': 'region'
+        'region_flag': 'region',
     }
 
+    omp_code = """
+#pragma omp parallel for schedule(dynamic)
+"""
     init_code = """
 executor_t* %(name_exec)s = (executor_t*)_%(name_exec)s;
 int nColors = exec_num_colors (%(name_exec)s);
@@ -257,9 +260,7 @@ int nColors = exec_num_colors (%(name_exec)s);
     outer_tiles_loop = """\
 for (int i = 0; i < nColors; i++) {
   const int nTilesPerColor = exec_tiles_per_color (%(name_exec)s, i);
-  #ifdef SLOPE_OMP
-  #pragma omp parallel for schedule(dynamic)
-  #endif
+  %(omp)s
   for (int j = 0; j < nTilesPerColor; j++) {
     // execute tile j for color i
     tile_t* tile = exec_tile_at (%(name_exec)s, i, j, %(region_flag)s);
@@ -282,8 +283,10 @@ tileLoopSize = iterations_%(loop_id)d.size();
 """
 
     def __init__(self, inspector):
-        self._code = "\n".join([Executor.init_code % Executor.meta,
-                                Executor.outer_tiles_loop % Executor.meta])
+        code_dict = dict(Executor.meta)
+        code_dict.update({'omp': self._omp_pragma()})
+        self._code = "\n".join([Executor.init_code % code_dict,
+                                Executor.outer_tiles_loop % code_dict])
         self._loop_init, self._gtl_maps = self._generate_loops(inspector._loops)
 
     def _generate_loops(self, loops):
@@ -319,6 +322,9 @@ tileLoopSize = iterations_%(loop_id)d.size();
             gtl_maps.append(gtl_map)
 
         return (header_code, gtl_maps)
+
+    def _omp_pragma(self):
+        return Executor.omp_code if Inspector._globaldata['mode'] in ['OMP', 'OMP_MPI'] else ''
 
     @property
     def c_type_exec(self):
