@@ -422,11 +422,13 @@ def set_debug_mode(mode, coordinates):
     Inspector._globaldata['coordinates'] = coordinates
 
 
+def exec_modes():
+    return ['SEQUENTIAL', 'OMP', 'ONLY_MPI', 'OMP_MPI']
+
+
 def set_exec_mode(mode):
     """Set an execution mode (accepted: [SEQUENTIAL, OMP, ONLY_MPI, OMP_MPI])."""
-    modes = ['SEQUENTIAL', 'OMP', 'ONLY_MPI', 'OMP_MPI']
-    mode = mode if mode in modes else modes[0]
-    Inspector._globaldata['mode'] = mode
+    Inspector._globaldata['mode'] = mode if mode in exec_modes() else 'SEQUENTIAL'
 
 
 def get_exec_mode():
