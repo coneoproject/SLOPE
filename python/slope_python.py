@@ -171,7 +171,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         """
         if not Inspector._globaldata:
             return
-        if not (self._sets and self._maps and self._loops):
+        if not (self._sets and self._loops):
             raise SlopeError("Loop chain not constructed yet")
 
         # Handle coordinates
