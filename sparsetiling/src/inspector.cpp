@@ -472,8 +472,9 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
           return i;
         }
       }
+      ASSERT(false, "Couldn't load a map for coloring");
     }
-    ASSERT(false, "Couldn't load a map for coloring");
+    return suggestedSeed;
   }
   if (strategy == SEQUENTIAL) {
     return suggestedSeed;
