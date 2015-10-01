@@ -251,7 +251,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       verbosityTiles = INT_MAX;
   }
 
-  cout << endl << ":: Inspector info ::" << endl << endl;
+  cout << endl << ":: SLOPE inspection summary ::" << endl << endl;
   if (loops) {
     cout << "Number of loops: " << nLoops << ", base loop: " << seed << endl;
   }
@@ -260,7 +260,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  if (iter2tile && iter2color) {
+  if (iter2tile && iter2color && level != VERY_LOW) {
     cout << endl << "Printing partioning of the base loop's iteration set:" << endl;
     cout << "  Iteration  |  Tile |  Color" << endl;
     for (int i = 0; i < itSetSize / avgTileSize; i++) {
@@ -285,15 +285,17 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     cout << "No partitioning of the base loop performed" << endl;
   }
 
-  cout << endl << "Coloring summary (color:#tiles):" << endl;
-  std::map<int, int> colors;
-  tile_list::const_iterator it, end;
-  for (it = tiles->begin(), end = tiles->end(); it != end; it++) {
-    colors[(*it)->color]++;
-  }
-  std::map<int, int>::const_iterator mIt, mEnd;
-  for (mIt = colors.begin(), mEnd = colors.end(); mIt != mEnd; mIt++) {
-    cout << mIt->first << " : " << mIt->second << endl;
+  if (level != VERY_LOW) {
+    cout << endl << "Coloring summary (color:#tiles):" << endl;
+    std::map<int, int> colors;
+    tile_list::const_iterator it, end;
+    for (it = tiles->begin(), end = tiles->end(); it != end; it++) {
+      colors[(*it)->color]++;
+    }
+    std::map<int, int>::const_iterator mIt, mEnd;
+    for (mIt = colors.begin(), mEnd = colors.end(); mIt != mEnd; mIt++) {
+      cout << mIt->first << " : " << mIt->second << endl;
+    }
   }
 
   if (tiles && loopIndex != -2) {
