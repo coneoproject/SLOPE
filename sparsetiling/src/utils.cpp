@@ -4,6 +4,8 @@
  * Implement utility routines
  */
 
+#include <unordered_map>
+
 #include "utils.h"
 
 void generate_vtk (inspector_t* insp,
@@ -22,24 +24,23 @@ void generate_vtk (inspector_t* insp,
   int nNodes = nodes->size;
   std::string nodesSetName = nodes->name;
 
-  // create directory in which VTK files will be stored, if not exists
+  // create directory in which the VTK files will be stored (if not already exists)
   struct stat st = {0};
   if (stat(VTK_DIR, &st) == -1) {
     mkdir(VTK_DIR, 0700);
   }
 
   loop_list::const_iterator it, end;
-  // first, search for a map towards coordinates that can be used for those
-  // direct loops over the coordinates' set
-  map_t* toCoordinates = NULL;
-  for (it = loops->begin(), end = loops->end(); !toCoordinates && (it != end); it++) {
+  // search for all maps towards /nodes/, which will be used to print the mesh
+  std::unordered_map<set_t*, map_t*> mapCache;
+  for (it = loops->begin(), end = loops->end(); it != end; it++) {
+    set_t* loopSet = (*it)->set;
     desc_list* descriptors = (*it)->descriptors;
     desc_list::const_iterator dIt, dEnd;
     for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
       map_t* map = (*dIt)->map;
       if (map != DIRECT && map->outSet->name == nodes->name) {
-        toCoordinates = map;
-        break;
+        mapCache[loopSet] = map;
       }
     }
   }
@@ -47,8 +48,9 @@ void generate_vtk (inspector_t* insp,
   for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
     // aliases
     loop_t* loop = *it;
-    int loopSetSize = loop->set->size;
-    std::string loopSetName = loop->set->name;
+    set_t* loopSet = loop->set;
+    int loopSetSize = loopSet->size;
+    std::string loopSetName = loopSet->name;
     std::string loopName = loop->name;
     desc_list* descriptors = loop->descriptors;
 
@@ -96,26 +98,11 @@ void generate_vtk (inspector_t* insp,
 
     vtkfile << std::endl;
 
-    // write iteration set map to nodes; if not available in the loop's descriptors,
-    // just skip the file generation for the loop, unless this is a loop over the
-    // toCoordinates' set
-    std::string type;
-    map_t* map = NULL;
-    if (loopSetName == nodesSetName && toCoordinates) {
-      map = toCoordinates;
-      type = "POINT_DATA";
-    }
-    else {
-      desc_list::const_iterator dIt, dEnd;
-      for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
-        if ((*dIt)->map != DIRECT && (*dIt)->map->outSet->name == nodesSetName) {
-          map = (*dIt)->map;
-          type = "CELL_DATA";
-          break;
-        }
-      }
-    }
-    if (map) {
+    // write the map from iteration set to nodes; if not available, skip this loop
+    std::unordered_map<set_t*, map_t*>::const_iterator itmap;
+    itmap = (loopSetName == nodesSetName) ? mapCache.begin() : mapCache.find(loopSet);
+    if (itmap != mapCache.end()) {
+      map_t* map = itmap->second;
       int toNodesSize = map->inSet->size;
       int arity = map->size / toNodesSize;
       std::string shape = (arity == 2) ? "LINES " : "POLYGONS ";
@@ -136,6 +123,7 @@ void generate_vtk (inspector_t* insp,
     }
 
     // write colors of the iteration set elements
+    std::string type = (loopSetName == nodesSetName) ? "POINT_DATA" : "CELL_DATA";
     vtkfile << std::endl << type << " " << loopSetSize << std::endl;
     vtkfile << "SCALARS colors int" << std::endl;
     vtkfile << "LOOKUP_TABLE default" << std::endl;
