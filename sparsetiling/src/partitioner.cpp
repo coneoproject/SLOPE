@@ -4,6 +4,8 @@
  * Implement routine(s) for partitioning iteration sets
  */
 
+#include <omp.h>
+
 #include "partitioner.h"
 
 std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int tileSize)
@@ -15,15 +17,17 @@ std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int ti
   int setSize = loop->set->size;
   int nLoops = insp->loops->size();
 
+  // prepare for partitioning
+  int i;
+  int nParts, remainderTileSize;
+  int tileID = -1;
   int* indMap = new int[setSize];
 
-  // tile the local iteration space
-  int nParts = setCore / tileSize;
-  int remainderTileSize = setCore % tileSize;
+  // partition the local core region
+  nParts = setCore / tileSize;
+  remainderTileSize = setCore % tileSize;
   int nCoreTiles = nParts + ((remainderTileSize > 0) ? 1 : 0);
-  int tileID = -1;
-  int i = 0;
-  for (; i < setCore - remainderTileSize; i++) {
+  for (i = 0; i < setCore - remainderTileSize; i++) {
     tileID = (i % tileSize == 0) ? tileID + 1 : tileID;
     indMap[i] = tileID;
   }
@@ -32,31 +36,58 @@ std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int ti
     indMap[i] = tileID;
   }
 
-  // create the list of tiles
-  tile_list* tiles = new tile_list (nCoreTiles);
-  for (int t = 0; t < nCoreTiles; t++) {
-    tiles->at(t) = tile_init (nLoops);
+  // partition the exec halo region
+  // this region is expected to be smaller than core, so we shrunk /tileSize/
+  // accordingly to have enough parallelism
+  int nThreads = omp_get_max_threads();
+  if (setExecHalo <= nThreads) {
+    tileSize = setExecHalo;
+  }
+  else if (setExecHalo > nThreads*2) {
+    tileSize = setExecHalo / (nThreads*2);
+  }
+  else {
+    // nThreads < setExecHalo < nThreads*2
+    tileSize = setExecHalo / nThreads;
+  }
+  // now do the actual partitioning
+  nParts = (setExecHalo > 0) ? setExecHalo / tileSize : 0;
+  remainderTileSize = (setExecHalo > 0) ? setExecHalo % tileSize : 0;
+  int nExecHaloTiles = nParts + ((remainderTileSize > 0) ? 1 : 0);
+  for (i = 0; i < setExecHalo - remainderTileSize; i++) {
+    tileID = (i % tileSize == 0) ? tileID + 1 : tileID;
+    indMap[setCore + i] = tileID;
+  }
+  tileID = (remainderTileSize > 0) ? tileID + 1 : tileID;
+  for (; i < setExecHalo; i++) {
+    indMap[setCore + i] = tileID;
   }
 
-  // tile the halo region. We create a single tile spanning /execHalo/ as well as
-  // a single tile spanning /nonExecHalo/
-  int nExecHaloTiles = 0, nNonExecHaloTiles = 0;
-  if (setExecHalo > 0) {
-    tileID++; nExecHaloTiles++;
-    for (; i < setCore + setExecHalo; i++) {
-      indMap[i] = tileID;
-    }
-    tiles->push_back (tile_init(nLoops, EXEC_HALO));
-  }
+  // partition the non-exec halo region
+  // this is never going to be executed, so a single tile is fine
+  int nNonExecHaloTiles = 0;
   if (setNonExecHalo > 0) {
-    tileID++; nNonExecHaloTiles++;
+    nNonExecHaloTiles = 1;
+    tileID++;
     for (; i < setSize; i++) {
       indMap[i] = tileID;
     }
-    tiles->push_back (tile_init(nLoops, NON_EXEC_HALO));
   }
 
-  // track tiles now logically split over core, exec_halo, and non_exec_halo regions
+  // initialize tiles
+  int t;
+  tile_list* tiles = new tile_list (nCoreTiles + nExecHaloTiles + nNonExecHaloTiles);
+  for (t = 0; t < nCoreTiles; t++) {
+    tiles->at(t) = tile_init (nLoops);
+  }
+  for (; t < nCoreTiles + nExecHaloTiles; t++) {
+    tiles->at(t) = tile_init (nLoops, EXEC_HALO);
+  }
+  for (; t < nCoreTiles + nExecHaloTiles + nNonExecHaloTiles; t++) {
+    tiles->at(t) = tile_init (nLoops, NON_EXEC_HALO);
+  }
+
+  // track tiles, now logically split over core, exec_halo, and non_exec_halo regions
   set_t* tileRegions = set("tiles", nCoreTiles, nExecHaloTiles, nNonExecHaloTiles);
   insp->tileRegions = tileRegions;
 

@@ -378,8 +378,8 @@ def get_compile_opts(compiler='gnu'):
     if Inspector._globaldata.get('coordinates'):
         debug_opts = ['-DSLOPE_VTK']
     optimization_opts = ['-O3']
+    optimization_opts.append('-fopenmp')
     if Inspector._globaldata['mode'] == 'OMP':
-        optimization_opts.append('-fopenmp')
         functional_opts.append('-DSLOPE_OMP')
         if compiler == 'intel':
             optimization_opts.append('-par-affinity=scatter,verbose')
