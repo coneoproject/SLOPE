@@ -13,8 +13,8 @@ executor_t* exec_init (inspector_t* insp)
   // aliases
   tile_list* tiles = insp->tiles;
   int nTiles = tiles->size();
-  set_t* tile_set = set_cpy (insp->iter2tile->outSet);
-  set_t* color_set = set_cpy (insp->iter2color->outSet);
+  set_t* tileSet = set_cpy (insp->iter2tile->outSet);
+  set_t* colorSet = set_cpy (insp->iter2color->outSet);
 
   executor_t* exec = new executor_t;
 
@@ -23,7 +23,7 @@ executor_t* exec_init (inspector_t* insp)
   for (int i = 0; i < nTiles; i++) {
     tile2colorIndMap[i] = tiles->at(i)->color;
   }
-  map_t* tile2color = map ("t2c", tile_set, color_set, tile2colorIndMap, nTiles);
+  map_t* tile2color = map ("t2c", tileSet, colorSet, tile2colorIndMap, nTiles);
 
   exec->tiles = tiles;
   exec->color2tile = map_invert (tile2color, NULL);
