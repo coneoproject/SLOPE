@@ -34,6 +34,7 @@ class Inspector(object):
 
     set_def = 'set_t* %s = set(sets[%d].name, sets[%d].core, sets[%d].exec, sets[%d].nonexec, %s);'
     map_def = 'map_t* %s = map(maps[%d].name, %s, %s, maps[%d].map, maps[%d].size);'
+    mesh_map_def = 'map_t* %s = map(mesh_maps[%d].name, %s, %s, mesh_maps[%d].map, mesh_maps[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
@@ -67,16 +68,18 @@ typedef struct {
 
 extern "C" void* inspector(slope_set sets[%(n_sets)d],
                            slope_map maps[%(n_maps)d],
-                           slope_dat coords_dat[1],
                            int tileSize,
-                           int rank);
+                           int rank,
+                           slope_dat coords_dat[1],
+                           slope_map* mesh_maps);
 /****************************/
 
 void* inspector(slope_set sets[%(n_sets)d],
                 slope_map maps[%(n_maps)d],
-                slope_dat coords_dat[1],
                 int tileSize,
-                int rank)
+                int rank,
+                slope_dat coords_dat[1],
+                slope_map* mesh_maps)
 {
   // Declare sets, maps, dats
   %(set_defs)s
@@ -85,8 +88,12 @@ void* inspector(slope_set sets[%(n_sets)d],
 
   %(desc_defs)s
 
+  // Additional maps defining the topology of the mesh (used for partitioning through METIS)
+  map_list* meshMaps = new map_list();
+  %(mesh_map_defs)s
+
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s);
 
   %(loop_defs)s
 
@@ -98,9 +105,13 @@ void* inspector(slope_set sets[%(n_sets)d],
 
   executor_t* exec = exec_init (insp);
   insp_free (insp);
+  delete meshMaps;
   return exec;
 }
 """
+
+    def __init__(self):
+        self._sets, self._maps, self._loops, self._mesh_maps = [], [], [], []
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -156,7 +167,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         ctype = ctypes.c_int
         return (ctype, ctype(rank))
 
-    def set_external_dats(self):
+    def add_extra_info(self):
         """Inspection/Execution can benefit of certain data fields that are not
         strictly included in the loop chain definition. For example, for debugging
         and visualization purposes, one can provide SLOPE with a coordinates field,
@@ -173,16 +184,26 @@ void* inspector(slope_set sets[%(n_sets)d],
             return
         if not (self._sets and self._loops):
             raise SlopeError("Loop chain not constructed yet")
+        extra = []
 
-        # Handle coordinates
+        # Add coordinate field
         coordinates = Inspector._globaldata.get('coordinates')
-        if not coordinates:
-            return
-        _, data, arity = coordinates
-        set_size = data.size / arity
-        ctype = Dat*1
-        return (ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                                 set_size)))
+        if coordinates:
+            set, data, arity = coordinates
+            set_size = data.size / arity
+            ctype = Dat*1
+            extra.append((ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                                           set_size))))
+
+        # Add mesh maps
+        mesh_maps = Inspector._globaldata.get('mesh_maps', [])
+        ctype = Map*len(mesh_maps)
+        self._mesh_maps = mesh_maps
+        extra.append((ctype, ctype(*[Map(n,
+                                         v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                         v.size) for n, _, _, v in mesh_maps])))
+
+        return extra
 
     def generate_code(self):
         set_defs = [Inspector.set_def % (s[0], i, i, i, i, s[4] if s[4] else "NULL")
@@ -199,6 +220,15 @@ void* inspector(slope_set sets[%(n_sets)d],
             descs = [Inspector.desc_def % (d[0], d[1]) for d in loop_descs]
             desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
+
+        mesh_map_defs, mesh_map_list = "", "NULL"
+        if self._mesh_maps:
+            avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
+            mesh_map_defs = [Inspector.mesh_map_def % ("mm_%s" % m[0], i, m[1], m[2], i, i)
+                             for i, m in enumerate(self._mesh_maps) if avail([m[1], m[2]])]
+            mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0] for m in self._mesh_maps
+                              if avail([m[1], m[2]])]
+            mesh_map_list = "meshMaps"
 
         coordinates = Inspector._globaldata.get('coordinates')
         output_vtk = ""
@@ -220,6 +250,8 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
             'seed': len(self._loops) / 2,
+            'mesh_map_defs': "\n  ".join(mesh_map_defs),
+            'mesh_map_list': mesh_map_list,
             'output_vtk': output_vtk,
             'output_insp': output_insp
         }
@@ -426,6 +458,12 @@ def set_debug_mode(mode, coordinates):
     if arity not in [1, 2, 3]:
         raise SlopeError("Arity should be a number in [1, 2, 3]")
     Inspector._globaldata['coordinates'] = coordinates
+
+
+def set_mesh_maps(maps):
+    """Add the mesh topology through maps from generic mesh components (e.g. edges,
+    cells) to nodes."""
+    Inspector._globaldata['mesh_maps'] = maps
 
 
 def exec_modes():

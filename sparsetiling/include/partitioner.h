@@ -14,14 +14,9 @@
  *
  * @param insp
  *   the inspector data structure
- * @param loop
- *   the loop whose iteration set is partitioned
- * @param partSize
- *   average tile size for partitioning
  * @return
- *   a 2-tuple, in which the first entry is map from /loop/ iterations to tiles,
- *   while the second entry is the list of created tiles
+ *   build up the /tiles/ and /iter2tile/ fields in /insp/
  */
-std::pair<map_t*, tile_list*> partition (inspector_t* insp, loop_t* loop, int tileSize);
+void partition (inspector_t* insp);
 
 #endif

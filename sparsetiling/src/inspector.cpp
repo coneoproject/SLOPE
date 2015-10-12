@@ -24,7 +24,7 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
 
 
-inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
+inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshMaps)
 {
   inspector_t* insp = new inspector_t;
 
@@ -37,6 +37,8 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy)
   insp->iter2color = NULL;
   insp->tiles = NULL;
   insp->nSweeps = 0;
+
+  insp->meshMaps = meshMaps;
 
   return insp;
 }
@@ -66,7 +68,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // aliases
   insp_strategy strategy = insp->strategy;
-  int avgTileSize = insp->avgTileSize;
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
 
@@ -81,15 +82,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
-  // partition the base loop iteration set, and create empty tiles
-  map_t* iter2tile;
-  tile_list* tiles;
-  tie(iter2tile, tiles) = partition (insp, seedLoop, avgTileSize);
-  tile_assign_loop (tiles, seed, iter2tile->inSet->size, iter2tile->values);
-
-  // track information essential for tiling, execution, and debugging
-  insp->iter2tile = iter2tile;
-  insp->tiles = tiles;
+  // partition the seed loop iteration set into tiles
+  partition (insp);
+  map_t* iter2tile = insp->iter2tile;
+  tile_list* tiles = insp->tiles;
 
   // /crossSweepConflictsTracker/ tracks color conflicts due to tiling for shared
   // memory parallelism. The data structure is empty before the first tiling attempt.
@@ -253,7 +249,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
 
   cout << endl << ":: SLOPE inspection summary ::" << endl << endl;
   if (loops) {
-    cout << "Number of loops: " << nLoops << ", base loop: " << seed << endl;
+    cout << "Number of loops: " << nLoops << ", seed loop: " << seed << endl;
   }
   else {
     cout << "No loops specified" << endl;
@@ -261,7 +257,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
   if (iter2tile && iter2color && level != VERY_LOW) {
-    cout << endl << "Printing partioning of the base loop's iteration set:" << endl;
+    cout << endl << "Printing partioning of the seed loop's iteration set:" << endl;
     cout << "  Iteration  |  Tile |  Color" << endl;
     for (int i = 0; i < itSetSize / avgTileSize; i++) {
       int offset = i*avgTileSize;
@@ -282,7 +278,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     }
   }
   else {
-    cout << "No partitioning of the base loop performed" << endl;
+    cout << "No partitioning of the seed loop performed" << endl;
   }
 
   if (level != VERY_LOW) {
@@ -301,7 +297,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   if (tiles && loopIndex != -2) {
     cout << endl << "Tiling computed in " << insp->nSweeps << " sweeps" << endl;
     if (loopIndex == -1) {
-      cout << "Printing tiles' base loop iterations" << endl;
+      cout << "Printing tiles' seed loop iterations" << endl;
       print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
       if (seed + 1 < nLoops) {
         cout << endl << "Printing result of forward tiling..." << endl;
