@@ -85,7 +85,7 @@ inline set_t* set_cpy (set_t* toCopy)
 inline bool set_cmp(const set_t* a, const set_t* b)
 {
   return (a && b) &&
-         ((a->name < b->name) ||
+         (!(a->name < b->name) ||
          (a->superset && a->superset == b && a->size == b->size) ||
          (b->superset && b->superset == a && a->size == b->size));
 }
