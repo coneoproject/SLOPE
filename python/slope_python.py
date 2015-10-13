@@ -112,6 +112,7 @@ void* inspector(slope_set sets[%(n_sets)d],
 
     def __init__(self):
         self._sets, self._maps, self._loops, self._mesh_maps = [], [], [], []
+        self._partitioning = 'chunk'
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -156,6 +157,16 @@ void* inspector(slope_set sets[%(n_sets)d],
                     first entry assumes the value of the special keyword ``DIRECT``
         """
         self._loops = [(n, self._fix_c(s), d) for n, s, d in loops]
+
+    def set_partitioning(self, mode):
+        """Set the seed iteration space partitioning mode. This method should be
+        called prior to /generate_code/.
+
+        :param mode: defaults to 'chunk' (available: 'chunk', 'metis')
+        """
+        if mode not in ['chunk', 'metis']:
+            raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
+        self._partitioning = mode
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -222,7 +233,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
         mesh_map_defs, mesh_map_list = "", "NULL"
-        if self._mesh_maps:
+        if self._mesh_maps and self._partitioning == 'metis':
             avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
             mesh_map_defs = [Inspector.mesh_map_def % ("mm_%s" % m[0], i, m[1], m[2], i, i)
                              for i, m in enumerate(self._mesh_maps) if avail([m[1], m[2]])]
