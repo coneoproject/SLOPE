@@ -19,12 +19,12 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
   int* iter2color = new int[itSetSize];
 
   for (int i = 0; i < nTiles; i++ ) {
-    // determine the tile's iteration space
+    // determine the tile iteration space
     int prevOffset = tile2iter->offsets[i];
     int nextOffset = tile2iter->offsets[i + 1];
 
     for (int j = prevOffset; j < nextOffset; j++) {
-      iter2color[j] = colors[i];
+      iter2color[tile2iter->values[j]] = colors[i];
     }
     tiles->at(i)->color = colors[i];
   }
@@ -128,7 +128,7 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
     // start coloring tiles
     for (int i = 0; i < nTiles; i++)
     {
-      // determine the tile's iteration space
+      // determine the tile iteration space
       int prevOffset = tile2iter->offsets[i];
       int nextOffset = tile2iter->offsets[i + 1];
 
@@ -148,7 +148,7 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
         for (int e = prevOffset; e < nextOffset; e++) {
           for (int j = 0; j < seedMapArity; j++) {
             // set bits of mask
-            mask |= work[seedIndMap[e*seedMapArity + j]];
+            mask |= work[seedIndMap[tile2iter->values[e]*seedMapArity + j]];
           }
         }
 
@@ -165,7 +165,7 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
           nColors = MAX(nColors, nColor + color + 1);
           for (int e = prevOffset; e < nextOffset; e++) {
             for (int j = 0; j < seedMapArity; j++) {
-              work[seedIndMap[e*seedMapArity + j]] |= mask;
+              work[seedIndMap[tile2iter->values[e]*seedMapArity + j]] |= mask;
             }
           }
         }
