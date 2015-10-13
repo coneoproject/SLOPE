@@ -55,7 +55,7 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
   int* x2yMap = x2y->values;
   int x2yMapSize = x2y->size;
 
-  int x2yAriety = x2yMapSize / xSize;
+  int x2yArity = x2yMapSize / xSize;
 
   int* y2xMap = new int[x2yMapSize];
   int* y2xOffset = new int[ySize + 1]();
@@ -72,10 +72,10 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
 
   // compute y2x
   int* inserted = new int[ySize + 1]();
-  for (int i = 0; i < x2yMapSize; i += x2yAriety) {
-    for (int j = 0; j < x2yAriety; j++) {
+  for (int i = 0; i < x2yMapSize; i += x2yArity) {
+    for (int j = 0; j < x2yArity; j++) {
       int entry = x2yMap[i + j];
-      y2xMap[y2xOffset[entry] + inserted[entry]] = i / x2yAriety;
+      y2xMap[y2xOffset[entry] + inserted[entry]] = i / x2yArity;
       inserted[entry]++;
     }
   }

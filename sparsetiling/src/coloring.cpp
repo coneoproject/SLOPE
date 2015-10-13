@@ -104,7 +104,7 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
   int* seedIndMap = seedMap->values;
 
   map_t* tile2iter = map_invert (iter2tile, NULL);
-  int seedMapAriety = seedMapSize / seedSetSize;
+  int seedMapArity = seedMapSize / seedSetSize;
 
   // init colors
   int* colors = new int[nTiles];
@@ -142,13 +142,13 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
         index_set tileConflicts = (*conflictsTracker)[i];
         index_set::const_iterator it, end;
         for (it = tileConflicts.begin(), end = tileConflicts.end(); it != end; it++) {
-          mask |= work[seedIndMap[tile2iter->offsets[*it]*seedMapAriety + 0]];
+          mask |= work[seedIndMap[tile2iter->offsets[*it]*seedMapArity + 0]];
         }
 
         for (int e = prevOffset; e < nextOffset; e++) {
-          for (int j = 0; j < seedMapAriety; j++) {
+          for (int j = 0; j < seedMapArity; j++) {
             // set bits of mask
-            mask |= work[seedIndMap[e*seedMapAriety + j]];
+            mask |= work[seedIndMap[e*seedMapArity + j]];
           }
         }
 
@@ -164,8 +164,8 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
           mask = 1 << color;
           nColors = MAX(nColors, nColor + color + 1);
           for (int e = prevOffset; e < nextOffset; e++) {
-            for (int j = 0; j < seedMapAriety; j++) {
-              work[seedIndMap[e*seedMapAriety + j]] |= mask;
+            for (int j = 0; j < seedMapArity; j++) {
+              work[seedIndMap[e*seedMapArity + j]] |= mask;
             }
           }
         }
