@@ -99,6 +99,7 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
   map_t* iter2tile = insp->iter2tile;
   int nTiles = tiles->size();
   int seedSetSize = seedMap->inSet->size;
+  int outSetSize = seedMap->outSet->size;
   int seedMapSize = seedMap->size;
   int* seedIndMap = seedMap->values;
 
@@ -114,7 +115,7 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
   int nColors = 0;
 
   // array to work out the colors
-  int* work = new int[seedMapSize];
+  int* work = new int[outSetSize];
 
   // coloring algorithm
   while (repeat)
@@ -122,7 +123,7 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
     repeat = false;
 
     // zero out color array
-    std::fill_n (work, seedMapSize, 0);
+    std::fill_n (work, outSetSize, 0);
 
     // start coloring tiles
     for (int i = 0; i < nTiles; i++)
