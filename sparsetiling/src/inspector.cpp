@@ -256,29 +256,31 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  if (iter2tile && iter2color && level != VERY_LOW) {
-    cout << endl << "Printing partioning of the seed loop's iteration set:" << endl;
-    cout << "  Iteration  |  Tile |  Color" << endl;
-    for (int i = 0; i < itSetSize / avgTileSize; i++) {
-      int offset = i*avgTileSize;
-      for (int j = 0; j < verbosityItSet; j++) {
-        cout << "         " << offset + j
-             << "   |   " << iter2tile->values[offset + j]
-             << "   |   " << iter2color->values[offset + j] << endl;
+  if (level != VERY_LOW) {
+    if (iter2tile && iter2color) {
+      cout << endl << "Printing partioning of the seed loop's iteration set:" << endl;
+      cout << "  Iteration  |  Tile |  Color" << endl;
+      for (int i = 0; i < itSetSize / avgTileSize; i++) {
+        int offset = i*avgTileSize;
+        for (int j = 0; j < verbosityItSet; j++) {
+          cout << "         " << offset + j
+               << "   |   " << iter2tile->values[offset + j]
+               << "   |   " << iter2color->values[offset + j] << endl;
+        }
+        string separator = (verbosityItSet != avgTileSize) ? "         ...\n" : "";
+        cout << separator;
       }
-      string separator = (verbosityItSet != avgTileSize) ? "         ...\n" : "";
-      cout << separator;
+      int itSetReminder = itSetSize % avgTileSize;
+      int offset = itSetSize - itSetReminder;
+      for (int i = 0; i < MIN(verbosityItSet, itSetReminder); i++) {
+        cout << "         " << offset + i
+             << "   |   " << iter2tile->values[offset + i]
+             << "   |   " << iter2color->values[offset + i] << endl;
+      }
     }
-    int itSetReminder = itSetSize % avgTileSize;
-    int offset = itSetSize - itSetReminder;
-    for (int i = 0; i < MIN(verbosityItSet, itSetReminder); i++) {
-      cout << "         " << offset + i
-           << "   |   " << iter2tile->values[offset + i]
-           << "   |   " << iter2color->values[offset + i] << endl;
+    else {
+      cout << "No partitioning of the seed loop performed" << endl;
     }
-  }
-  else {
-    cout << "No partitioning of the seed loop performed" << endl;
   }
 
   if (level != VERY_LOW) {
