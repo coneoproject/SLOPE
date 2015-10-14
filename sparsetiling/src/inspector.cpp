@@ -78,7 +78,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // aliases
   loop_t* seedLoop = loops->at(seed);
-  ASSERT(! seedLoop->set->superset, "Seed loop cannot be a subset");
+  ASSERT(!seedLoop->set->superset || nLoops == 1, "Seed loop cannot be a subset");
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
