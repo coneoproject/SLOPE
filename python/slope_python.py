@@ -243,9 +243,8 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         coordinates = Inspector._globaldata.get('coordinates')
         output_vtk = ""
-        if coordinates:
-            set, _, arity = coordinates
-            output_vtk = Inspector.output_vtk % (set, "DIM%d" % arity)
+        if coordinates and coordinates[0] in [s[0] for s in self._sets]:
+            output_vtk = Inspector.output_vtk % (coordinates[0], "DIM%d" % coordinates[2])
 
         debug_mode = Inspector._globaldata.get('debug_mode')
         output_insp = ""
