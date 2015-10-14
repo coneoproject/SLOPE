@@ -99,20 +99,19 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     conflicts = false;
 
     // color the seed loop iteration set
-    map_t* iter2color;
     if (nLoops == 1 && loop_is_direct(seedLoop)) {
-      iter2color = color_fully_parallel (insp);
+      color_fully_parallel (insp);
     }
     else if (strategy == SEQUENTIAL || strategy == ONLY_MPI) {
-      iter2color = color_sequential (insp);
+      color_sequential (insp);
     }
     else if (strategy == OMP || strategy == OMP_MPI) {
-      iter2color = color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
+      color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
     }
     else {
       ASSERT(false, "Cannot compute a seed coloring");
     }
-    insp->iter2color = iter2color;
+    map_t* iter2color = insp->iter2color;
 
 #ifdef SLOPE_VTK
     // track coloring and tiling of a parloop. These can be used for debugging or

@@ -32,7 +32,7 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
   return iter2color;
 }
 
-map_t* color_sequential (inspector_t* insp)
+void color_sequential (inspector_t* insp)
 {
   // aliases
   tile_list* tiles = insp->tiles;
@@ -55,11 +55,11 @@ map_t* color_sequential (inspector_t* insp)
   delete[] colors;
 
   // note we have as many colors as the number of tiles
-  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color,
-              iter2tile->inSet->size*1);
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1);
 }
 
-map_t* color_fully_parallel (inspector_t* insp)
+void color_fully_parallel (inspector_t* insp)
 {
   // aliases
   tile_list* tiles = insp->tiles;
@@ -88,12 +88,11 @@ map_t* color_fully_parallel (inspector_t* insp)
   map_free (tile2iter, true);
   delete[] colors;
 
-  // note we have as many colors as the number of tiles
-  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color,
-              iter2tile->inSet->size*1);
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1);
 }
 
-map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
+void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
 {
   // aliases
   tile_list* tiles = insp->tiles;
@@ -197,6 +196,6 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
   delete[] colors;
   map_free (tile2iter, true);
 
-  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors), iter2color,
-              seedSetSize*1);
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors),
+                          iter2color, seedSetSize*1);
 }
