@@ -79,15 +79,11 @@ inline set_t* set_cpy (set_t* toCopy)
 }
 
 /*
- * Return /true/ if two sets are identical (same identifier OR, equivalently,
- * one is a subset of the other but they have same size), /false/ otherwise
+ * Return /true/ if two sets are identical (same identifier), /false/ otherwise
  */
-inline bool set_cmp(const set_t* a, const set_t* b)
+inline bool set_eq(const set_t* a, const set_t* b)
 {
-  return (a && b) &&
-         (!(a->name < b->name) ||
-         (a->superset && a->superset == b && a->size == b->size) ||
-         (b->superset && b->superset == a && a->size == b->size));
+  return a && b && a->name == b->name;
 }
 
 /*

@@ -101,7 +101,8 @@ void project_forward (loop_t* tiledLoop,
       // if projecting from a subset, an older projection must be present. This
       // is used to replicate an untouched iteration color and tile.
       set_t* superset = set_super(tiledLoop->set);
-      if (superset && ! set_cmp(descMap->outSet, superset)) {
+      set_t* outSuperset = set_super(descMap->outSet);
+      if (superset && (! outSuperset || descMap->outSet->size != superset->size)) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
         ASSERT (oldProjIter2tc != prevLoopProj->end(),
                 "Projecting from subset lacks old projection");
@@ -221,7 +222,8 @@ void project_backward (loop_t* tiledLoop,
       // if projecting from a subset, an older projection must be present. This
       // is used to replicate an untouched iteration color and tile.
       set_t* superset = set_super(tiledLoop->set);
-      if (superset && ! set_cmp(descMap->outSet, superset)) {
+      set_t* outSuperset = set_super(descMap->outSet);
+      if (superset && (! outSuperset || descMap->outSet->size != superset->size)) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
         ASSERT (oldProjIter2tc != prevLoopProj->end(),
                 "Projecting from subset lacks old projection");
@@ -260,7 +262,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
@@ -364,7 +366,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];

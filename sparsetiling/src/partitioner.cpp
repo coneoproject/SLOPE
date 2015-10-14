@@ -145,7 +145,7 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore
   map_t* iter2nodes = NULL;
   map_list::const_iterator it, end;
   for (it = meshMaps->begin(), end = meshMaps->end(); it != end; it++) {
-    if (set_cmp(seedLoop->set, (*it)->inSet)) {
+    if (set_eq(seedLoop->set, (*it)->inSet)) {
       iter2nodes = *it;
       break;
     }
