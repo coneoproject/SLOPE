@@ -30,12 +30,14 @@ bool loop_load_seed_map (loop_t* loop, loop_list* loops)
     descriptors = (*lIt)->descriptors;
     for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
       map_t* map = (*it)->map;
-      if (map == DIRECT || set_eq(map->outSet, loop->set) || set_eq(map->inSet, loop->set)) {
+      if (map == DIRECT) {
         continue;
       }
-      loop->seedMap = map;
-      found = true;
-      break;
+      if (set_eq(loop->set, map->inSet)) {
+        loop->seedMap = map;
+        found = true;
+        break;
+      }
     }
   }
   return found;
