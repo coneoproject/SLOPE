@@ -97,8 +97,8 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap, 
   if (setNonExecHalo > 0) {
     *nNonExec = 1;
     tileID++;
-    for (; i < setSize; i++) {
-      indMap[i] = tileID;
+    for (; i < setExecHalo + setNonExecHalo; i++) {
+      indMap[setCore + i] = tileID;
     }
   }
 }
