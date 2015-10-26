@@ -47,6 +47,22 @@ void map_free (map_t* map, bool freeIndMap)
   delete map;
 }
 
+void map_ofs (map_t* map, int element, int* offset, int* size)
+{
+  ASSERT(element < map->inSet->size, "Invalid element passed to map_ofs");
+
+  if (map->offsets) {
+    // imap case
+    *size = map->offsets[element + 1] - map->offsets[element];
+    *offset = map->offsets[element];
+  }
+  else {
+    // size == mapArity
+    *size = map->size / map->inSet->size;
+    *offset = element*(*size);
+  }
+}
+
 map_t* map_invert (map_t* x2y, int* maxIncidence)
 {
   // aliases

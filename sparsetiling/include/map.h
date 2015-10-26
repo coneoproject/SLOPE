@@ -57,6 +57,14 @@ map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* values, int* of
 void map_free (map_t* map, bool freeIndMap = false);
 
 /*
+ * Retrieve the offset of /element/ in map.
+ *
+ * @return
+ *   populate (offset, size)
+ */
+void map_ofs (map_t* map, int element, int* offset, int* size);
+
+/*
  * Invert a mapping from a set X to a set Y.
  * The only assumption here is that all elements in X are mapped to a same number
  * K of elements in Y.

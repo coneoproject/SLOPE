@@ -100,11 +100,9 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
   int nTiles = tiles->size();
   int seedSetSize = seedMap->inSet->size;
   int outSetSize = seedMap->outSet->size;
-  int seedMapSize = seedMap->size;
   int* seedIndMap = seedMap->values;
 
   map_t* tile2iter = map_invert (iter2tile, NULL);
-  int seedMapArity = seedMapSize / seedSetSize;
 
   // init colors
   int* colors = new int[nTiles];
@@ -142,13 +140,17 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
         index_set tileConflicts = (*conflictsTracker)[i];
         index_set::const_iterator it, end;
         for (it = tileConflicts.begin(), end = tileConflicts.end(); it != end; it++) {
-          mask |= work[seedIndMap[tile2iter->offsets[*it]*seedMapArity + 0]];
+          int offset, size, element = tile2iter->offsets[*it];
+          map_ofs(seedMap, element, &offset, &size);
+          mask |= work[seedIndMap[offset + 0]];
         }
 
         for (int e = prevOffset; e < nextOffset; e++) {
-          for (int j = 0; j < seedMapArity; j++) {
+          int offset, size, element = tile2iter->values[e];
+          map_ofs(seedMap, element, &offset, &size);
+          for (int j = 0; j < size; j++) {
             // set bits of mask
-            mask |= work[seedIndMap[tile2iter->values[e]*seedMapArity + j]];
+            mask |= work[seedIndMap[offset + j]];
           }
         }
 
@@ -164,8 +166,10 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
           mask = 1 << color;
           nColors = MAX(nColors, nColor + color + 1);
           for (int e = prevOffset; e < nextOffset; e++) {
-            for (int j = 0; j < seedMapArity; j++) {
-              work[seedIndMap[tile2iter->values[e]*seedMapArity + j]] |= mask;
+            int offset, size, element = tile2iter->values[e];
+            map_ofs(seedMap, e, &offset, &size);
+            for (int j = 0; j < size; j++) {
+              work[seedIndMap[offset + j]] |= mask;
             }
           }
         }
