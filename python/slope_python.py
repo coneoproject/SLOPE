@@ -38,7 +38,7 @@ class Inspector(object):
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
-    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s, rank);'
+    output_vtk = 'generate_vtk(insp, %s, %s, (double*)coords_dat[0].data, %s, rank);'
     output_insp = 'insp_print (insp, %s);'
 
     code = """
@@ -241,15 +241,14 @@ void* inspector(slope_set sets[%(n_sets)d],
                               if avail([m[1], m[2]])]
             mesh_map_list = "meshMaps"
 
-        coordinates = Inspector._globaldata.get('coordinates')
-        output_vtk = ""
-        if coordinates and coordinates[0] in [s[0] for s in self._sets]:
-            output_vtk = Inspector.output_vtk % (coordinates[0], "DIM%d" % coordinates[2])
-
         debug_mode = Inspector._globaldata.get('debug_mode')
-        output_insp = ""
+        coordinates = Inspector._globaldata.get('coordinates')
+        output_insp, output_vtk = "", ""
         if debug_mode:
             output_insp = Inspector.output_insp % debug_mode
+            if coordinates and coordinates[0] in [s[0] for s in self._sets]:
+                output_vtk = Inspector.output_vtk % (debug_mode, coordinates[0],
+                                                     "DIM%d" % coordinates[2])
 
         return Inspector.code % {
             'set_defs': "\n  ".join(set_defs),
@@ -451,17 +450,17 @@ def set_debug_mode(mode, coordinates):
     """Add a coordinates field such that inspection can generate VTK files
     useful for debugging and visualization purposes.
 
-    :param mode: the level of verbosity of the debug mode (LOW, MEDIUM, HIGH)
+    :param mode: the verbosity level for debug mode (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
     :param coordinates: a 3-tuple, in which the first entry is the set name the
                         coordinates belong to; the second entry is a numpy array of
                         coordinates values; the third entry indicates the dimension
                         of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
                         datasets, respectively)
     """
-    modes = ['VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
+    modes = ['MINIMAL', 'VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
-        print "Warning: debugging set to LOW (%s not in: %s)" % (mode, str(modes))
-        mode = 'LOW'
+        print "Warning: debugging set to MINIMAL (%s not in: %s)" % (mode, str(modes))
+        mode = 'MINIMAL'
     Inspector._globaldata['debug_mode'] = mode
 
     _, _, arity = coordinates

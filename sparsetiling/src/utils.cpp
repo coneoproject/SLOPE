@@ -9,6 +9,7 @@
 #include "utils.h"
 
 void generate_vtk (inspector_t* insp,
+                   insp_verbose level,
                    set_t* nodes,
                    double* coordinates,
                    dimension meshDim,
@@ -56,11 +57,9 @@ void generate_vtk (inspector_t* insp,
 
     if (! loop->coloring) {
       std::cout << "No coloring for loop `" << loopName
-                << "`, check output of inspector." << std::endl;
+                << "`, inspection may be broken." << std::endl;
       continue;
     }
-    std::cout << "Rank " << rank
-              << ": generating VTK file for loop `" << loopName << "`..." << std::flush;
 
     std::stringstream stream;
     stream << VTK_DIR << "/loop" << i << "_" << loopName << "_rank" << rank << ".vtk";
@@ -115,9 +114,14 @@ void generate_vtk (inspector_t* insp,
         }
         vtkfile << std::endl;
       }
+      if (level != MINIMAL) {
+        std::cout << "Rank " << rank << ": written VTK for  `" << loopName << "`" << std::endl;
+      }
     }
     else {
-      std::cout << "Couldn't find a map to nodes for loop " << loopName << std::endl;
+      if (level != MINIMAL) {
+        std::cout << "Couldn't find a map to nodes for loop " << loopName << std::endl;
+      }
       vtkfile.close();
       continue;
     }
@@ -131,7 +135,6 @@ void generate_vtk (inspector_t* insp,
       vtkfile << loop->coloring[k] << std::endl;
     }
 
-    std::cout << "Done!" << std::endl;
     vtkfile.close();
   }
 

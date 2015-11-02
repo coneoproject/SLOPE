@@ -246,16 +246,18 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       verbosityTiles = INT_MAX;
   }
 
-  cout << endl << ":: SLOPE inspection summary ::" << endl << endl;
+  cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
   if (loops) {
-    cout << "Number of loops: " << nLoops << ", seed loop: " << seed << endl;
+    cout << "Number of loops: " << nLoops << endl;
+    cout << "Seed loop: " << seed << endl;
   }
   else {
     cout << "No loops specified" << endl;
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  if (level != VERY_LOW) {
+
+  if (level != VERY_LOW && level != MINIMAL) {
     if (iter2tile && iter2color) {
       cout << endl << "Printing partioning of the seed loop's iteration set:" << endl;
       cout << "  Iteration  |  Tile |  Color" << endl;
@@ -282,7 +284,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     }
   }
 
-  if (level != VERY_LOW) {
+  if (level != VERY_LOW && level != MINIMAL) {
     cout << endl << "Coloring summary (color:#tiles):" << endl;
     std::map<int, int> colors;
     tile_list::const_iterator it, end;
@@ -295,7 +297,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     }
   }
 
-  if (tiles && loopIndex != -2) {
+  if (level != MINIMAL && tiles && loopIndex != -2) {
     cout << endl << "Tiling computed in " << insp->nSweeps << " sweeps" << endl;
     if (loopIndex == -1) {
       cout << "Printing tiles' seed loop iterations" << endl;
@@ -326,7 +328,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       print_tiled_loop (tiles, loops->at(loopIndex), verbosityTiles);
     }
   }
-  cout << endl;
+
+  cout << endl << "<<<< SLOPE inspection summary end>>>" << endl << endl;;
 }
 
 void insp_free (inspector_t* insp)
