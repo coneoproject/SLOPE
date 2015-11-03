@@ -324,6 +324,10 @@ iter2tc_t* tile_forward (loop_t* curLoop,
         int iterColor = loopIter2color[i];
         for (int j = 0; j < arity; j++) {
           int indIter = indMap[i*arity + j];
+          if (indIter == -1) {
+            // off-processor elements are set to -1; ignore them
+            continue;
+          }
           int indTile = projIter2tile[indIter];
           int indColor = MAX(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
@@ -428,6 +432,10 @@ iter2tc_t* tile_backward (loop_t* curLoop,
         int iterColor = loopIter2color[i];
         for (int j = 0; j < arity; j++) {
           int indIter = indMap[i*arity + j];
+          if (indIter == -1) {
+            // off-processor elements are set to -1; ignore them
+            continue;
+          }
           int indTile = projIter2tile[indIter];
           int indColor = MIN(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {

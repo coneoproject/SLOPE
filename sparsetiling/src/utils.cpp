@@ -103,14 +103,32 @@ void generate_vtk (inspector_t* insp,
     if (itmap != mapCache.end()) {
       map_t* map = itmap->second;
       int toNodesSize = map->inSet->size;
+      int toNodesExecSize = map->inSet->core + map->inSet->execHalo;
       int arity = map->size / toNodesSize;
       std::string shape = (arity == 2) ? "LINES " : "POLYGONS ";
       stream << shape << toNodesSize << " " << toNodesSize*(arity + 1) << std::endl;
       vtkfile << stream.str();
-      for (int k = 0; k < toNodesSize; k++) {
+      // first core + exec ...
+      for (int k = 0; k < toNodesExecSize; k++) {
         vtkfile << arity;
         for (int l = 0; l < arity; l++) {
           vtkfile << " " << map->values[k*arity + l];
+        }
+        vtkfile << std::endl;
+      }
+      // ... then non-exec, since there may be -1 for off-processor entities
+      for (int k = toNodesExecSize; k < toNodesSize; k++) {
+        vtkfile << arity;
+        for (int l = 0; l < arity; l++) {
+          vtkfile << " ";
+          int e = k*arity + l;
+          if (map->values[e] != -1) {
+            vtkfile << map->values[e];
+          }
+          else {
+            int ofs = arity / 2;
+            vtkfile << ((l < ofs) ? map->values[e + ofs] : map->values[e - ofs]);
+          }
         }
         vtkfile << std::endl;
       }

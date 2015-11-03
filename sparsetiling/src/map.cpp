@@ -78,9 +78,13 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
   int incidence = 0;
 
   // compute the offsets in y2x
+  // note: some entries in /x2yMap/ might be set to -1 to indicate that an element
+  // in /x/ is on the boundary, and it is touching some off-processor elements in /y/;
+  // so here we have to reset /y2xOffset[0]/ to 0
   for (int i = 0; i < x2yMapSize; i++) {
     y2xOffset[x2yMap[i] + 1]++;
   }
+  y2xOffset[0] = 0;
   for (int i = 1; i < ySize + 1; i++) {
     y2xOffset[i] += y2xOffset[i - 1];
     incidence = MAX(incidence, y2xOffset[i] - y2xOffset[i - 1]);
@@ -91,6 +95,11 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
   for (int i = 0; i < x2yMapSize; i += x2yArity) {
     for (int j = 0; j < x2yArity; j++) {
       int entry = x2yMap[i + j];
+      if (entry == -1) {
+        // as explained before, off-processor elements are ignored. In the end,
+        // /y2xMap/ might just be slightly larger than strictly necessary
+        continue;
+      }
       y2xMap[y2xOffset[entry] + inserted[entry]] = i / x2yArity;
       inserted[entry]++;
     }
