@@ -55,7 +55,7 @@ void project_forward (loop_t* tiledLoop,
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
-      //   with k the average ariety of a projected set iteration and N the size of
+      //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
       descMap = map_invert (descMap, NULL);
 
@@ -69,12 +69,12 @@ void project_forward (loop_t* tiledLoop,
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
-      // iterate over the projected loop's iteration set, and use the map to access
+      // iterate over the projected loop iteration set, and use the map to access
       // the tiledLoop iteration set's elements.
       for (int i = 0; i < projSetSize; i++) {
         projIter2tile[i] = -1;
         projIter2color[i] = -1;
-        // determine the projected set iteration's ariety, which may vary from
+        // determine the projected set iteration arity, which may vary from
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
@@ -99,8 +99,10 @@ void project_forward (loop_t* tiledLoop,
       }
 
       // if projecting from a subset, an older projection must be present. This
-      // is used to replicate non-touched iterations' color and tile.
-      if (tiledLoop->set->isSubset) {
+      // is used to replicate an untouched iteration color and tile.
+      set_t* superset = set_super(tiledLoop->set);
+      set_t* outSuperset = set_super(descMap->outSet);
+      if (superset && (! outSuperset || descMap->outSet->size != superset->size)) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
         ASSERT (oldProjIter2tc != prevLoopProj->end(),
                 "Projecting from subset lacks old projection");
@@ -174,7 +176,7 @@ void project_backward (loop_t* tiledLoop,
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
-      //   with k the average ariety of a projected set iteration and N the size of
+      //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
       descMap = map_invert (descMap, NULL);
 
@@ -188,12 +190,12 @@ void project_backward (loop_t* tiledLoop,
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
-      // iterate over the projected loop's iteration set, and use the map to access
+      // iterate over the projected loop iteration set, and use the map to access
       // the tiledLoop iteration set's elements.
       for (int i = 0; i < projSetSize; i++) {
         projIter2tile[i] = INT_MAX;
         projIter2color[i] = INT_MAX;
-        // determine the projected set iteration's ariety, which may vary from
+        // determine the projected set iteration arity, which may vary from
         // iteration to iteration
         int prevOffset = offsets[i];
         int nextOffset = offsets[i + 1];
@@ -218,8 +220,10 @@ void project_backward (loop_t* tiledLoop,
       }
 
       // if projecting from a subset, an older projection must be present. This
-      // is used to replicate non-touched iterations' color and tile.
-      if (tiledLoop->set->isSubset) {
+      // is used to replicate an untouched iteration color and tile.
+      set_t* superset = set_super(tiledLoop->set);
+      set_t* outSuperset = set_super(descMap->outSet);
+      if (superset && (! outSuperset || descMap->outSet->size != superset->size)) {
         projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
         ASSERT (oldProjIter2tc != prevLoopProj->end(),
                 "Projecting from subset lacks old projection");
@@ -258,7 +262,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
@@ -311,15 +315,19 @@ iter2tc_t* tile_forward (loop_t* curLoop,
       int mapSize = descMap->size;
       int* indMap = descMap->values;
 
-      int ariety = mapSize / toTileSetSize;
+      int arity = mapSize / toTileSetSize;
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
-        for (int j = 0; j < ariety; j++) {
-          int indIter = indMap[i*ariety + j];
+        for (int j = 0; j < arity; j++) {
+          int indIter = indMap[i*arity + j];
+          if (indIter == -1) {
+            // off-processor elements are set to -1; ignore them
+            continue;
+          }
           int indTile = projIter2tile[indIter];
           int indColor = MAX(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
@@ -339,9 +347,8 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   }
 
 #ifdef SLOPE_VTK
-  // if requested at compile time, the coloring and tiling of a parloop are
-  // explicitly tracked. These can be used for debugging or visualization purposes,
-  // for example for generating VTK files showing the colored parloop
+  // track coloring and tiling of a parloop. These can be used for debugging or
+  // visualization purpose, e.g. for generating VTK files.
   curLoop->tiling = new int[toTileSetSize];
   curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);
@@ -363,7 +370,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
@@ -416,15 +423,19 @@ iter2tc_t* tile_backward (loop_t* curLoop,
       int mapSize = descMap->size;
       int* indMap = descMap->values;
 
-      int ariety = mapSize / toTileSetSize;
+      int arity = mapSize / toTileSetSize;
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
-        for (int j = 0; j < ariety; j++) {
-          int indIter = indMap[i*ariety + j];
+        for (int j = 0; j < arity; j++) {
+          int indIter = indMap[i*arity + j];
+          if (indIter == -1) {
+            // off-processor elements are set to -1; ignore them
+            continue;
+          }
           int indTile = projIter2tile[indIter];
           int indColor = MIN(iterColor, projIter2color[indIter]);
           if (iterColor != indColor) {
@@ -444,9 +455,8 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   }
 
 #ifdef SLOPE_VTK
-  // if requested at compile time, the coloring and tiling of the parloop are
-  // explicitly tracked. These can be used for debugging or visualization purposes,
-  // for example for generating VTK files showing the colored parloop
+  // track coloring and tiling of a parloop. These can be used for debugging or
+  // visualization purpose, e.g. for generating VTK files.
   curLoop->tiling = new int[toTileSetSize];
   curLoop->coloring = new int[toTileSetSize];
   memcpy (curLoop->tiling, loopIter2tc->iter2tile, sizeof(int)*toTileSetSize);

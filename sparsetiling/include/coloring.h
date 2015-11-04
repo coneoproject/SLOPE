@@ -14,9 +14,20 @@
  * @param insp
  *   the inspector data structure
  * @return
- *   a map from iteration set to colors
+ *   build up the /iter2color/ field in /insp/
  */
-map_t* color_sequential (inspector_t* insp);
+void color_sequential (inspector_t* insp);
+
+/*
+ * Assign the same color to all tiles. This means all tiles will run in parallel.
+ * The only exceptions are the halo tiles, which get assigned a higher color.
+ *
+ * @param insp
+ *   the inspector data structure
+ * @return
+ *   build up the /iter2color/ field in /insp/
+ */
+void color_fully_parallel (inspector_t* insp);
 
 /*
  * Assign colors to tiles such that two adjacent tiles are not assigned the same color.
@@ -24,13 +35,12 @@ map_t* color_sequential (inspector_t* insp);
  * @param insp
  *   the inspector data structure
  * @param seedMap
- *   a map used in the indirect seed loop
+ *   a map used in the indirect seed loop to determine adjacent tiles
  * @param conflictsTracker
- *   track conflicting tiles encountered during the tiling process
+ *   track tiles that despite not being adjacent should not be assigned the same color
  * @return
- *   a map from iteration set elements to colors, where tile colors are enforced to be
- *   different if tiles are adjacent (e.g., there is an edge connecting them)
+ *   build up the /iter2color/ field in /insp/
  */
-map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker);
+void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker);
 
 #endif

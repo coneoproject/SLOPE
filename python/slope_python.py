@@ -10,7 +10,9 @@ import ctypes
 
 class Set(ctypes.Structure):
     _fields_ = [('name', ctypes.c_char_p),
-                ('size', ctypes.c_int)]
+                ('core', ctypes.c_int),
+                ('exec', ctypes.c_int),
+                ('nonexec', ctypes.c_int)]
 
 
 class Dat(ctypes.Structure):
@@ -30,12 +32,13 @@ class Inspector(object):
 
     ### Templates for code generation ###
 
-    set_def = 'set_t* %s = set(sets[%d].name, sets[%d].size);'
+    set_def = 'set_t* %s = set(sets[%d].name, sets[%d].core, sets[%d].exec, sets[%d].nonexec, %s);'
     map_def = 'map_t* %s = map(maps[%d].name, %s, %s, maps[%d].map, maps[%d].size);'
+    mesh_map_def = 'map_t* %s = map(mesh_maps[%d].name, %s, %s, mesh_maps[%d].map, mesh_maps[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
-    output_vtk = 'generate_vtk(insp, %s, (double*)coords_dat[0].data, %s);'
+    output_vtk = 'generate_vtk(insp, %s, %s, (double*)coords_dat[0].data, %s, rank);'
     output_insp = 'insp_print (insp, %s);'
 
     code = """
@@ -47,7 +50,9 @@ class Inspector(object):
 // Inspector's ctypes-compatible data structures and functions
 typedef struct {
   char* name;
-  int size;
+  int core;
+  int exec;
+  int nonexec;
 } slope_set;
 
 typedef struct {
@@ -63,14 +68,18 @@ typedef struct {
 
 extern "C" void* inspector(slope_set sets[%(n_sets)d],
                            slope_map maps[%(n_maps)d],
+                           int tileSize,
+                           int rank,
                            slope_dat coords_dat[1],
-                           int tileSize);
+                           slope_map* mesh_maps);
 /****************************/
 
 void* inspector(slope_set sets[%(n_sets)d],
                 slope_map maps[%(n_maps)d],
+                int tileSize,
+                int rank,
                 slope_dat coords_dat[1],
-                int tileSize)
+                slope_map* mesh_maps)
 {
   // Declare sets, maps, dats
   %(set_defs)s
@@ -79,8 +88,12 @@ void* inspector(slope_set sets[%(n_sets)d],
 
   %(desc_defs)s
 
+  // Additional maps defining the topology of the mesh (used for partitioning through METIS)
+  map_list* meshMaps = new map_list();
+  %(mesh_map_defs)s
+
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s);
 
   %(loop_defs)s
 
@@ -92,60 +105,80 @@ void* inspector(slope_set sets[%(n_sets)d],
 
   executor_t* exec = exec_init (insp);
   insp_free (insp);
+  delete meshMaps;
   return exec;
 }
 """
 
+    def __init__(self):
+        self._sets, self._maps, self._loops, self._mesh_maps = [], [], [], []
+        self._partitioning = 'chunk'
+
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
 
-        :param sets: iterator of 2-tuple, in which the first entry is the name of
-                     the set (a string), while the second entry is the size of the
-                     iteration set
+        :param sets: iterator of 5-tuple:
+                     (name, core_size, exec_size, nonexec_size, superset)
         """
-        sets = [(self._fix_c(name), size) for name, size in sets]
+        # Subsets should come at last to avoid "undefined identifiers" when
+        # compiling the generated code
+        sets = sorted(list(sets), key=lambda x: x[4])
+        # Now extract and format info for each set
+        sets = [(self._fix_c(n), cs, es, ns, sset) for n, cs, es, ns, sset in sets]
         ctype = Set*len(sets)
         self._sets = sets
-        return (ctype, ctype(*[Set(name, size) for name, size in sets]))
+        return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, sset in sets]))
 
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
 
-        :param maps: iterator of 4-tuple, in which the first entry is the name of
-                     the map (a string); the second and third entries represent,
-                     respectively, the input and the output sets of the map (strings);
-                     follows the map itself, as a numpy array of integers
+        :param maps: iterator of 4-tuple:
+                     (name, input_set, output_set, map_values)
         """
-        maps = [(name, self._fix_c(in_set), self._fix_c(out_set), map)
-                for name, in_set, out_set, map in maps]
+        maps = [(n, self._fix_c(i), self._fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
-        return (ctype, ctype(*[Map(name,
-                                   map.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-                                   map.size) for name, _, _, map in maps]))
+        return (ctype, ctype(*[Map(n,
+                                   v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                   v.size) for n, _, _, v in maps]))
 
     def add_loops(self, loops):
         """Add a list of ``loops`` to this Inspector
 
         :param loops: iterator of 3-tuple ``(name, set, desc)``, where:
-            * ``name`` is the identifier name of the loop
-            * ``set`` is the iteration space of the loop
-            * ``desc`` represents a list of descriptors. In SLOPE, a descriptor
-                       specifies the memory access pattern in a loop. In particular,
-                       a descriptor is a 2-tuple in which the first entry is a map
-                       (previously defined through a call to ``map(...)``) and the
-                       second entry is the access mode (e.g., RW, READ, INC, ...).
-                       If the access to a dataset does not involve any map, than the
-                       first entry assumes the value of the special keyword ``DIRECT``
+            * name: the identifier of the loop
+            * set: the iteration space of the loop
+            * desc: represents a list of descriptors. In SLOPE, a descriptor
+                    specifies the memory access pattern in a loop. In particular,
+                    a descriptor is a 2-tuple in which the first entry is a map
+                    (previously defined through a call to ``map(...)``) and the
+                    second entry is the access mode (e.g., RW, READ, INC, ...).
+                    If the access to a dataset does not involve any map, than the
+                    first entry assumes the value of the special keyword ``DIRECT``
         """
-        self._loops = [(name, self._fix_c(set), descs) for name, set, descs in loops]
+        self._loops = [(n, self._fix_c(s), d) for n, s, d in loops]
+
+    def set_partitioning(self, mode):
+        """Set the seed iteration space partitioning mode. This method should be
+        called prior to /generate_code/.
+
+        :param mode: defaults to 'chunk' (available: 'chunk', 'metis')
+        """
+        if mode not in ['chunk', 'metis']:
+            raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
+        self._partitioning = mode
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
         ctype = ctypes.c_int
         return (ctype, ctype(tile_size))
 
-    def set_external_dats(self):
+    def set_mpi_rank(self, rank):
+        """Inform about the process MPI rank."""
+        ctype = ctypes.c_int
+        return (ctype, ctype(rank))
+
+    def add_extra_info(self):
         """Inspection/Execution can benefit of certain data fields that are not
         strictly included in the loop chain definition. For example, for debugging
         and visualization purposes, one can provide SLOPE with a coordinates field,
@@ -160,24 +193,32 @@ void* inspector(slope_set sets[%(n_sets)d],
         """
         if not Inspector._globaldata:
             return
-        if not (self._sets and self._maps and self._loops):
+        if not (self._sets and self._loops):
             raise SlopeError("Loop chain not constructed yet")
+        extra = []
 
-        # Handle coordinates
+        # Add coordinate field
         coordinates = Inspector._globaldata.get('coordinates')
-        if not coordinates:
-            return
-        set, data, _ = coordinates
-        try:
-            set_size = [s[1] for s in self._sets if s[0] == set][0]
-        except:
-            raise SlopeError("Couldn't find set `%s` for coordinates" % set)
-        ctype = Dat*1
-        return (ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                                 set_size)))
+        if coordinates:
+            set, data, arity = coordinates
+            set_size = data.size / arity
+            ctype = Dat*1
+            extra.append((ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                                           set_size))))
+
+        # Add mesh maps
+        mesh_maps = Inspector._globaldata.get('mesh_maps', [])
+        ctype = Map*len(mesh_maps)
+        self._mesh_maps = mesh_maps
+        extra.append((ctype, ctype(*[Map(n,
+                                         v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                         v.size) for n, _, _, v in mesh_maps])))
+
+        return extra
 
     def generate_code(self):
-        set_defs = [Inspector.set_def % (s[0], i, i) for i, s in enumerate(self._sets)]
+        set_defs = [Inspector.set_def % (s[0], i, i, i, i, s[4] if s[4] else "NULL")
+                    for i, s in enumerate(self._sets)]
         map_defs = [Inspector.map_def % (m[0], i, m[1], m[2], i, i)
                     for i, m in enumerate(self._maps)]
         desc_defs, loop_defs = [], []
@@ -191,16 +232,23 @@ void* inspector(slope_set sets[%(n_sets)d],
             desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
-        coordinates = Inspector._globaldata.get('coordinates')
-        output_vtk = ""
-        if coordinates:
-            set, _, arity = coordinates
-            output_vtk = Inspector.output_vtk % (set, arity)
+        mesh_map_defs, mesh_map_list = "", "NULL"
+        if self._mesh_maps and self._partitioning == 'metis':
+            avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
+            mesh_map_defs = [Inspector.mesh_map_def % ("mm_%s" % m[0], i, m[1], m[2], i, i)
+                             for i, m in enumerate(self._mesh_maps) if avail([m[1], m[2]])]
+            mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0] for m in self._mesh_maps
+                              if avail([m[1], m[2]])]
+            mesh_map_list = "meshMaps"
 
         debug_mode = Inspector._globaldata.get('debug_mode')
-        output_insp = ""
+        coordinates = Inspector._globaldata.get('coordinates')
+        output_insp, output_vtk = "", ""
         if debug_mode:
             output_insp = Inspector.output_insp % debug_mode
+            if coordinates and coordinates[0] in [s[0] for s in self._sets]:
+                output_vtk = Inspector.output_vtk % (debug_mode, coordinates[0],
+                                                     "DIM%d" % coordinates[2])
 
         return Inspector.code % {
             'set_defs': "\n  ".join(set_defs),
@@ -211,6 +259,8 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
             'seed': len(self._loops) / 2,
+            'mesh_map_defs': "\n  ".join(mesh_map_defs),
+            'mesh_map_list': mesh_map_list,
             'output_vtk': output_vtk,
             'output_insp': output_insp
         }
@@ -234,12 +284,16 @@ class Executor(object):
         'name_local_map': 'loc_%(gmap)s_%(loop_id)d',
         'name_local_iters': 'iterations_%(loop_id)d',
         'loop_chain_body': '%(loop_chain_body)s',  # Instantiated user side
-        'headers': ['#include "%s"' % h for h in ['inspector.h', 'executor.h',
-                                                  'utils.h']],
+        'headers': ['#include "%s"' % h for h in ['inspector.h', 'executor.h', 'utils.h']],
         'ctype_exec': 'void*',
-        'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p)
+        'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p),
+        'ctype_region_flag': 'tile_region',
+        'region_flag': 'region',
     }
 
+    omp_code = """
+#pragma omp parallel for schedule(dynamic)
+"""
     init_code = """
 executor_t* %(name_exec)s = (executor_t*)_%(name_exec)s;
 int nColors = exec_num_colors (%(name_exec)s);
@@ -247,12 +301,14 @@ int nColors = exec_num_colors (%(name_exec)s);
     outer_tiles_loop = """\
 for (int i = 0; i < nColors; i++) {
   const int nTilesPerColor = exec_tiles_per_color (%(name_exec)s, i);
-  #ifdef SLOPE_OMP
-  #pragma omp parallel for schedule(dynamic)
-  #endif
+  %(omp)s
   for (int j = 0; j < nTilesPerColor; j++) {
     // execute tile j for color i
-    tile_t* tile = exec_tile_at (%(name_exec)s, i, j);
+    tile_t* tile = exec_tile_at (%(name_exec)s, i, j, %(region_flag)s);
+    if (! tile) {
+      // this might be the case if the tile region does not match
+      continue;
+    }
     int %(tile_end)s;
 
     %(loop_chain_body)s
@@ -268,8 +324,10 @@ tileLoopSize = iterations_%(loop_id)d.size();
 """
 
     def __init__(self, inspector):
-        self._code = "\n".join([Executor.init_code % Executor.meta,
-                                Executor.outer_tiles_loop % Executor.meta])
+        code_dict = dict(Executor.meta)
+        code_dict.update({'omp': self._omp_pragma()})
+        self._code = "\n".join([Executor.init_code % code_dict,
+                                Executor.outer_tiles_loop % code_dict])
         self._loop_init, self._gtl_maps = self._generate_loops(inspector._loops)
 
     def _generate_loops(self, loops):
@@ -305,6 +363,9 @@ tileLoopSize = iterations_%(loop_id)d.size();
             gtl_maps.append(gtl_map)
 
         return (header_code, gtl_maps)
+
+    def _omp_pragma(self):
+        return Executor.omp_code if Inspector._globaldata['mode'] in ['OMP', 'OMP_MPI'] else ''
 
     @property
     def c_type_exec(self):
@@ -358,8 +419,8 @@ def get_compile_opts(compiler='gnu'):
     if Inspector._globaldata.get('coordinates'):
         debug_opts = ['-DSLOPE_VTK']
     optimization_opts = ['-O3']
+    optimization_opts.append('-fopenmp')
     if Inspector._globaldata['mode'] == 'OMP':
-        optimization_opts.append('-fopenmp')
         functional_opts.append('-DSLOPE_OMP')
         if compiler == 'intel':
             optimization_opts.append('-par-affinity=scatter,verbose')
@@ -389,27 +450,40 @@ def set_debug_mode(mode, coordinates):
     """Add a coordinates field such that inspection can generate VTK files
     useful for debugging and visualization purposes.
 
-    :param mode: the level of verbosity of the debug mode (LOW, MEDIUM, HIGH)
+    :param mode: the verbosity level for debug mode (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
     :param coordinates: a 3-tuple, in which the first entry is the set name the
                         coordinates belong to; the second entry is a numpy array of
                         coordinates values; the third entry indicates the dimension
                         of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
                         datasets, respectively)
     """
-    modes = ['VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
+    modes = ['MINIMAL', 'VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
-        print "Warning: debugging set to LOW (%s not in: %s)" % (mode, str(modes))
-        mode = 'LOW'
+        print "Warning: debugging set to MINIMAL (%s not in: %s)" % (mode, str(modes))
+        mode = 'MINIMAL'
     Inspector._globaldata['debug_mode'] = mode
 
-    set, data, arity = coordinates
+    _, _, arity = coordinates
     if arity not in [1, 2, 3]:
         raise SlopeError("Arity should be a number in [1, 2, 3]")
-    Inspector._globaldata['coordinates'] = (set, data, "DIM%d" % arity)
+    Inspector._globaldata['coordinates'] = coordinates
+
+
+def set_mesh_maps(maps):
+    """Add the mesh topology through maps from generic mesh components (e.g. edges,
+    cells) to nodes."""
+    Inspector._globaldata['mesh_maps'] = maps
+
+
+def exec_modes():
+    return ['SEQUENTIAL', 'OMP', 'ONLY_MPI', 'OMP_MPI']
 
 
 def set_exec_mode(mode):
-    """Set an execution mode (accepted: [SEQUENTIAL, OMP])."""
-    modes = ['SEQUENTIAL', 'OMP']
-    mode = mode if mode in modes else modes[0]
-    Inspector._globaldata['mode'] = mode
+    """Set an execution mode (accepted: [SEQUENTIAL, OMP, ONLY_MPI, OMP_MPI])."""
+    Inspector._globaldata['mode'] = mode if mode in exec_modes() else 'SEQUENTIAL'
+
+
+def get_exec_mode():
+    """Return the execution mode."""
+    return Inspector._globaldata['mode']

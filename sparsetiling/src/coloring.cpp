@@ -3,6 +3,8 @@
  *
  */
 
+#include <set>
+
 #include <string.h>
 
 #include "coloring.h"
@@ -17,12 +19,12 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
   int* iter2color = new int[itSetSize];
 
   for (int i = 0; i < nTiles; i++ ) {
-    // determine the tile's iteration space
+    // determine the tile iteration space
     int prevOffset = tile2iter->offsets[i];
     int nextOffset = tile2iter->offsets[i + 1];
 
     for (int j = prevOffset; j < nextOffset; j++) {
-      iter2color[j] = colors[i];
+      iter2color[tile2iter->values[j]] = colors[i];
     }
     tiles->at(i)->color = colors[i];
   }
@@ -30,7 +32,7 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
   return iter2color;
 }
 
-map_t* color_sequential (inspector_t* insp)
+void color_sequential (inspector_t* insp)
 {
   // aliases
   tile_list* tiles = insp->tiles;
@@ -53,24 +55,54 @@ map_t* color_sequential (inspector_t* insp)
   delete[] colors;
 
   // note we have as many colors as the number of tiles
-  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color,
-              iter2tile->inSet->size*1);
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1);
 }
 
-map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
+void color_fully_parallel (inspector_t* insp)
+{
+  // aliases
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
+  int nTiles = iter2tile->outSet->size;
+
+  // A same color is assigned to all tiles. This is because it was found that
+  // all tiles can safely run in parallel.
+  // Note: halo tiles are an exception, since they always get a higher color
+  int* colors = new int[nTiles];
+  for (int i = 0; i < nTiles; i++) {
+    if (tiles->at(i)->region == LOCAL) {
+      colors[i] = 0;
+    }
+    if (tiles->at(i)->region == EXEC_HALO) {
+      colors[i] = 1;
+    }
+    if (tiles->at(i)->region == NON_EXEC_HALO) {
+      colors[i] = 2;
+    }
+  }
+
+  map_t* tile2iter = map_invert (iter2tile, NULL);
+  int* iter2color = color_apply(tiles, tile2iter, colors);
+
+  map_free (tile2iter, true);
+  delete[] colors;
+
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1);
+}
+
+void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
 {
   // aliases
   tile_list* tiles = insp->tiles;
   map_t* iter2tile = insp->iter2tile;
   int nTiles = tiles->size();
   int seedSetSize = seedMap->inSet->size;
-  int seedMapSize = seedMap->size;
+  int outSetSize = seedMap->outSet->size;
   int* seedIndMap = seedMap->values;
 
-  ASSERT (seedMap, "Couldn't find a valid map for coloring a seed iteration space");
-
   map_t* tile2iter = map_invert (iter2tile, NULL);
-  int seedMapAriety = seedMapSize / seedSetSize;
 
   // init colors
   int* colors = new int[nTiles];
@@ -81,7 +113,7 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
   int nColors = 0;
 
   // array to work out the colors
-  int* work = new int[seedMapSize];
+  int* work = new int[outSetSize];
 
   // coloring algorithm
   while (repeat)
@@ -89,12 +121,12 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
     repeat = false;
 
     // zero out color array
-    std::fill_n (work, seedMapSize, 0);
+    std::fill_n (work, outSetSize, 0);
 
     // start coloring tiles
     for (int i = 0; i < nTiles; i++)
     {
-      // determine the tile's iteration space
+      // determine the tile iteration space
       int prevOffset = tile2iter->offsets[i];
       int nextOffset = tile2iter->offsets[i + 1];
 
@@ -108,13 +140,17 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
         index_set tileConflicts = (*conflictsTracker)[i];
         index_set::const_iterator it, end;
         for (it = tileConflicts.begin(), end = tileConflicts.end(); it != end; it++) {
-          mask |= work[seedIndMap[tile2iter->offsets[*it]*seedMapAriety + 0]];
+          int offset, size, element = tile2iter->offsets[*it];
+          map_ofs(seedMap, element, &offset, &size);
+          mask |= work[seedIndMap[offset + 0]];
         }
 
         for (int e = prevOffset; e < nextOffset; e++) {
-          for (int j = 0; j < seedMapAriety; j++) {
+          int offset, size, element = tile2iter->values[e];
+          map_ofs(seedMap, element, &offset, &size);
+          for (int j = 0; j < size; j++) {
             // set bits of mask
-            mask |= work[seedIndMap[e*seedMapAriety + j]];
+            mask |= work[seedIndMap[offset + j]];
           }
         }
 
@@ -130,8 +166,10 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
           mask = 1 << color;
           nColors = MAX(nColors, nColor + color + 1);
           for (int e = prevOffset; e < nextOffset; e++) {
-            for (int j = 0; j < seedMapAriety; j++) {
-              work[seedIndMap[e*seedMapAriety + j]] |= mask;
+            int offset, size, element = tile2iter->values[e];
+            map_ofs(seedMap, e, &offset, &size);
+            for (int j = 0; j < size; j++) {
+              work[seedIndMap[offset + j]] |= mask;
             }
           }
         }
@@ -141,14 +179,20 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
     nColor += 32;
   }
 
-  // assign maximum color to halo tiles, since these must be executed last
+  // shift up the halo tile colors, since these tiles must be executed as last
   set_t* tileRegions = insp->tileRegions;
-  if (tileRegions->execHalo > 0) {
-    colors[tileRegions->core] = nColors++;
+  std::set<int> newColors;
+  int maxExecHaloColor = -1;
+  for (int i = 0; i < tileRegions->execHalo; i++) {
+    int newHaloColor = colors[tileRegions->core + i] + nColors;
+    maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
+    colors[tileRegions->core + i] = newHaloColor;
+    newColors.insert(newHaloColor);
   }
   if (tileRegions->nonExecHalo > 0) {
-    colors[tileRegions->core + tileRegions->execHalo] = nColors++;
+    colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor + 1;
   }
+  nColors += newColors.size() + 1;
 
   // create the iteration to colors map
   int* iter2color = color_apply(tiles, tile2iter, colors);
@@ -157,6 +201,6 @@ map_t* color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker
   delete[] colors;
   map_free (tile2iter, true);
 
-  return map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors), iter2color,
-              seedSetSize*1);
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors),
+                          iter2color, seedSetSize*1);
 }

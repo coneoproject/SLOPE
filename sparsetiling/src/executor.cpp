@@ -13,8 +13,8 @@ executor_t* exec_init (inspector_t* insp)
   // aliases
   tile_list* tiles = insp->tiles;
   int nTiles = tiles->size();
-  set_t* tile_set = set_cpy (insp->iter2tile->outSet);
-  set_t* color_set = set_cpy (insp->iter2color->outSet);
+  set_t* tileSet = set_cpy (insp->iter2tile->outSet);
+  set_t* colorSet = set_cpy (insp->iter2color->outSet);
 
   executor_t* exec = new executor_t;
 
@@ -23,7 +23,7 @@ executor_t* exec_init (inspector_t* insp)
   for (int i = 0; i < nTiles; i++) {
     tile2colorIndMap[i] = tiles->at(i)->color;
   }
-  map_t* tile2color = map ("t2c", tile_set, color_set, tile2colorIndMap, nTiles);
+  map_t* tile2color = map ("t2c", tileSet, colorSet, tile2colorIndMap, nTiles);
 
   exec->tiles = tiles;
   exec->color2tile = map_invert (tile2color, NULL);
@@ -51,10 +51,11 @@ int exec_tiles_per_color (executor_t* exec, int color)
   return offsets[color + 1] - offsets[color];
 }
 
-tile_t* exec_tile_at (executor_t* exec, int color, int ithTile)
+tile_t* exec_tile_at (executor_t* exec, int color, int ithTile, tile_region region)
 {
   int tileID = exec->color2tile->values[exec->color2tile->offsets[color] + ithTile];
-  return exec->tiles->at (tileID);
+  tile_t* tile = exec->tiles->at (tileID);
+  return (tile->region == region) ? tile : NULL;
 }
 
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
@@ -94,16 +95,16 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
         }
 
         int* globalIndMap = globalMap->values;
-        int ariety = globalMap->size / globalMap->inSet->size;
+        int arity = globalMap->size / globalMap->inSet->size;
         int tileLoopSize = (*tIt)->iterations[i]->size();
 
-        iterations_list* localMap = new iterations_list (tileLoopSize*ariety);
+        iterations_list* localMap = new iterations_list (tileLoopSize*arity);
         localMaps->insert (mi_pair(globalMap->name, localMap));
 
         for (int e = 0; e < tileLoopSize; e++) {
           int element = (*tIt)->iterations[i]->at(e);
-          for (int j = 0; j < ariety; j++) {
-            localMap->at(e*ariety + j) = globalIndMap[element*ariety + j];
+          for (int j = 0; j < arity; j++) {
+            localMap->at(e*arity + j) = globalIndMap[element*arity + j];
           }
         }
       }

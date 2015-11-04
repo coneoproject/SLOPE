@@ -24,8 +24,8 @@ typedef struct {
   int nonExecHalo;
   /* size of the whole iteration space, including halo */
   int size;
-  /* subset flag */
-  bool isSubset;
+  /* am I a subset? If so (!= NULL), what is my superset? */
+  void* superset;
 } set_t;
 
 typedef std::set<set_t*> set_list;
@@ -49,7 +49,7 @@ typedef std::set<set_t*> set_list;
  *    - `nonExecHalo`: read when executing the halo region
  */
 inline set_t* set (std::string name, int core, int execHalo = 0, int nonExecHalo = 0,
-                   bool isSubset = false)
+                   set_t* superset = NULL)
 {
   set_t* set =  new set_t;
   set->name = name;
@@ -57,8 +57,16 @@ inline set_t* set (std::string name, int core, int execHalo = 0, int nonExecHalo
   set->execHalo = execHalo;
   set->nonExecHalo = nonExecHalo;
   set->size = core + execHalo + nonExecHalo;
-  set->isSubset = isSubset;
+  set->superset = superset;
   return set;
+}
+
+/*
+ * Get the superset, if any
+ */
+inline set_t* set_super(set_t* set)
+{
+  return (set_t*)set->superset;
 }
 
 /*
@@ -67,15 +75,15 @@ inline set_t* set (std::string name, int core, int execHalo = 0, int nonExecHalo
 inline set_t* set_cpy (set_t* toCopy)
 {
   return set(toCopy->name, toCopy->core, toCopy->execHalo, toCopy->nonExecHalo,
-             toCopy->isSubset);
+             set_super(toCopy));
 }
 
 /*
- * Compare two sets based on their name identifier
+ * Return /true/ if two sets are identical (same identifier), /false/ otherwise
  */
-inline bool set_cmp(const set_t* a, const set_t* b)
+inline bool set_eq(const set_t* a, const set_t* b)
 {
-  return a->name < b->name;
+  return a && b && a->name == b->name;
 }
 
 /*

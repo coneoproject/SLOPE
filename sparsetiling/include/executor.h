@@ -56,9 +56,13 @@ int exec_tiles_per_color (executor_t* exec, int color);
  * @param color
  *   the color for which the ith tile is retrieved
  * @param ithTile
- *   the tile that needs be retrieved having a given color
+ *   the ID of the tile that needs be retrieved
+ * @param region
+ *   a flag to specify the tile region; if this does not match with the retrieved
+ *   tile's region, then NULL is returned
  */
-tile_t* exec_tile_at (executor_t* exec, int color, int ithTile);
+tile_t* exec_tile_at (executor_t* exec, int color, int ithTile,
+                      tile_region region = LOCAL);
 
 /*
  * Destroy an executor

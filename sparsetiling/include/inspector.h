@@ -12,7 +12,7 @@
 
 enum insp_strategy {SEQUENTIAL, OMP, ONLY_MPI, OMP_MPI};
 enum insp_info {INSP_OK, INSP_ERR};
-enum insp_verbose {VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
+enum insp_verbose {MINIMAL = 1, VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
 
 /*
  * The inspector main data structure.
@@ -36,6 +36,8 @@ typedef struct {
   set_t* tileRegions;
   /* number of tiling sweeps */
   int nSweeps;
+  /* the mesh structure, as a list of maps to nodes */
+  map_list* meshMaps;
 
 } inspector_t;
 
@@ -45,12 +47,17 @@ typedef struct {
  * @param tileSize
  *   average tile size after partitioning of the base loop's iteration set
  * @param strategy
- *   tiling strategy (SEQUENTIAL; OMP - openmp; ONLY_MPI - pure MPI, even within
- *   a node; OMP_MPI - mixed OMP (:ithin node) and MPI (cross-node))
+ *   tiling strategy (SEQUENTIAL; OMP - openmp; ONLY_MPI - one MPI process for
+ *   each core; OMP_MPI - mixed OMP (within a node) and MPI (cross-node))
+ * @param meshMaps (optional)
+ *   a high level description of the mesh through a list of maps to nodes. This
+ *   can optionally be used to partition an iteration space using an external
+ *   library, such that tiles of particular shape (e.g., squarish, rather than
+ *   strip-like) can be carved.
  * @return
  *   an inspector data structure
  */
-inspector_t* insp_init (int tileSize, insp_strategy strategy);
+inspector_t* insp_init (int tileSize, insp_strategy strategy, map_list* meshMaps = NULL);
 
 /*
  * Add a parloop to the inspector

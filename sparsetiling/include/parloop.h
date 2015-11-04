@@ -36,12 +36,27 @@ typedef struct {
 typedef std::vector<loop_t*> loop_list;
 
 /*
- * Retrieve a map from the loop's iteration set to another set (not a subset).
+ * Search for a map from the loop iteration set to another set (not a subset),
+ * or, alternatively, from another set (not a subset) to the loop iteration set.
+ * The map is stored in the /seedMap/ field of the /loop_t/ structure. The map
+ * relates the loop iteration set to another set: this makes it suitable for
+ * shared memory coloring of /loop/.
  *
+ * @param loop
+ *   the loop for which a map needs be retrieved
+ * @param loops
+ *   (optional) if a suitable map is not found among the access descriptors of
+ *   /loop/, search for it in the other loops the inspector is aware of
  * @return
- *   true if one such map is found and successfully stored in the corresponding
- *   loop_t's field (
+ *   true if one such map is found. false otherwise
  */
-bool loop_load_full_map (loop_t* loop);
+bool loop_load_seed_map (loop_t* loop, loop_list* loops = NULL);
+
+/*
+ * @return
+ *   true if the loop is direct (i.e., all access descriptors represent direct
+ *   data accesses), false otherwise
+ */
+bool loop_is_direct (loop_t* loop);
 
 #endif

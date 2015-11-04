@@ -190,6 +190,7 @@ inline double time_stamp()
 enum dimension {DIM1 = 1, DIM2 = 2, DIM3 = 3};
 
 void generate_vtk (inspector_t* insp,
+                   insp_verbose level,
                    set_t* nodes,
                    double* coordinates,
                    dimension meshDim,

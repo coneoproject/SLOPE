@@ -71,7 +71,7 @@ int main (int argc, char* argv[])
   for (int i = 0; i < nMPI; i++) {
     if (i == rank) {
       insp_print (insp, HIGH);
-      generate_vtk (insp, vertices, mesh->coords, DIM2, rank);
+      generate_vtk (insp, HIGH, vertices, mesh->coords, DIM2, rank);
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
