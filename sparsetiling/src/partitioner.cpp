@@ -22,7 +22,7 @@ void partition (inspector_t* insp)
   int nLoops = insp->loops->size();
   int seed = insp->seed;
   loop_t* seedLoop = insp->loops->at(seed);
-  int setSize = seedLoop->set->size;
+  set_t* seedLoopSet = seedLoop->set;
 
   // partition the seed loop iteration space
   int nCore, nExec, nNonExec;
@@ -45,9 +45,9 @@ void partition (inspector_t* insp)
   // ... explicitly track the tile region (core, exec_halo, and non_exec_halo) ...
   set_t* tileRegions = set("tiles", nCore, nExec, nNonExec);
   // ... and, finally, map the partitioned seed loop to tiles
-  map_t* iter2tile = map ("i2t", set_cpy(seedLoop->set), set_cpy(tileRegions),
-                          indMap, setSize);
-  tile_assign_loop (tiles, seed, setSize, indMap);
+  map_t* iter2tile = map ("i2t", set_cpy(seedLoopSet), set_cpy(tileRegions),
+                          indMap, seedLoopSet->size);
+  tile_assign_loop (tiles, seedLoop, indMap);
 
   insp->tileRegions = tileRegions;
   insp->iter2tile = iter2tile;

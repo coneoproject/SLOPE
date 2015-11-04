@@ -158,7 +158,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
       // tile loop /i/
       curTilingInfo = tile_forward (curLoop, prevLoopProj);
-      tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
+      tile_assign_loop (tiles, curLoop, curTilingInfo->iter2tile);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
@@ -182,7 +182,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
       // tile loop /i/
       curTilingInfo = tile_backward (curLoop, prevLoopProj);
-      tile_assign_loop (tiles, i, curTilingInfo->itSetSize, curTilingInfo->iter2tile);
+      tile_assign_loop (tiles, curLoop, curTilingInfo->iter2tile);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
