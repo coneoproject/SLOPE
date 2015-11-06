@@ -73,7 +73,7 @@ sparsetiling: mklib
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
-	xiar cru $(LIB)/libst.a $(ALL_OBJS)
+	ar cru $(LIB)/libst.a $(ALL_OBJS)
 	ranlib $(LIB)/libst.a
 ifeq ($(SLOPE_LIB),shared)
 	$(CXX) -shared -Wl,-soname,libst.so.1 -o $(LIB)/libst.so.1.0.1 $(ALL_OBJS)
