@@ -20,16 +20,22 @@ tile_t* tile_init (int crossedLoops, tile_region region)
   return tile;
 }
 
-void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter2tileMap)
+void tile_assign_loop (tile_list* tiles, loop_t* loop, int* iter2tileMap)
 {
-  // first, remove any previously assigned iteration for loop loopIndex
+  // aliases
+  int loopIndex = loop->index;
+  set_t* loopSet = loop->set;
+
+  // first, remove any previously assigned iteration for loop /loopIndex/
   tile_list::const_iterator tIt, tEnd;
   for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
     (*tIt)->iterations[loopIndex]->clear();
   }
 
   // then, distribute iterations among the tiles
-  for (int i = 0; i < itSetSize; i++) {
+  // note: we do not assign non-exec iterations
+  int execSize = loopSet->core + loopSet->execHalo;
+  for (int i = 0; i < execSize; i++) {
     tiles->at(iter2tileMap[i])->iterations[loopIndex]->push_back(i);
   }
 }

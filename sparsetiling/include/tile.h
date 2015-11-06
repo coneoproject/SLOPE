@@ -12,6 +12,7 @@
 #include <map>
 
 #include "descriptor.h"
+#include "parloop.h"
 
 typedef std::vector<int> iterations_list;
 typedef std::unordered_map<std::string, iterations_list*> mapname_iterations;
@@ -59,19 +60,16 @@ typedef std::map<int, index_set> tracker_t;
 tile_t* tile_init (int crossedLoops, tile_region region = LOCAL);
 
 /*
- * Distribute the iteration set of a loop over a list of tiles according to what
- * is defined in a map from iterations to tiles
+ * Distribute a loop iteration set to tiles
  *
  * @param tiles
  *   the list of tiles the iterations are added to
- * @param loopIndex
- *   the index of a loop crossed by tile
- * @param itSetSize
- *   number of iterations to be assigned
+ * @param loop
+ *   the tiled loop
  * @param iter2tile
  *   indirection array from iterations to tile identifiers
  */
-void tile_assign_loop (tile_list* tiles, int loopIndex, int itSetSize, int* iter2tileMap);
+void tile_assign_loop (tile_list* tiles, loop_t* loop, int* iter2tileMap);
 
 /*
  * Retrieve a local map of a tile given a loop index and a map name

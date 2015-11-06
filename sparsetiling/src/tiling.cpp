@@ -51,7 +51,7 @@ void project_forward (loop_t* tiledLoop,
     else {
       // indirect set case
 
-      // use the inverted map to compute the projection for two reasons:
+      // use the inverse map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
@@ -172,7 +172,7 @@ void project_backward (loop_t* tiledLoop,
     else {
       // indirect set case
 
-      // use the inverted map to compute the projection for two reasons:
+      // use the inverse map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,

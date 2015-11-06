@@ -108,6 +108,6 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
 
   if (maxIncidence)
     *maxIncidence = incidence;
-  return imap ("inverted_" + x2y->name, set_cpy(x2y->outSet), set_cpy(x2y->inSet),
+  return imap ("inverse_" + x2y->name, set_cpy(x2y->outSet), set_cpy(x2y->inSet),
                y2xMap, y2xOffset);
 }
