@@ -445,27 +445,20 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 
 static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed)
 {
-  // with MPI, we only allow tiling from the bottom of the loop chain.
-  // In this way, we don't have to determine the /owned/ region which would be
-  // required to separate the /halo/ and /size/ regions to prevent tiles from
-  // growing over /halo/.
+  // sequential backend
+  if (strategy == SEQUENTIAL) {
+    return suggestedSeed;
+  }
 
-  if (strategy == ONLY_MPI) {
-    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
+  // any parallel backend in [OMP, ONLY_MPI, OMP_MPI], but there's just one loop
+  // and that loop doesn't require any sort of synchronization
+  if (loops->size() == 1 && loop_is_direct(loops->at(0))) {
     return 0;
   }
-  if (strategy == OMP_MPI) {
-    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
-    ASSERT (loop_load_seed_map (loops->at(0), loops), "Couldn't load a map for coloring");
-    return 0;
-  }
+
+  // openmp backend, so coloring required. Need at least one indirection map
+  // to determine adjacencies between tiles.
   if (strategy == OMP) {
-    if (loops->size() == 1 && loop_is_direct(loops->at(0))) {
-      // only one loop and the loop is direct, we can fully parallelize it
-      return 0;
-    }
-    // the strategy involves shared memory parallelism with indirect memory
-    // accesses, so we need coloring through a suitable indirection map
     if (! loop_load_seed_map (loops->at(suggestedSeed))) {
       int i = 0;
       loop_list::const_iterator it, end;
@@ -478,7 +471,20 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
     }
     return suggestedSeed;
   }
-  if (strategy == SEQUENTIAL) {
-    return suggestedSeed;
+
+  // pure mpi backend (one mpi rank per process). Tiling starts from the bottom
+  // of the loop chain so that tiles can progressively grow over the halo region.
+  // Note that the user is expected to provide a "sufficiently large" halo region.
+  if (strategy == ONLY_MPI) {
+    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
+    return 0;
+  }
+
+  // mixed mpi and openmp backend. Need both coloring and a "sufficiently large"
+  // halo region. The considerations made before still apply.
+  if (strategy == OMP_MPI) {
+    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
+    ASSERT (loop_load_seed_map (loops->at(0), loops), "Couldn't load a map for coloring");
+    return 0;
   }
 }
