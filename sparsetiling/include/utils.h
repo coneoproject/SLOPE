@@ -1,7 +1,7 @@
 /*
  *  utils.h
  *
- * Implement some utility functions and macros
+ * Utility functions
  */
 
 #ifndef _UTILS_H_
@@ -179,7 +179,7 @@ inline double time_stamp()
  * 1.0
  */
 #ifndef VTK_DIR
-#define VTK_DIR "vtkfiles"
+#define VTK_DIR "/home/fl1612/Projects/Firedrake/firedrake/demos/tiling/vtkfiles"
 #endif
 
 enum dimension {DIM1 = 1, DIM2 = 2, DIM3 = 3};
