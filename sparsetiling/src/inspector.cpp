@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include <omp.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -22,7 +24,6 @@ using namespace std;
 // prototypes of static functions
 static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed);
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
-
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshMaps)
 {
@@ -220,7 +221,9 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   map_t* iter2tile = insp->iter2tile;
   map_t* iter2color = insp->iter2color;
   tile_list* tiles = insp->tiles;
+  insp_strategy strategy = insp->strategy;
   int seed = insp->seed;
+  int nSweeps = insp->nSweeps;
   int avgTileSize = insp->avgTileSize;
   int nTiles = tiles->size();
   int nLoops = loops->size();
@@ -256,10 +259,30 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
+  cout << "Tiling computed in " << nSweeps << " sweeps" << endl;
+
+  // backend-related info:
+  string backend;
+  switch (strategy) {
+    case SEQUENTIAL:
+      backend = "Sequential";
+      break;
+    case OMP:
+      backend = "OpenMP";
+      break;
+    case ONLY_MPI:
+      backend = "MPI";
+      break;
+    case OMP_MPI:
+      backend = "Hybrid MPI-OpenMP";
+      break;
+  }
+  cout << endl << "Backend: " << backend << endl;
+  cout << "Number of threads per process: " << omp_get_max_threads() << endl;
 
   if (level != VERY_LOW && level != MINIMAL) {
     if (iter2tile && iter2color) {
-      cout << endl << "Printing partioning of the seed loop's iteration set:" << endl;
+      cout << endl << "Printing partioning of the seed loop iteration set:" << endl;
       cout << "  Iteration  |  Tile |  Color" << endl;
       for (int i = 0; i < itSetSize / avgTileSize; i++) {
         int offset = i*avgTileSize;
@@ -298,9 +321,9 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
 
   if (level != MINIMAL && tiles && loopIndex != -2) {
-    cout << endl << "Tiling computed in " << insp->nSweeps << " sweeps" << endl;
+    cout << endl;
     if (loopIndex == -1) {
-      cout << "Printing tiles' seed loop iterations" << endl;
+      cout << "Printing seed loop iterations by tile" << endl;
       print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
       if (seed + 1 < nLoops) {
         cout << endl << "Printing result of forward tiling..." << endl;
@@ -309,7 +332,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
         }
       }
       else {
-        cout << endl << "No forward tiling (seed loop is loop chain's top)" << endl;
+        cout << endl << "No forward tiling (seed loop is at the loop chain top)" << endl;
       }
       if (0 <= seed - 1) {
         cout << endl << "Printing result of backward tiling..." << endl;
@@ -318,7 +341,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
         }
       }
       else {
-        cout << endl << "No backward tiling (seed loop is loop chain's bottom)" << endl;
+        cout << endl << "No backward tiling (seed loop is at the loop chain bottom)" << endl;
       }
     }
     else {
