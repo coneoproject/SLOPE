@@ -421,7 +421,6 @@ def get_compile_opts(compiler='gnu'):
     optimization_opts = ['-O3']
     optimization_opts.append('-fopenmp')
     if Inspector._globaldata['mode'] == 'OMP':
-        functional_opts.append('-DSLOPE_OMP')
         if compiler == 'intel':
             optimization_opts.append('-par-affinity=scatter,verbose')
     if compiler == 'intel':

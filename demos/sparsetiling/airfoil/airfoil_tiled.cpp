@@ -174,9 +174,7 @@ int main(int argc, char **argv)
         // for all tiles of this color
         const int nTilesPerColor = exec_tiles_per_color (exec, i);
 
-#ifdef SLOPE_OMP
         #pragma omp parallel for
-#endif
         for (int j = 0; j < nTilesPerColor; j++) {
           // execute the tile
           tile_t* tile = exec_tile_at (exec, i, j);
@@ -295,11 +293,7 @@ int main(int argc, char **argv)
 
     // print iteration history
     rms = sqrt(rms/(double) nCells);
-#ifdef SLOPE_OMP
     if (iter%100 == 0)
-#else
-    if (iter%10 == 0)
-#endif
       printf(" %d  %10.5e \n",iter,rms);
   }
 

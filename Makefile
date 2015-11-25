@@ -41,7 +41,7 @@ METIS_LINK = -L$(METIS_LIB) -lmetis
 
 CXX := $(CXX)
 MPICXX := $(MPICXX)
-CXXFLAGS := -std=c++0x $(CXX_OPTS) $(SLOPE_VTK) $(SLOPE_OMP)
+CXXFLAGS := -std=c++0x $(CXX_OPTS) $(SLOPE_VTK)
 
 ifeq ($(SLOPE_ARCH),linux)
   CLOCK_LIB = -lrt
