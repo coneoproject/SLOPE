@@ -445,16 +445,16 @@ def get_lib_dir():
 
 # Functions for setting global information for inspection and execution
 
-def set_debug_mode(mode, coordinates):
-    """Add a coordinates field such that inspection can generate VTK files
-    useful for debugging and visualization purposes.
+def set_debug_mode(mode, coordinates=None):
+    """Output useful information once inspection is terminated.
 
-    :param mode: the verbosity level for debug mode (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
-    :param coordinates: a 3-tuple, in which the first entry is the set name the
-                        coordinates belong to; the second entry is a numpy array of
-                        coordinates values; the third entry indicates the dimension
-                        of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
-                        datasets, respectively)
+    :param mode: the verbosity level of debug mode (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
+    :param coordinates: (optional) Add a coordinates field that allows the inspector to
+        generate VTK files useful for debugging and visualization purposes.
+    :type coordinates: a 3-tuple, in which the first entry is the set name the
+        coordinates belong to; the second entry is a numpy array of coordinates values;
+        the third entry indicates the dimension of the dataset (accepted [1, 2, 3],
+        for 1D, 2D, and 3D datasets, respectively)
     """
     modes = ['MINIMAL', 'VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
@@ -462,10 +462,11 @@ def set_debug_mode(mode, coordinates):
         mode = 'MINIMAL'
     Inspector._globaldata['debug_mode'] = mode
 
-    _, _, arity = coordinates
-    if arity not in [1, 2, 3]:
-        raise SlopeError("Arity should be a number in [1, 2, 3]")
-    Inspector._globaldata['coordinates'] = coordinates
+    if coordinates:
+        _, _, arity = coordinates
+        if arity not in [1, 2, 3]:
+            raise SlopeError("Arity should be a number in [1, 2, 3]")
+        Inspector._globaldata['coordinates'] = coordinates
 
 
 def set_mesh_maps(maps):
