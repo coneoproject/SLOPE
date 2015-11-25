@@ -74,7 +74,7 @@ void project_forward (loop_t* tiledLoop,
         tracker_t localTracker;
         // iterate over the projected loop iteration set, and use the map to access
         // the tiledLoop iteration set's elements.
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(static)
         for (int i = 0; i < projSetSize; i++) {
           projIter2tile[i] = -1;
           projIter2color[i] = -1;
@@ -211,7 +211,7 @@ void project_backward (loop_t* tiledLoop,
         tracker_t localTracker;
         // iterate over the projected loop iteration set, and use the map to access
         // the tiledLoop iteration set's elements.
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(static)
         for (int i = 0; i < projSetSize; i++) {
           projIter2tile[i] = INT_MAX;
           projIter2color[i] = INT_MAX;
@@ -331,7 +331,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
     if (touchedSet == toTile) {
       // direct set case
-      #pragma omp parallel for schedule(dynamic)
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = projIter2tile[i];
         int iterColor = MAX(projIter2color[i], loopIter2color[i]);
@@ -352,7 +352,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
-      #pragma omp parallel for schedule(dynamic)
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
@@ -441,7 +441,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
     if (touchedSet == toTile) {
       // direct set case
-      #pragma omp parallel for schedule(dynamic)
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = projIter2tile[i];
         int iterColor = MIN(projIter2color[i], loopIter2color[i]);
@@ -462,7 +462,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
-      #pragma omp parallel for schedule(dynamic)
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
