@@ -38,6 +38,7 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshM
   insp->iter2color = NULL;
   insp->tiles = NULL;
   insp->nSweeps = 0;
+  insp->inspectionTime = 0.0;
 
   insp->meshMaps = meshMaps;
 
@@ -71,6 +72,9 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   insp_strategy strategy = insp->strategy;
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
+
+  // start timing the inspection
+  double start = time_stamp();
 
   // establish the seed loop
   int seed = select_seed_loop (strategy, loops, suggestedSeed);
@@ -209,6 +213,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     insp->nSweeps++;
   } while (conflicts);
 
+  // inspection finished, stop timer
+  double end = time_stamp();
+  insp->inspectionTime = end - start;
+
   return INSP_OK;
 }
 
@@ -224,6 +232,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   insp_strategy strategy = insp->strategy;
   int seed = insp->seed;
   int nSweeps = insp->nSweeps;
+  double inspectionTime = insp->inspectionTime;
   int avgTileSize = insp->avgTileSize;
   int nTiles = tiles->size();
   int nLoops = loops->size();
@@ -259,7 +268,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  cout << "Tiling computed in " << nSweeps << " sweeps" << endl;
+  cout << "Inspection time: " << inspectionTime << " s ("
+       << nSweeps << " sweeps required)" << endl;
 
   // backend-related info:
   string backend;

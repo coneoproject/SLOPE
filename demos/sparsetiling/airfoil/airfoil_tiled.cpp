@@ -94,9 +94,6 @@ int main(int argc, char **argv)
   const int seedTilePoint = nLoops / 2;
 
   printf("running inspector\n");
-  printf("average tile size: %d iterations\n", avgTileSize);
-
-  double startInsp = time_stamp();
 
   // sets
   // note: the 0s indicate that MPI execution is not supported
@@ -135,9 +132,6 @@ int main(int argc, char **argv)
   insp_add_parloop (insp, "resCalc2", edges, &resCalcDesc);
 
   insp_run (insp, seedTilePoint);
-
-  double endInsp = time_stamp();
-  printf("inspector run-time = %f\n", endInsp - startInsp);
 
   insp_print (insp, VERY_LOW);
 

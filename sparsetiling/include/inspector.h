@@ -36,6 +36,8 @@ typedef struct {
   set_t* tileRegions;
   /* number of tiling sweeps */
   int nSweeps;
+  /* time the inspection took */
+  double inspectionTime;
   /* the mesh structure, as a list of maps to nodes */
   map_list* meshMaps;
 
