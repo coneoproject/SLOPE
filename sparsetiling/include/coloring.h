@@ -7,6 +7,7 @@
 #define _COLORING_H_
 
 #include "inspector.h"
+#include "tiling.h"
 
 /*
  * Assign increasing colors to the various tiles.

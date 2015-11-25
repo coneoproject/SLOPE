@@ -539,6 +539,11 @@ void iter2tc_free (iter2tc_t* iter2tc)
   delete iter2tc;
 }
 
+projection_t* projection_init()
+{
+  return new projection_t (&iter2tc_cmp);
+}
+
 void projection_free (projection_t* projection)
 {
   projection_t::iterator it, end;

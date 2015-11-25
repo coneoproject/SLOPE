@@ -14,8 +14,10 @@
 #include "parloop.h"
 #include "tile.h"
 
+/**************************************************************************/
+
 /*
- * Bind each element of an iteration set to a tile and a color
+ * Simple structure to map iteration set elements to a tile and a color
  */
 typedef struct {
   /* set name identifier */
@@ -27,16 +29,6 @@ typedef struct {
   /* coloring of the iteration set */
   int* iter2color;
 } iter2tc_t;
-
-/*
- * A projection_t can be implemented by any container provided that the semantics
- * of the container is such that its elements are unique.
- */
-inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
-{
-  return a->name < b->name;
-}
-typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
 
 /*
  * Bind iterations to tile IDs and colors.
@@ -56,17 +48,51 @@ iter2tc_t* iter2tc_cpy (iter2tc_t* iter2tc);
  */
 void iter2tc_free (iter2tc_t* iter2tc);
 
-/*
- * Free resources associated with a projection_t
- */
-void projection_free (projection_t* projection);
+
+inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
+{
+  return a->name < b->name;
+}
+
+
 
 /**************************************************************************/
 
-// Note: the following functions are classified as either for forward or backward
-// tiling. Since the tiling operations need to be fast, we prefer to keep them
-// separated instead of using a single "project" and a single "tile" functions plus
-// function pointers to MAX/MIN (that is, we stick to inline calls).
+/*
+ * Represent a projection
+ */
+typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
+
+/*
+ * Initialize a new projection
+ */
+projection_t* projection_init();
+
+/*
+ * Destroy a projection
+ */
+void projection_free (projection_t* projection);
+
+
+
+/**************************************************************************/
+
+/* Prototypes and data structures for the tiling and projection functions
+ *
+ * Notes:
+ * 1) Since tiling must be fast, we prefer to have separated functions for forward
+ * and backward tiling (or projection), rather than a single function using an
+ * if-then-else construct or function pointers to apply the MAX/MIN operators.
+ *
+ * 2) Tiling and projection make use of "trackers". A tracker is used to map
+ * conflicting tiles; that is, tiles having the same color that, due to the tiling
+ * process, became adjacent. In a tracker, an entry ``1 -> {2, 3}'' means that
+ * tile 1 is in conflict with tiles 2 and 3.
+ */
+
+/* Tracker: a map from tile IDs to a set of tile IDs */
+typedef std::set<int> index_set;
+typedef std::map<int, index_set> tracker_t;
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are

@@ -142,8 +142,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
     // prepare for forward tiling
     loop_t* prevTiledLoop = seedLoop;
-    projection_t* seedLoopProj = new projection_t (&iter2tc_cmp);
-    projection_t* prevLoopProj = new projection_t (&iter2tc_cmp);
+    projection_t* seedLoopProj = projection_init();
+    projection_t* prevLoopProj = projection_init();
     iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
                                               tmpIter2tileMap, tmpIter2colorMap);
     iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
