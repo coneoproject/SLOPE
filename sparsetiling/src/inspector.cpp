@@ -24,6 +24,8 @@ using namespace std;
 // prototypes of static functions
 static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed);
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
+static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
+
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshMaps)
 {
@@ -212,6 +214,9 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
     insp->nSweeps++;
   } while (conflicts);
+
+  // compute local indirection maps (this avoids double indirections in the executor)
+  compute_local_ind_maps (loops, tiles);
 
   // inspection finished, stop timer
   double end = time_stamp();
@@ -519,5 +524,60 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
     ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
     ASSERT (loop_load_seed_map (loops->at(0), loops), "Couldn't load a map for coloring");
     return 0;
+  }
+}
+
+static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
+{
+  // aliases
+  int nLoops = loops->size();
+  int nTiles = tiles->size();
+
+  /* For each loop spanned by a tile, take the global maps used in that loop and,
+   * for each of them:
+   * - access it by an iteration index
+   * - store the accessed value in a tile's local map
+   * This way, local iteration index 0 in the local map corresponds to the global
+   * iteration index that a tile would have accessed first in a given loop; and so on.
+   * This allows scanning indirection maps linearly, which should improve hardware
+   * prefetching, instead of accessing a list of non-contiguous indices in a
+   * global mapping.
+   */
+  loop_list::const_iterator lIt, lEnd;
+  int i = 0;
+  for (lIt = loops->begin(), lEnd = loops->end(); lIt != lEnd; lIt++, i++) {
+    desc_list* descriptors = (*lIt)->descriptors;
+
+    tile_list::const_iterator tIt, tEnd;
+    for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
+      mapname_iterations* localMaps = new mapname_iterations;
+      desc_list::const_iterator dIt, dEnd;
+      for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+        map_t* globalMap = (*dIt)->map;
+
+        if (globalMap == DIRECT) {
+          continue;
+        }
+        if (localMaps->find(globalMap->name) != localMaps->end()) {
+          // avoid computing same local map more than once
+          continue;
+        }
+
+        int* globalIndMap = globalMap->values;
+        int arity = globalMap->size / globalMap->inSet->size;
+        int tileLoopSize = (*tIt)->iterations[i]->size();
+
+        iterations_list* localMap = new iterations_list (tileLoopSize*arity);
+        localMaps->insert (mi_pair(globalMap->name, localMap));
+
+        for (int e = 0; e < tileLoopSize; e++) {
+          int element = (*tIt)->iterations[i]->at(e);
+          for (int j = 0; j < arity; j++) {
+            localMap->at(e*arity + j) = globalIndMap[element*arity + j];
+          }
+        }
+      }
+      (*tIt)->localMaps[i] = localMaps;
+    }
   }
 }
