@@ -40,7 +40,9 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshM
   insp->iter2color = NULL;
   insp->tiles = NULL;
   insp->nSweeps = 0;
-  insp->inspectionTime = 0.0;
+
+  insp->totalInspectionTime = 0.0;
+  insp->partitioningTime = 0.0;
 
   insp->meshMaps = meshMaps;
 
@@ -90,7 +92,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   int seedLoopSetSize = seedLoop->set->size;
 
   // partition the seed loop iteration set into tiles
+  double startPartitioning = time_stamp();
   partition (insp);
+  double endPartitioning = time_stamp();
+
   map_t* iter2tile = insp->iter2tile;
   tile_list* tiles = insp->tiles;
 
@@ -220,7 +225,9 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // inspection finished, stop timer
   double end = time_stamp();
-  insp->inspectionTime = end - start;
+  // track time spent in various sections of the inspection
+  insp->partitioningTime = endPartitioning - startPartitioning;
+  insp->totalInspectionTime = end - start;
 
   return INSP_OK;
 }
@@ -237,7 +244,8 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   insp_strategy strategy = insp->strategy;
   int seed = insp->seed;
   int nSweeps = insp->nSweeps;
-  double inspectionTime = insp->inspectionTime;
+  double totalInspectionTime = insp->totalInspectionTime;
+  double partitioningTime = insp->partitioningTime;
   int avgTileSize = insp->avgTileSize;
   int nTiles = tiles->size();
   int nLoops = loops->size();
@@ -273,8 +281,9 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  cout << "Inspection time: " << inspectionTime << " s ("
-       << nSweeps << " sweeps required)" << endl;
+  cout << "Inspection time: " << totalInspectionTime << " s"
+       << "(sweeps required: " << nSweeps << "; "
+       << "partitioning time: " << partitioningTime << ")" << endl;
 
   // backend-related info:
   string backend;
