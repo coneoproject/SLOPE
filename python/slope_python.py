@@ -199,12 +199,14 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         # Add coordinate field
         coordinates = Inspector._globaldata.get('coordinates')
+        ctype = Dat*1
         if coordinates:
             set, data, arity = coordinates
             set_size = data.size / arity
-            ctype = Dat*1
             extra.append((ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                                            set_size))))
+        else:
+            extra.append((ctype, ctype(Dat(None, 0))))
 
         # Add mesh maps
         mesh_maps = Inspector._globaldata.get('mesh_maps', [])
