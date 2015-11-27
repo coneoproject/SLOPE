@@ -124,7 +124,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         # compiling the generated code
         sets = sorted(list(sets), key=lambda x: x[4])
         # Now extract and format info for each set
-        sets = [(self._fix_c(n), cs, es, ns, sset) for n, cs, es, ns, sset in sets]
+        sets = [(_fix_c(n), cs, es, ns, sset) for n, cs, es, ns, sset in sets]
         ctype = Set*len(sets)
         self._sets = sets
         return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, sset in sets]))
@@ -135,7 +135,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         :param maps: iterator of 4-tuple:
                      (name, input_set, output_set, map_values)
         """
-        maps = [(n, self._fix_c(i), self._fix_c(o), v) for n, i, o, v in maps]
+        maps = [(n, _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
         return (ctype, ctype(*[Map(n,
@@ -156,7 +156,7 @@ void* inspector(slope_set sets[%(n_sets)d],
                     If the access to a dataset does not involve any map, than the
                     first entry assumes the value of the special keyword ``DIRECT``
         """
-        self._loops = [(n, self._fix_c(s), d) for n, s, d in loops]
+        self._loops = [(n, _fix_c(s), d) for n, s, d in loops]
 
     def set_partitioning(self, mode):
         """Set the seed iteration space partitioning mode. This method should be
@@ -264,12 +264,6 @@ void* inspector(slope_set sets[%(n_sets)d],
             'output_vtk': output_vtk,
             'output_insp': output_insp
         }
-
-    def _fix_c(self, var):
-        """Make string ``var`` a valid C literal removing invalid characters."""
-        for ch in ['/', '#']:
-            var = var.replace(ch, '')
-        return var.split('.')[-1]
 
 
 class Executor(object):
@@ -409,6 +403,15 @@ class SlopeError(Exception):
         return repr(self.value)
 
 
+# Utility functions
+
+def _fix_c(var):
+    """Make string ``var`` a valid C literal by removing invalid characters."""
+    for ch in ['/', '#']:
+        var = var.replace(ch, '')
+    return var.split('.')[-1]
+
+
 # Utility functions for the caller
 
 def get_compile_opts(compiler='gnu'):
@@ -472,6 +475,7 @@ def set_debug_mode(mode, coordinates=None):
 def set_mesh_maps(maps):
     """Add the mesh topology through maps from generic mesh components (e.g. edges,
     cells) to nodes."""
+    maps = [(n, _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
     Inspector._globaldata['mesh_maps'] = maps
 
 
