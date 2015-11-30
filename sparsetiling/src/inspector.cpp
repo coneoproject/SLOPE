@@ -242,6 +242,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   map_t* iter2color = insp->iter2color;
   tile_list* tiles = insp->tiles;
   insp_strategy strategy = insp->strategy;
+  map_list* meshMaps = insp->meshMaps;
   int seed = insp->seed;
   int nSweeps = insp->nSweeps;
   double totalInspectionTime = insp->totalInspectionTime;
@@ -274,16 +275,17 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
   if (loops) {
     cout << "Number of loops: " << nLoops << endl;
-    cout << "Seed loop: " << seed << endl;
+    cout << "Seed loop: " << seed
+         << " (partitioning mode: " << ((meshMaps) ? "metis" : "chunk") << ")" << endl;
   }
   else {
     cout << "No loops specified" << endl;
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
-  cout << "Inspection time: " << totalInspectionTime << " s"
-       << "(sweeps required: " << nSweeps << "; "
-       << "partitioning time: " << partitioningTime << ")" << endl;
+  cout << "Inspection time: " << totalInspectionTime << " s" << endl
+       << "    Sweeps required: " << nSweeps << endl
+       << "    Partitioning time: " << partitioningTime << " s" << endl;
 
   // backend-related info:
   string backend;
