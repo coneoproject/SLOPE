@@ -10,6 +10,9 @@
 #include "partitioner.h"
 #include "utils.h"
 
+#include <algorithm>
+#include <iostream>
+
 static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* nNonExec);
 static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec);
 
@@ -139,7 +142,7 @@ static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* n
  */
 static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec)
 {
-  int setSize = seedLoop->set->size;
+  int i;
 
   // use the mesh description to find a suitable map for partitioning through METIS
   map_t* iter2nodes = NULL;
@@ -157,33 +160,50 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore
     return chunk (seedLoop, tileSize, nCore, nExec, nNonExec);
   }
 
-  // partition the local core region through METIS
-  int nElements = iter2nodes->inSet->core;
-  int nNodes = iter2nodes->outSet->core;
-  int arity = iter2nodes->size / setSize;
-  *nCore = nElements / tileSize;
-  int* indMap = new int[setSize];
+  // partition through METIS
+  int nElements = iter2nodes->inSet->size;
+  int nNodes = iter2nodes->outSet->size;
+  int* adjncy = iter2nodes->values;
+  int arity = iter2nodes->size / nElements;
+  int nParts = nElements / tileSize;
+  int* indMap = new int[nElements];
   int* indNodesMap = new int[nNodes];
   int* offsets = new int[nElements+1]();
-  for (int i = 1; i < nElements+1; i++) {
+  for (i = 1; i < nElements+1; i++) {
     offsets[i] = offsets[i-1] + arity;
   }
-  int* adjncy = iter2nodes->values;
-  // partitioning related options
+  int result, objval, ncon = 1;
   int options[METIS_NOPTIONS];
   METIS_SetDefaultOptions(options);
   options[METIS_OPTION_NUMBERING] = 0;
   options[METIS_OPTION_CONTIG] = 1;
-  int result, objval, ncon = 1;
   result = (arity == 2) ?
-    METIS_PartGraphKway(&nNodes, &ncon, offsets, adjncy, NULL, NULL, NULL,
-                        nCore, NULL, NULL, options, &objval, indMap) :
-    METIS_PartMeshNodal(&nElements, &nNodes, offsets, adjncy, NULL, NULL,
-                        nCore, NULL, options, &objval, indMap, indNodesMap);
+    METIS_PartGraphKway (&nNodes, &ncon, offsets, adjncy, NULL, NULL, NULL,
+                         &nParts, NULL, NULL, options, &objval, indMap) :
+    METIS_PartMeshNodal (&nElements, &nNodes, offsets, adjncy, NULL, NULL,
+                         &nParts, NULL, options, &objval, indMap, indNodesMap);
   ASSERT(result == METIS_OK, "Invalid METIS partitioning");
 
+  // restrict partitions to the core region
+  int nElementsCore = iter2nodes->inSet->core;
+  std::fill (indMap + nElementsCore, indMap + nElements, 0);
+  std::set<int> partitions (indMap, indMap + nElementsCore);
+  // ensure the set of partitions IDs is compact (i.e., if we have a partitioning
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {}, 3: {6,10,...} ...
+  // we instead want to have
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {6,10,...}, ...
+  std::map<int, int> mapper;
+  std::set<int>::const_iterator sIt, sEnd;
+  for (i = 0, sIt = partitions.begin(), sEnd = partitions.end(); sIt != sEnd; sIt++, i++) {
+    mapper[*sIt] = i;
+  }
+  for (i = 0; i < nElementsCore; i++) {
+    indMap[i] = mapper[indMap[i]];
+  }
+  *nCore = partitions.size();
+
   // partition the exec halo region
-  chunk_halo(seedLoop, tileSize, *nCore, indMap, nExec, nNonExec);
+  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec);
 
   delete indNodesMap;
   delete offsets;
