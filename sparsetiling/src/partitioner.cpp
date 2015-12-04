@@ -148,42 +148,17 @@ static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* n
  */
 static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec)
 {
+  int i;
   int setCore = seedLoop->set->core;
   int setSize = seedLoop->set->size;
-
-  int i;
-  int nElements, nNodes, nParts, arity;
-  int* offsets;
 
   // use the mesh description to find a suitable map for partitioning through METIS
   map_t* map = NULL;
   map_list::const_iterator it, end;
   for (it = meshMaps->begin(), end = meshMaps->end(); it != end; it++) {
-    if (set_eq(seedLoop->set, (*it)->inSet)) {
+    if (set_eq(seedLoop->set, (*it)->inSet) || set_eq(seedLoop->set, (*it)->outSet)) {
       map = *it;
-      nElements = map->inSet->size;
-      nNodes = map->outSet->size;
-      nParts = nElements / tileSize;
-      arity = map->size / nElements;
-      offsets = new int[nElements+1]();
-      for (i = 1; i < nElements+1; i++) {
-        offsets[i] = offsets[i-1] + arity;
-      }
       break;
-    }
-  }
-  if (! map) {
-    // still can try to use an inverse map
-    for (it = meshMaps->begin(), end = meshMaps->end(); it != end; it++) {
-      if (set_eq(seedLoop->set, (*it)->outSet)) {
-        map = map_invert (*it, NULL);
-        arity = -1;
-        nElements = map->inSet->size;
-        nNodes = map->outSet->size;
-        nParts = nNodes / tileSize;
-        offsets = map->offsets;
-        break;
-      }
     }
   }
   if (! map) {
@@ -193,17 +168,27 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore
     return NULL;
   }
 
-  // common parameters
-  int* adjncy = map->values;
+  // now partition through METIS:
+  // ... mesh geometry
+  int nElements = map->inSet->size;
+  int nNodes = map->outSet->size;
+  int nParts = nElements / tileSize;
+  int arity = map->size / nElements;
+  // ... data needed for partitioning
   int* indMap = new int[nElements];
   int* indNodesMap = new int[nNodes];
-
-  // partition through METIS
+  int* adjncy = map->values;
+  int* offsets = new int[nElements+1]();
+  for (i = 1; i < nElements+1; i++) {
+    offsets[i] = offsets[i-1] + arity;
+  }
+  // ... options
   int result, objval, ncon = 1;
   int options[METIS_NOPTIONS];
   METIS_SetDefaultOptions(options);
   options[METIS_OPTION_NUMBERING] = 0;
   options[METIS_OPTION_CONTIG] = 1;
+  // ... do partition!
   result = (arity == 2) ?
     METIS_PartGraphKway (&nNodes, &ncon, offsets, adjncy, NULL, NULL, NULL,
                          &nParts, NULL, NULL, options, &objval, indMap) :
@@ -211,16 +196,16 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore
                          &nParts, NULL, options, &objval, indMap, indNodesMap);
   ASSERT(result == METIS_OK, "Invalid METIS partitioning");
 
-  // if the dual graph was partitioned, need to use the right /indMap/
-  if (arity != -1) {
+  // what's the target iteration set ?
+  if (set_eq(seedLoop->set, map->inSet)) {
     delete[] indNodesMap;
-    delete[] offsets;
   }
   else {
-    map_free (map, true);
+    // note: must be set_eq(seedLoop->set, map-outSet)
     delete[] indMap;
     indMap = indNodesMap;
   }
+  delete[] offsets;
 
   // restrict partitions to the core region
   std::fill (indMap + setCore, indMap + setSize, 0);
