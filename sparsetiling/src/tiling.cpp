@@ -294,7 +294,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
@@ -404,7 +404,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
