@@ -51,6 +51,11 @@ void project_forward (loop_t* tiledLoop,
     else {
       // indirect set case
 
+      // is there anything to project ?
+      if (descMap->inSet->size == 0) {
+        continue;
+      }
+
       // use the inverse map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
@@ -188,6 +193,11 @@ void project_backward (loop_t* tiledLoop,
     else {
       // indirect set case
 
+      // is there anything to project ?
+      if (descMap->inSet->size == 0) {
+        continue;
+      }
+
       // use the inverse map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
@@ -303,6 +313,11 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   std::fill_n (loopIter2color, toTileSetSize, -1);
   loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
 
+  if (toTileSetSize == 0) {
+    // no need to tile
+    return loopIter2tc;
+  }
+
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
     // aliases
@@ -412,6 +427,11 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   std::fill_n (loopIter2tile, toTileSetSize, INT_MAX);
   std::fill_n (loopIter2color, toTileSetSize, INT_MAX);
   loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
+
+  if (toTileSetSize == 0) {
+    // no need to tile
+    return loopIter2tc;
+  }
 
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
