@@ -13,8 +13,10 @@
 #include <algorithm>
 #include <iostream>
 
-static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* nNonExec);
-static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec);
+static int* chunk(loop_t* seedLoop, int tileSize,
+                  int* nCore, int* nExec, int* nNonExec);
+static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
+                  int* nCore, int* nExec, int* nNonExec);
 
 void partition (inspector_t* insp)
 {
@@ -66,7 +68,8 @@ void partition (inspector_t* insp)
 /*
  * Chunk-partition halo regions
  */
-static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap, int* nExec, int* nNonExec)
+static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap,
+                       int* nExec, int* nNonExec)
 {
   int setCore = seedLoop->set->core;
   int setExecHalo = seedLoop->set->execHalo;
@@ -74,17 +77,10 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap, 
   int setSize = seedLoop->set->size;
 
   // partition the exec halo region
-  // this region is expected to be smaller than core, so we shrunk /tileSize/
-  // accordingly to have enough parallelism
+  // this region is expected to be much smaller than core, so we first shrunk
+  // /tileSize/ in order to have enough parallelism if openmp is used
   int nThreads = omp_get_max_threads();
-  if (setExecHalo <= nThreads) {
-    tileSize = setExecHalo;
-  }
-  else if (setExecHalo > nThreads*2) {
-    tileSize = setExecHalo / (nThreads*2);
-  }
-  else {
-    // nThreads < setExecHalo < nThreads*2
+  if (nThreads > 1) {
     tileSize = setExecHalo / nThreads;
   }
   int i = 0;
@@ -146,7 +142,8 @@ static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* n
  * Assign loop iterations to tiles carving partitions out of /seedLoop/ using
  * the METIS library.
  */
-static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec)
+static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
+                  int* nCore, int* nExec, int* nNonExec)
 {
   int i;
   int setCore = seedLoop->set->core;
