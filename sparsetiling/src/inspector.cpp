@@ -82,7 +82,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // establish the seed loop
   int seed = select_seed_loop (strategy, loops, suggestedSeed);
-  ASSERT((seed >= 0) && (seed < nLoops), "Could not find a valid seed loop");
   insp->seed = seed;
 
   // aliases
@@ -494,25 +493,39 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 
 static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed)
 {
-  // sequential backend
-  if (strategy == SEQUENTIAL) {
-    return suggestedSeed;
-  }
+  int nLoops = loops->size();
+  loop_t* suggestedLoop = loops->at(suggestedSeed);
 
-  // any parallel backend in [OMP, ONLY_MPI, OMP_MPI], but there's just one loop
-  // and that loop doesn't require any sort of synchronization
-  if (loops->size() == 1 && loop_is_direct(loops->at(0))) {
+  // any backend, including the parallel ones, since there's just one loop and
+  // no need for synchronization
+  if (nLoops == 1 && loop_is_direct(loops->at(0))) {
     return 0;
   }
 
-  // openmp backend, so coloring required. Need at least one indirection map
-  // to determine adjacencies between tiles.
-  if (strategy == OMP) {
-    if (! loop_load_seed_map (loops->at(suggestedSeed))) {
+  // sequential backend
+  if (strategy == SEQUENTIAL) {
+    if (nLoops > 1 && suggestedLoop->set->superset) {
       int i = 0;
       loop_list::const_iterator it, end;
       for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
-        if (loop_load_seed_map (*it)) {
+        if (! (*it)->set->superset) {
+          return i;
+        }
+      }
+      ASSERT(false, "Invalid loop chain iterating over supersets only");
+    }
+    return suggestedSeed;
+  }
+
+  // openmp backend, coloring required. Need at least one indirection map
+  // to determine adjacencies between tiles.
+  if (strategy == OMP) {
+    if ((nLoops > 1 && suggestedLoop->set->superset) ||
+        (! loop_load_seed_map (suggestedLoop, loops))) {
+      int i = 0;
+      loop_list::const_iterator it, end;
+      for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+        if (! (*it)->set->superset && loop_load_seed_map (*it, loops)) {
           return i;
         }
       }
@@ -521,20 +534,25 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
     return suggestedSeed;
   }
 
+  // for MPI backends, the only legal seed is 0
+  int legalSeed = 0;
+  ASSERT (! loops->at(legalSeed)->set->superset || nLoops == 1, "Illegal subset seed loop");
+
   // pure mpi backend (one mpi rank per process). Tiling starts from the bottom
   // of the loop chain so that tiles can progressively grow over the halo region.
   // Note that the user is expected to provide a "sufficiently large" halo region.
   if (strategy == ONLY_MPI) {
-    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
-    return 0;
+    ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
+    return legalSeed;
   }
 
   // mixed mpi and openmp backend. Need both coloring and a "sufficiently large"
-  // halo region. The considerations made before still apply.
+  // halo region (comments above also apply here)
   if (strategy == OMP_MPI) {
-    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
-    ASSERT (loop_load_seed_map (loops->at(0), loops), "Couldn't load a map for coloring");
-    return 0;
+    ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
+    ASSERT (loop_load_seed_map (loops->at(legalSeed), loops),
+            "Couldn't load a map for coloring");
+    return legalSeed;
   }
 }
 
