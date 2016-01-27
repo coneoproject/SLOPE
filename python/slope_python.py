@@ -93,7 +93,7 @@ void* inspector(slope_set sets[%(n_sets)d],
   %(mesh_map_defs)s
 
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s, %(name)s);
 
   %(loop_defs)s
 
@@ -110,7 +110,8 @@ void* inspector(slope_set sets[%(n_sets)d],
 }
 """
 
-    def __init__(self):
+    def __init__(self, name):
+        self._name = name
         self._sets, self._maps, self._loops, self._mesh_maps = [], [], [], []
         self._partitioning = 'chunk'
 
@@ -263,6 +264,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
+            'name': '"%s"' % self._name,
             'output_vtk': output_vtk,
             'output_insp': output_insp
         }

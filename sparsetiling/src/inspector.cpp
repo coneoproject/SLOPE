@@ -27,10 +27,12 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 
-inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshMaps)
+inspector_t* insp_init (int avgTileSize, insp_strategy strategy,
+                        map_list* meshMaps, string name)
 {
   inspector_t* insp = new inspector_t;
 
+  insp->name = name;
   insp->strategy = strategy;
   insp->avgTileSize = avgTileSize;
   insp->loops = new loop_list;
