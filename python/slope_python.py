@@ -287,6 +287,8 @@ class Executor(object):
         'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p),
         'ctype_region_flag': 'tile_region',
         'region_flag': 'region',
+        'ctype_rank': 'int',
+        'rank': 'rank'
     }
 
     omp_code = """
@@ -321,24 +323,70 @@ iterations_list& %(local_iters)s = tile_get_iterations (tile, %(loop_id)d);
 tileLoopSize = iterations_%(loop_id)d.size();
 """
 
+    debug_init = """
+// per loop info
+int nIters[%(nloops)s] = {0};
+std::vector<double> times[%(nloops)d];
+double start, end;
+// directory in which results will be stored
+struct stat st = {0};
+if (stat("Execution_output", &st) == -1) {
+  mkdir("Execution_output", 0700);
+}\n
+"""
+    debug_end = """\n
+std::string regionName = "core";
+if (region == 1) {
+  regionName = "exec";
+}
+std::stringstream stream;
+stream << "Execution_output" << "/" << "%(name)s" << "_rank" << rank << "_" << regionName << ".txt";
+std::ofstream outfile;
+outfile.open (stream.str(), std::fstream::in | std::fstream::out | std::fstream::app);
+
+for (int i = 0; i < %(nloops)d; i++) {
+  int nTiles = times[i].size();
+  double tot = 0.0;
+  for (int j = 0; j < nTiles; j++) {
+    tot += times[i][j];
+  }
+
+  outfile << "Loop " << i << ": totIters=" << nIters[i] << ", time=" << tot << std::endl;
+}
+outfile << "****************************" << std::endl;
+outfile.close();
+"""
+    time_start = """
+start = time_stamp();
+"""
+    time_end = """
+end = time_stamp();
+times[%(loop_id)d].push_back(end - start);
+nIters[%(loop_id)d] += tileLoopSize;
+"""
+
     def __init__(self, inspector):
         code_dict = dict(Executor.meta)
         code_dict.update({'omp': self._omp_pragma()})
-        self._code = "\n".join([Executor.init_code % code_dict,
-                                Executor.outer_tiles_loop % code_dict])
-        self._loop_init, self._gtl_maps = self._generate_loops(inspector._loops)
+        self._code = "\n".join([self._debug_init(inspector._loops),
+                                Executor.init_code % code_dict,
+                                Executor.outer_tiles_loop % code_dict,
+                                self._debug_end(inspector._name, inspector._loops)])
+        self._loop_init, self._gtl_maps, self._loop_end = self._genloops(inspector._loops)
 
-    def _generate_loops(self, loops):
-        """Return a 2-tuple, in which:
+    def _genloops(self, loops):
+        """Return a 3-tuple, in which:
 
             * the first entry represents initialization code to be executed right
-              before the tile's loop invoking the kernel;
+              before the kernel invocation
             * the second entry is a list of dict that binds, for each loop, global
               maps to local maps, as well as local iterations to the actual tile's
               iterations.
+            * the last entry represents "clean up code" to be executed right after
+              the kernel invocation
         """
-        header_code = []
-        gtl_maps = []  # gtl stands for global-to-local
+        # Note: gtl stands for global-to-local
+        header_code, gtl_maps, end_code = [], [], []
         for i, loop in enumerate(loops):
             descs = loop[2]
             global_maps = set(desc[0] for desc in descs if desc[0] != 'DIRECT')
@@ -359,8 +407,26 @@ tileLoopSize = iterations_%(loop_id)d.size();
             header_code.append(("%s%s" % (local_maps_def, local_iters)).strip('\n'))
             gtl_map.update({'DIRECT': name_local_iters})
             gtl_maps.append(gtl_map)
+            if Inspector._globaldata.get('debug_mode'):
+                header_code[-1] += Executor.time_start
+                end_code.append(Executor.time_end % {'loop_id': i})
 
-        return (header_code, gtl_maps)
+        return (header_code, gtl_maps, end_code)
+
+    def _debug_init(self, loops):
+        init = ""
+        if Inspector._globaldata.get('debug_mode'):
+            init = Executor.debug_init % {'nloops': len(loops)}
+        return init
+
+    def _debug_end(self, name, loops):
+        end = ""
+        if Inspector._globaldata.get('debug_mode'):
+            end = Executor.debug_end % {
+                'name': name,
+                'nloops': len(loops)
+            }
+        return end
 
     def _omp_pragma(self):
         return Executor.omp_code if Inspector._globaldata['mode'] in ['OMP', 'OMP_MPI'] else ''
@@ -386,8 +452,15 @@ tileLoopSize = iterations_%(loop_id)d.size();
         return self._loop_init
 
     @property
+    def c_loop_end(self):
+        return self._loop_end
+
+    @property
     def c_headers(self):
-        return Executor.meta['headers']
+        headers = Executor.meta['headers']
+        if Executor._globaldata.get('debug_mode'):
+            headers += ['#include <vector>']
+        return headers
 
     @property
     def gtl_maps(self):
