@@ -52,7 +52,7 @@ void project_forward (loop_t* tiledLoop,
       // indirect set case
 
       // is there anything to project ?
-      if (descMap->inSet->size == 0) {
+      if (descMap->inSet->size == 0 || descMode == READ) {
         continue;
       }
 
@@ -194,7 +194,7 @@ void project_backward (loop_t* tiledLoop,
       // indirect set case
 
       // is there anything to project ?
-      if (descMap->inSet->size == 0) {
+      if (descMap->inSet->size == 0 || descMode == READ) {
         continue;
       }
 
