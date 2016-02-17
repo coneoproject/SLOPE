@@ -125,7 +125,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         # compiling the generated code
         sets = sorted(list(sets), key=lambda x: x[4])
         # Now extract and format info for each set
-        sets = [(_fix_c(n), cs, es, ns, sset) for n, cs, es, ns, sset in sets]
+        sets = [(_fix_c(n), cs, es, ns, _fix_c(sset)) for n, cs, es, ns, sset in sets]
         ctype = Set*len(sets)
         self._sets = sets
         return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, sset in sets]))
@@ -136,7 +136,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         :param maps: iterator of 4-tuple:
                      (name, input_set, output_set, map_values)
         """
-        maps = [(n, _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
+        maps = [(_fix_c(n), _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
         return (ctype, ctype(*[Map(n,
@@ -157,7 +157,8 @@ void* inspector(slope_set sets[%(n_sets)d],
                     If the access to a dataset does not involve any map, than the
                     first entry assumes the value of the special keyword ``DIRECT``
         """
-        self._loops = [(n, _fix_c(s), d) for n, s, d in loops]
+        self._loops = [(_fix_c(n), _fix_c(s), [(_fix_c(i[0]), i[1]) for i in d])
+                       for n, s, d in loops]
 
     def set_partitioning(self, mode):
         """Set the seed iteration space partitioning mode. This method should be
@@ -484,6 +485,8 @@ class SlopeError(Exception):
 
 def _fix_c(var):
     """Make string ``var`` a valid C literal by removing invalid characters."""
+    if not var:
+        return var
     for ch in ['/', '#']:
         var = var.replace(ch, '')
     return var.split('.')[-1]
@@ -552,7 +555,7 @@ def set_debug_mode(mode, coordinates=None):
 def set_mesh_maps(maps):
     """Add the mesh topology through maps from generic mesh components (e.g. edges,
     cells) to nodes."""
-    maps = [(n, _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
+    maps = [(_fix_c(n), _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
     Inspector._globaldata['mesh_maps'] = maps
 
 
