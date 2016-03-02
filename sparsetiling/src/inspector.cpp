@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include <omp.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -22,12 +24,15 @@ using namespace std;
 // prototypes of static functions
 static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed);
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
+static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 
-inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshMaps)
+inspector_t* insp_init (int avgTileSize, insp_strategy strategy,
+                        map_list* meshMaps, map_list* partitionings, string name)
 {
   inspector_t* insp = new inspector_t;
 
+  insp->name = name;
   insp->strategy = strategy;
   insp->avgTileSize = avgTileSize;
   insp->loops = new loop_list;
@@ -37,8 +42,13 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, map_list* meshM
   insp->iter2color = NULL;
   insp->tiles = NULL;
   insp->nSweeps = 0;
+  insp->partitioningMode = "";
+
+  insp->totalInspectionTime = 0.0;
+  insp->partitioningTime = 0.0;
 
   insp->meshMaps = meshMaps;
+  insp->partitionings = partitionings;
 
   return insp;
 }
@@ -71,9 +81,11 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
 
+  // start timing the inspection
+  double start = time_stamp();
+
   // establish the seed loop
   int seed = select_seed_loop (strategy, loops, suggestedSeed);
-  ASSERT((seed >= 0) && (seed < nLoops), "Could not find a valid seed loop");
   insp->seed = seed;
 
   // aliases
@@ -83,7 +95,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   int seedLoopSetSize = seedLoop->set->size;
 
   // partition the seed loop iteration set into tiles
+  double startPartitioning = time_stamp();
   partition (insp);
+  double endPartitioning = time_stamp();
+
   map_t* iter2tile = insp->iter2tile;
   tile_list* tiles = insp->tiles;
 
@@ -141,8 +156,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
     // prepare for forward tiling
     loop_t* prevTiledLoop = seedLoop;
-    projection_t* seedLoopProj = new projection_t (&iter2tc_cmp);
-    projection_t* prevLoopProj = new projection_t (&iter2tc_cmp);
+    projection_t* seedLoopProj = projection_init();
+    projection_t* prevLoopProj = projection_init();
     iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
                                               tmpIter2tileMap, tmpIter2colorMap);
     iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
@@ -208,6 +223,15 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     insp->nSweeps++;
   } while (conflicts);
 
+  // compute local indirection maps (this avoids double indirections in the executor)
+  compute_local_ind_maps (loops, tiles);
+
+  // inspection finished, stop timer
+  double end = time_stamp();
+  // track time spent in various sections of the inspection
+  insp->partitioningTime = endPartitioning - startPartitioning;
+  insp->totalInspectionTime = end - start;
+
   return INSP_OK;
 }
 
@@ -220,7 +244,13 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   map_t* iter2tile = insp->iter2tile;
   map_t* iter2color = insp->iter2color;
   tile_list* tiles = insp->tiles;
+  insp_strategy strategy = insp->strategy;
+  map_list* meshMaps = insp->meshMaps;
   int seed = insp->seed;
+  int nSweeps = insp->nSweeps;
+  string partitioningMode = insp->partitioningMode;
+  double totalInspectionTime = insp->totalInspectionTime;
+  double partitioningTime = insp->partitioningTime;
   int avgTileSize = insp->avgTileSize;
   int nTiles = tiles->size();
   int nLoops = loops->size();
@@ -249,17 +279,40 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
   if (loops) {
     cout << "Number of loops: " << nLoops << endl;
-    cout << "Seed loop: " << seed << endl;
+    cout << "Seed loop: " << seed
+         << " (partitioning mode: " << partitioningMode << ")" << endl;
   }
   else {
     cout << "No loops specified" << endl;
   }
   cout << "Number of tiles: " << nTiles << endl;
   cout << "Average tile size: " << avgTileSize << endl;
+  cout << "Inspection time: " << totalInspectionTime << " s" << endl
+       << "    Sweeps required: " << nSweeps << endl
+       << "    Partitioning time: " << partitioningTime << " s" << endl;
+
+  // backend-related info:
+  string backend;
+  switch (strategy) {
+    case SEQUENTIAL:
+      backend = "Sequential";
+      break;
+    case OMP:
+      backend = "OpenMP";
+      break;
+    case ONLY_MPI:
+      backend = "MPI";
+      break;
+    case OMP_MPI:
+      backend = "Hybrid MPI-OpenMP";
+      break;
+  }
+  cout << "Backend: " << backend << endl;
+  cout << "Number of threads per process: " << omp_get_max_threads() << endl;
 
   if (level != VERY_LOW && level != MINIMAL) {
     if (iter2tile && iter2color) {
-      cout << endl << "Printing partioning of the seed loop's iteration set:" << endl;
+      cout << endl << "Printing partioning of the seed loop iteration set:" << endl;
       cout << "  Iteration  |  Tile |  Color" << endl;
       for (int i = 0; i < itSetSize / avgTileSize; i++) {
         int offset = i*avgTileSize;
@@ -298,9 +351,9 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   }
 
   if (level != MINIMAL && tiles && loopIndex != -2) {
-    cout << endl << "Tiling computed in " << insp->nSweeps << " sweeps" << endl;
+    cout << endl;
     if (loopIndex == -1) {
-      cout << "Printing tiles' seed loop iterations" << endl;
+      cout << "Printing seed loop iterations by tile" << endl;
       print_tiled_loop (tiles, loops->at(seed), verbosityTiles);
       if (seed + 1 < nLoops) {
         cout << endl << "Printing result of forward tiling..." << endl;
@@ -309,7 +362,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
         }
       }
       else {
-        cout << endl << "No forward tiling (seed loop is loop chain's top)" << endl;
+        cout << endl << "No forward tiling (seed loop is at the loop chain top)" << endl;
       }
       if (0 <= seed - 1) {
         cout << endl << "Printing result of backward tiling..." << endl;
@@ -318,7 +371,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
         }
       }
       else {
-        cout << endl << "No backward tiling (seed loop is loop chain's bottom)" << endl;
+        cout << endl << "No backward tiling (seed loop is at the loop chain bottom)" << endl;
       }
     }
     else {
@@ -329,7 +382,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     }
   }
 
-  cout << endl << "<<<< SLOPE inspection summary end>>>" << endl << endl;;
+  cout << endl << "<<<< SLOPE inspection summary end >>>" << endl << endl;;
 }
 
 void insp_free (inspector_t* insp)
@@ -445,25 +498,39 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 
 static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed)
 {
-  // sequential backend
-  if (strategy == SEQUENTIAL) {
-    return suggestedSeed;
-  }
+  int nLoops = loops->size();
+  loop_t* suggestedLoop = loops->at(suggestedSeed);
 
-  // any parallel backend in [OMP, ONLY_MPI, OMP_MPI], but there's just one loop
-  // and that loop doesn't require any sort of synchronization
-  if (loops->size() == 1 && loop_is_direct(loops->at(0))) {
+  // any backend, including the parallel ones, since there's just one loop and
+  // no need for synchronization
+  if (nLoops == 1 && loop_is_direct(loops->at(0))) {
     return 0;
   }
 
-  // openmp backend, so coloring required. Need at least one indirection map
-  // to determine adjacencies between tiles.
-  if (strategy == OMP) {
-    if (! loop_load_seed_map (loops->at(suggestedSeed))) {
+  // sequential backend
+  if (strategy == SEQUENTIAL) {
+    if (nLoops > 1 && suggestedLoop->set->superset) {
       int i = 0;
       loop_list::const_iterator it, end;
       for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
-        if (loop_load_seed_map (*it)) {
+        if (! (*it)->set->superset) {
+          return i;
+        }
+      }
+      ASSERT(false, "Invalid loop chain iterating over supersets only");
+    }
+    return suggestedSeed;
+  }
+
+  // openmp backend, coloring required. Need at least one indirection map
+  // to determine adjacencies between tiles.
+  if (strategy == OMP) {
+    if ((nLoops > 1 && suggestedLoop->set->superset) ||
+        (! loop_load_seed_map (suggestedLoop, loops))) {
+      int i = 0;
+      loop_list::const_iterator it, end;
+      for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
+        if (! (*it)->set->superset && loop_load_seed_map (*it, loops)) {
           return i;
         }
       }
@@ -472,19 +539,79 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
     return suggestedSeed;
   }
 
+  // for MPI backends, the only legal seed is 0
+  int legalSeed = 0;
+  ASSERT (! loops->at(legalSeed)->set->superset || nLoops == 1, "Illegal subset seed loop");
+
   // pure mpi backend (one mpi rank per process). Tiling starts from the bottom
   // of the loop chain so that tiles can progressively grow over the halo region.
   // Note that the user is expected to provide a "sufficiently large" halo region.
   if (strategy == ONLY_MPI) {
-    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
-    return 0;
+    ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
+    return legalSeed;
   }
 
   // mixed mpi and openmp backend. Need both coloring and a "sufficiently large"
-  // halo region. The considerations made before still apply.
+  // halo region (comments above also apply here)
   if (strategy == OMP_MPI) {
-    ASSERT (loops->at(suggestedSeed)->set->execHalo != 0, "Invalid HALO region");
-    ASSERT (loop_load_seed_map (loops->at(0), loops), "Couldn't load a map for coloring");
-    return 0;
+    ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
+    ASSERT (loop_load_seed_map (loops->at(legalSeed), loops),
+            "Couldn't load a map for coloring");
+    return legalSeed;
+  }
+}
+
+static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
+{
+  // aliases
+  int nLoops = loops->size();
+  int nTiles = tiles->size();
+
+  /* For each loop spanned by a tile, take the global maps used in that loop and,
+   * for each of them:
+   * - access it by an iteration index
+   * - store the accessed value in a tile's local map
+   * This way, local iteration index 0 in the local map corresponds to the global
+   * iteration index that a tile would have accessed first in a given loop; and so on.
+   * This allows scanning indirection maps linearly, which should improve hardware
+   * prefetching, instead of accessing a list of non-contiguous indices in a
+   * global mapping.
+   */
+  loop_list::const_iterator lIt, lEnd;
+  int i = 0;
+  for (lIt = loops->begin(), lEnd = loops->end(); lIt != lEnd; lIt++, i++) {
+    desc_list* descriptors = (*lIt)->descriptors;
+
+    tile_list::const_iterator tIt, tEnd;
+    for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
+      mapname_iterations* localMaps = new mapname_iterations;
+      desc_list::const_iterator dIt, dEnd;
+      for (dIt = descriptors->begin(), dEnd = descriptors->end(); dIt != dEnd; dIt++) {
+        map_t* globalMap = (*dIt)->map;
+
+        if (globalMap == DIRECT) {
+          continue;
+        }
+        if (localMaps->find(globalMap->name) != localMaps->end()) {
+          // avoid computing same local map more than once
+          continue;
+        }
+
+        int tileLoopSize = (*tIt)->iterations[i]->size();
+        int* globalIndMap = globalMap->values;
+        int arity = (tileLoopSize > 0) ? globalMap->size / globalMap->inSet->size : 0;
+
+        iterations_list* localMap = new iterations_list (tileLoopSize*arity);
+        localMaps->insert (mi_pair(globalMap->name, localMap));
+
+        for (int e = 0; e < tileLoopSize; e++) {
+          int element = (*tIt)->iterations[i]->at(e);
+          for (int j = 0; j < arity; j++) {
+            localMap->at(e*arity + j) = globalIndMap[element*arity + j];
+          }
+        }
+      }
+      (*tIt)->localMaps[i] = localMaps;
+    }
   }
 }

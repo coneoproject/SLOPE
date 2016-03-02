@@ -10,14 +10,22 @@
 #include "partitioner.h"
 #include "utils.h"
 
-static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* nNonExec);
-static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec);
+#include <algorithm>
+#include <iostream>
+
+static int* chunk(loop_t* seedLoop, int tileSize,
+                  int* nCore, int* nExec, int* nNonExec);
+static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
+                  int* nCore, int* nExec, int* nNonExec);
+static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
+                    int* nCore, int* nExec, int* nNonExec);
 
 void partition (inspector_t* insp)
 {
   // aliases
   insp_strategy strategy = insp->strategy;
   map_list* meshMaps = insp->meshMaps;
+  map_list* partitionings = insp->partitionings;
   int tileSize = insp->avgTileSize;
   int nLoops = insp->loops->size();
   int seed = insp->seed;
@@ -25,9 +33,20 @@ void partition (inspector_t* insp)
   set_t* seedLoopSet = seedLoop->set;
 
   // partition the seed loop iteration space
+  int* indMap = NULL;
   int nCore, nExec, nNonExec;
-  int *indMap = (meshMaps) ? metis (seedLoop, tileSize, meshMaps, &nCore, &nExec, &nNonExec) :
-                             chunk (seedLoop, tileSize, &nCore, &nExec, &nNonExec);
+  if (partitionings) {
+    indMap = inherit (seedLoop, tileSize, partitionings, &nCore, &nExec, &nNonExec);
+    insp->partitioningMode = "inherited";
+  }
+  if (! indMap && meshMaps) {
+    indMap = metis (seedLoop, tileSize, meshMaps, &nCore, &nExec, &nNonExec);
+    insp->partitioningMode = "metis";
+  }
+  if (! indMap) {
+    indMap = chunk (seedLoop, tileSize, &nCore, &nExec, &nNonExec);
+    insp->partitioningMode = "chunk";
+  }
 
   // initialize tiles:
   // ... start with creating as many empty tiles as needed ...
@@ -57,7 +76,8 @@ void partition (inspector_t* insp)
 /*
  * Chunk-partition halo regions
  */
-static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap, int* nExec, int* nNonExec)
+static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap,
+                       int* nExec, int* nNonExec)
 {
   int setCore = seedLoop->set->core;
   int setExecHalo = seedLoop->set->execHalo;
@@ -65,17 +85,10 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap, 
   int setSize = seedLoop->set->size;
 
   // partition the exec halo region
-  // this region is expected to be smaller than core, so we shrunk /tileSize/
-  // accordingly to have enough parallelism
+  // this region is expected to be much smaller than core, so we first shrunk
+  // /tileSize/ in order to have enough parallelism if openmp is used
   int nThreads = omp_get_max_threads();
-  if (setExecHalo <= nThreads) {
-    tileSize = setExecHalo;
-  }
-  else if (setExecHalo > nThreads*2) {
-    tileSize = setExecHalo / (nThreads*2);
-  }
-  else {
-    // nThreads < setExecHalo < nThreads*2
+  if (nThreads > 1) {
     tileSize = setExecHalo / nThreads;
   }
   int i = 0;
@@ -106,7 +119,8 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap, 
 /*
  * Assign loop iterations to tiles sequentially as blocks of /tileSize/ elements
  */
-static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* nNonExec)
+static int* chunk(loop_t* seedLoop, int tileSize,
+                  int* nCore, int* nExec, int* nNonExec)
 {
   int setCore = seedLoop->set->core;
   int setSize = seedLoop->set->size;
@@ -137,55 +151,139 @@ static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* n
  * Assign loop iterations to tiles carving partitions out of /seedLoop/ using
  * the METIS library.
  */
-static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps, int* nCore, int* nExec, int* nNonExec)
+static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
+                  int* nCore, int* nExec, int* nNonExec)
 {
+  int i;
+  int setCore = seedLoop->set->core;
   int setSize = seedLoop->set->size;
 
   // use the mesh description to find a suitable map for partitioning through METIS
-  map_t* iter2nodes = NULL;
+  map_t* map = NULL;
   map_list::const_iterator it, end;
   for (it = meshMaps->begin(), end = meshMaps->end(); it != end; it++) {
-    if (set_eq(seedLoop->set, (*it)->inSet)) {
-      iter2nodes = *it;
+    if (set_eq(seedLoop->set, (*it)->inSet) || set_eq(seedLoop->set, (*it)->outSet)) {
+      map = *it;
       break;
     }
   }
-  if (! iter2nodes) {
+  if (! map) {
     // unfortunate scenario: the user provided a mesh description, but the loop picked
     // as seed has an iteration space which is not part of the mesh description.
-    // Revert to chunk partitioning
-    return chunk (seedLoop, tileSize, nCore, nExec, nNonExec);
+    // will have to revert to chunk partitioning
+    return NULL;
   }
 
-  // partition the local core region through METIS
-  int nElements = iter2nodes->inSet->core;
-  int nNodes = iter2nodes->outSet->core;
-  int arity = iter2nodes->size / setSize;
-  *nCore = nElements / tileSize;
-  int* indMap = new int[setSize];
+  // now partition through METIS:
+  // ... mesh geometry
+  int nElements = map->inSet->size;
+  int nNodes = map->outSet->size;
+  int nParts = nElements / tileSize;
+  int arity = map->size / nElements;
+  // ... data needed for partitioning
+  int* indMap = new int[nElements];
   int* indNodesMap = new int[nNodes];
+  int* adjncy = map->values;
   int* offsets = new int[nElements+1]();
-  for (int i = 1; i < nElements+1; i++) {
+  for (i = 1; i < nElements+1; i++) {
     offsets[i] = offsets[i-1] + arity;
   }
-  int* adjncy = iter2nodes->values;
-  // partitioning related options
+  // ... options
+  int result, objval, ncon = 1;
   int options[METIS_NOPTIONS];
   METIS_SetDefaultOptions(options);
   options[METIS_OPTION_NUMBERING] = 0;
   options[METIS_OPTION_CONTIG] = 1;
-  int result, objval, ncon = 1;
+  // ... do partition!
   result = (arity == 2) ?
-    METIS_PartGraphKway(&nNodes, &ncon, offsets, adjncy, NULL, NULL, NULL,
-                        nCore, NULL, NULL, options, &objval, indMap) :
-    METIS_PartMeshNodal(&nElements, &nNodes, offsets, adjncy, NULL, NULL,
-                        nCore, NULL, options, &objval, indMap, indNodesMap);
+    METIS_PartGraphKway (&nNodes, &ncon, offsets, adjncy, NULL, NULL, NULL,
+                         &nParts, NULL, NULL, options, &objval, indMap) :
+    METIS_PartMeshNodal (&nElements, &nNodes, offsets, adjncy, NULL, NULL,
+                         &nParts, NULL, options, &objval, indMap, indNodesMap);
   ASSERT(result == METIS_OK, "Invalid METIS partitioning");
 
-  // partition the exec halo region
-  chunk_halo(seedLoop, tileSize, *nCore, indMap, nExec, nNonExec);
+  // what's the target iteration set ?
+  if (set_eq(seedLoop->set, map->inSet)) {
+    delete[] indNodesMap;
+  }
+  else {
+    // note: must be set_eq(seedLoop->set, map-outSet)
+    delete[] indMap;
+    indMap = indNodesMap;
+  }
+  delete[] offsets;
 
-  delete indNodesMap;
-  delete offsets;
+  // restrict partitions to the core region
+  std::fill (indMap + setCore, indMap + setSize, 0);
+  std::set<int> partitions (indMap, indMap + setCore);
+  // ensure the set of partitions IDs is compact (i.e., if we have a partitioning
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {}, 3: {6,10,...} ...
+  // we instead want to have
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {6,10,...}, ...
+  std::map<int, int> mapper;
+  std::set<int>::const_iterator sIt, sEnd;
+  for (i = 0, sIt = partitions.begin(), sEnd = partitions.end(); sIt != sEnd; sIt++, i++) {
+    mapper[*sIt] = i;
+  }
+  for (i = 0; i < setCore; i++) {
+    indMap[i] = mapper[indMap[i]];
+  }
+  *nCore = partitions.size();
+
+  // partition the exec halo region
+  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec);
+
+  return indMap;
+}
+
+/*
+ * Assign loop iterations to tiles simply inheriting a seed loop partitioning
+ * provided to the inspector.
+ */
+static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
+                    int* nCore, int* nExec, int* nNonExec)
+{
+  map_t* partitioning = NULL;
+  map_list::const_iterator it, end;
+  for (it = partitionings->begin(), end = partitionings->end(); it != end; it++) {
+    if (set_eq(seedLoop->set, (*it)->inSet)) {
+      partitioning = *it;
+      break;
+    }
+  }
+  if (! partitioning) {
+    return NULL;
+  }
+
+  int setCore = seedLoop->set->core;
+  int setSize = seedLoop->set->size;
+  int* indMap = new int[setSize];
+
+  ASSERT(partitioning->size == setSize, "Set partitioning size and seed loop size don't match");
+
+  // need to work on a copy because we can't modify an array provided by the user
+  memcpy (indMap, partitioning->values, sizeof(int)*setSize);
+
+  // restrict partitions to the core region
+  std::fill (indMap + setCore, indMap + setSize, 0);
+  std::set<int> partitions (indMap, indMap + setCore);
+  // ensure the set of partitions IDs is compact (i.e., if we have a partitioning
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {}, 3: {6,10,...} ...
+  // we instead want to have
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {6,10,...}, ...
+  int i;
+  std::map<int, int> mapper;
+  std::set<int>::const_iterator sIt, sEnd;
+  for (i = 0, sIt = partitions.begin(), sEnd = partitions.end(); sIt != sEnd; sIt++, i++) {
+    mapper[*sIt] = i;
+  }
+  for (i = 0; i < setCore; i++) {
+    indMap[i] = mapper[indMap[i]];
+  }
+  *nCore = partitions.size();
+
+  // partition the exec halo region
+  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec);
+
   return indMap;
 }

@@ -4,6 +4,7 @@
 # Author: Fabio Luporini (2015)
 
 import ctypes
+from collections import defaultdict
 
 
 ### SLOPE C-types for python-C interaction ###
@@ -25,6 +26,12 @@ class Map(ctypes.Structure):
                 ('map', ctypes.POINTER(ctypes.c_int)),
                 ('size', ctypes.c_int)]
 
+class Part(ctypes.Structure):
+    _fields_ = [('name', ctypes.c_char_p),
+                ('data', ctypes.POINTER(ctypes.c_int)),
+                ('size', ctypes.c_int),
+                ('nparts', ctypes.c_int)]
+
 
 class Inspector(object):
 
@@ -35,6 +42,8 @@ class Inspector(object):
     set_def = 'set_t* %s = set(sets[%d].name, sets[%d].core, sets[%d].exec, sets[%d].nonexec, %s);'
     map_def = 'map_t* %s = map(maps[%d].name, %s, %s, maps[%d].map, maps[%d].size);'
     mesh_map_def = 'map_t* %s = map(mesh_maps[%d].name, %s, %s, mesh_maps[%d].map, mesh_maps[%d].size);'
+    part_def = 'set_t* %s = set(partitionings[%d].name, partitionings[%d].nparts, 0, 0, NULL);\n  '
+    part_def += 'map_t* %s = map(%s, %s, %s, partitionings[%d].part, partitionings[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
@@ -66,12 +75,20 @@ typedef struct {
   int size;
 } slope_dat;
 
+typedef struct {
+  char* name;
+  int* part;
+  int size;
+  int nparts;
+} slope_part;
+
 extern "C" void* inspector(slope_set sets[%(n_sets)d],
                            slope_map maps[%(n_maps)d],
                            int tileSize,
                            int rank,
                            slope_dat coords_dat[1],
-                           slope_map* mesh_maps);
+                           slope_map* mesh_maps,
+                           slope_part* partitionings);
 /****************************/
 
 void* inspector(slope_set sets[%(n_sets)d],
@@ -79,7 +96,8 @@ void* inspector(slope_set sets[%(n_sets)d],
                 int tileSize,
                 int rank,
                 slope_dat coords_dat[1],
-                slope_map* mesh_maps)
+                slope_map* mesh_maps,
+                slope_part* partitionings)
 {
   // Declare sets, maps, dats
   %(set_defs)s
@@ -92,8 +110,12 @@ void* inspector(slope_set sets[%(n_sets)d],
   map_list* meshMaps = new map_list();
   %(mesh_map_defs)s
 
+  // Additional set partitionings (may be used to avoid explicit seed loop partitioning)
+  map_list* setPartitionings = new map_list();
+  %(partitionings_defs)s
+
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s, %(partitionings_list)s, %(name)s);
 
   %(loop_defs)s
 
@@ -110,9 +132,11 @@ void* inspector(slope_set sets[%(n_sets)d],
 }
 """
 
-    def __init__(self):
-        self._sets, self._maps, self._loops, self._mesh_maps = [], [], [], []
-        self._partitioning = 'chunk'
+    def __init__(self, name):
+        self._name = name
+        self._sets, self._maps, self._loops = [], [], []
+        self._mesh_maps, self._partitionings = [], []
+        self._slope_part_mode = 'chunk'
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -124,7 +148,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         # compiling the generated code
         sets = sorted(list(sets), key=lambda x: x[4])
         # Now extract and format info for each set
-        sets = [(self._fix_c(n), cs, es, ns, sset) for n, cs, es, ns, sset in sets]
+        sets = [(_fix_c(n), cs, es, ns, _fix_c(sset)) for n, cs, es, ns, sset in sets]
         ctype = Set*len(sets)
         self._sets = sets
         return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, sset in sets]))
@@ -135,11 +159,10 @@ void* inspector(slope_set sets[%(n_sets)d],
         :param maps: iterator of 4-tuple:
                      (name, input_set, output_set, map_values)
         """
-        maps = [(n, self._fix_c(i), self._fix_c(o), v) for n, i, o, v in maps]
+        maps = [(_fix_c(n), _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
-        return (ctype, ctype(*[Map(n,
-                                   v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        return (ctype, ctype(*[Map(n, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                    v.size) for n, _, _, v in maps]))
 
     def add_loops(self, loops):
@@ -156,9 +179,23 @@ void* inspector(slope_set sets[%(n_sets)d],
                     If the access to a dataset does not involve any map, than the
                     first entry assumes the value of the special keyword ``DIRECT``
         """
-        self._loops = [(n, self._fix_c(s), d) for n, s, d in loops]
+        self._loops = [(_fix_c(n), _fix_c(s), [(_fix_c(i[0]), i[1]) for i in d])
+                       for n, s, d in loops]
 
-    def set_partitioning(self, mode):
+    def add_partitionings(self, partitionings):
+        """Add sets partitionings. Can be used by SLOPE to derive tiles.
+
+        :param partitionins: iterator of 2-tuple ``(set, nparray)``, where the nparray
+                             represents a map from iterations to partition ids
+        """
+        partitionings = [("%s_to_partitioning" % _fix_c(s), _fix_c(s),
+                          '%s_partitioning' % _fix_c(s), v) for s, v in partitionings]
+        ctype = Part*len(partitionings)
+        self._partitionings = partitionings
+        return (ctype, ctype(*[Part(s, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                    v.size, max(v)) for n, _, _, v in partitionings]))
+
+    def set_part_mode(self, mode):
         """Set the seed iteration space partitioning mode. This method should be
         called prior to /generate_code/.
 
@@ -166,7 +203,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         """
         if mode not in ['chunk', 'metis']:
             raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
-        self._partitioning = mode
+        self._slope_part_mode = mode
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -199,12 +236,14 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         # Add coordinate field
         coordinates = Inspector._globaldata.get('coordinates')
+        ctype = Dat*1
         if coordinates:
             set, data, arity = coordinates
             set_size = data.size / arity
-            ctype = Dat*1
             extra.append((ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                                            set_size))))
+        else:
+            extra.append((ctype, ctype(Dat(None, 0))))
 
         # Add mesh maps
         mesh_maps = Inspector._globaldata.get('mesh_maps', [])
@@ -232,14 +271,24 @@ void* inspector(slope_set sets[%(n_sets)d],
             desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
+        avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
+
         mesh_map_defs, mesh_map_list = "", "NULL"
-        if self._mesh_maps and self._partitioning == 'metis':
-            avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
+        if self._mesh_maps and self._slope_part_mode == 'metis':
             mesh_map_defs = [Inspector.mesh_map_def % ("mm_%s" % m[0], i, m[1], m[2], i, i)
                              for i, m in enumerate(self._mesh_maps) if avail([m[1], m[2]])]
-            mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0] for m in self._mesh_maps
-                              if avail([m[1], m[2]])]
+            mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0]
+                              for m in self._mesh_maps if avail([m[1], m[2]])]
             mesh_map_list = "meshMaps"
+
+        partitionings_defs, partitionings_list = "", "NULL"
+        if self._partitionings:
+            partitionings_defs = [Inspector.part_def % (m[2], i, i, m[0], '"%s"' % m[0], m[1],
+                                  m[2], i, i) for i, m in enumerate(self._partitionings)
+                                  if avail([m[1]])]
+            partitionings_defs += ["setPartitionings->insert(%s);" % m[0]
+                                   for m in self._partitionings if avail([m[1]])]
+            partitionings_list = "setPartitionings"
 
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
@@ -261,15 +310,12 @@ void* inspector(slope_set sets[%(n_sets)d],
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
+            'partitionings_defs': "\n  ".join(partitionings_defs),
+            'partitionings_list': partitionings_list,
+            'name': '"%s"' % self._name,
             'output_vtk': output_vtk,
             'output_insp': output_insp
         }
-
-    def _fix_c(self, var):
-        """Make string ``var`` a valid C literal removing invalid characters."""
-        for ch in ['/', '#']:
-            var = var.replace(ch, '')
-        return var.split('.')[-1]
 
 
 class Executor(object):
@@ -289,6 +335,8 @@ class Executor(object):
         'py_ctype_exec': ctypes.POINTER(ctypes.c_void_p),
         'ctype_region_flag': 'tile_region',
         'region_flag': 'region',
+        'ctype_rank': 'int',
+        'rank': 'rank'
     }
 
     omp_code = """
@@ -323,24 +371,70 @@ iterations_list& %(local_iters)s = tile_get_iterations (tile, %(loop_id)d);
 tileLoopSize = iterations_%(loop_id)d.size();
 """
 
+    debug_init = """
+// per loop info
+int nIters[%(nloops)s] = {0};
+std::vector<double> times[%(nloops)d];
+double start, end;
+// directory in which results will be stored
+struct stat st = {0};
+if (stat("Execution_output", &st) == -1) {
+  mkdir("Execution_output", 0700);
+}\n
+"""
+    debug_end = """\n
+std::string regionName = "core";
+if (region == 1) {
+  regionName = "exec";
+}
+std::stringstream stream;
+stream << "Execution_output" << "/" << "%(name)s" << "_rank" << rank << "_" << regionName << ".txt";
+std::ofstream outfile;
+outfile.open (stream.str(), std::fstream::in | std::fstream::out | std::fstream::app);
+
+for (int i = 0; i < %(nloops)d; i++) {
+  int nTiles = times[i].size();
+  double tot = 0.0;
+  for (int j = 0; j < nTiles; j++) {
+    tot += times[i][j];
+  }
+
+  outfile << "Loop " << i << ": totIters=" << nIters[i] << ", time=" << tot << std::endl;
+}
+outfile << "****************************" << std::endl;
+outfile.close();
+"""
+    time_start = """
+start = time_stamp();
+"""
+    time_end = """
+end = time_stamp();
+times[%(loop_id)d].push_back(end - start);
+nIters[%(loop_id)d] += tileLoopSize;
+"""
+
     def __init__(self, inspector):
         code_dict = dict(Executor.meta)
         code_dict.update({'omp': self._omp_pragma()})
-        self._code = "\n".join([Executor.init_code % code_dict,
-                                Executor.outer_tiles_loop % code_dict])
-        self._loop_init, self._gtl_maps = self._generate_loops(inspector._loops)
+        self._code = "\n".join([self._debug_init(inspector._loops),
+                                Executor.init_code % code_dict,
+                                Executor.outer_tiles_loop % code_dict,
+                                self._debug_end(inspector._name, inspector._loops)])
+        self._loop_init, self._gtl_maps, self._loop_end = self._genloops(inspector._loops)
 
-    def _generate_loops(self, loops):
-        """Return a 2-tuple, in which:
+    def _genloops(self, loops):
+        """Return a 3-tuple, in which:
 
             * the first entry represents initialization code to be executed right
-              before the tile's loop invoking the kernel;
+              before the kernel invocation
             * the second entry is a list of dict that binds, for each loop, global
               maps to local maps, as well as local iterations to the actual tile's
               iterations.
+            * the last entry represents "clean up code" to be executed right after
+              the kernel invocation
         """
-        header_code = []
-        gtl_maps = []  # gtl stands for global-to-local
+        # Note: gtl stands for global-to-local
+        header_code, gtl_maps, end_code = [], [], []
         for i, loop in enumerate(loops):
             descs = loop[2]
             global_maps = set(desc[0] for desc in descs if desc[0] != 'DIRECT')
@@ -361,8 +455,26 @@ tileLoopSize = iterations_%(loop_id)d.size();
             header_code.append(("%s%s" % (local_maps_def, local_iters)).strip('\n'))
             gtl_map.update({'DIRECT': name_local_iters})
             gtl_maps.append(gtl_map)
+            if Inspector._globaldata.get('debug_mode'):
+                header_code[-1] += Executor.time_start
+                end_code.append(Executor.time_end % {'loop_id': i})
 
-        return (header_code, gtl_maps)
+        return (header_code, gtl_maps, end_code)
+
+    def _debug_init(self, loops):
+        init = ""
+        if Inspector._globaldata.get('debug_mode'):
+            init = Executor.debug_init % {'nloops': len(loops)}
+        return init
+
+    def _debug_end(self, name, loops):
+        end = ""
+        if Inspector._globaldata.get('debug_mode'):
+            end = Executor.debug_end % {
+                'name': name,
+                'nloops': len(loops)
+            }
+        return end
 
     def _omp_pragma(self):
         return Executor.omp_code if Inspector._globaldata['mode'] in ['OMP', 'OMP_MPI'] else ''
@@ -388,8 +500,15 @@ tileLoopSize = iterations_%(loop_id)d.size();
         return self._loop_init
 
     @property
+    def c_loop_end(self):
+        return self._loop_end
+
+    @property
     def c_headers(self):
-        return Executor.meta['headers']
+        headers = Executor.meta['headers']
+        if Executor._globaldata.get('debug_mode'):
+            headers += ['#include <vector>']
+        return headers
 
     @property
     def gtl_maps(self):
@@ -409,6 +528,17 @@ class SlopeError(Exception):
         return repr(self.value)
 
 
+# Utility functions
+
+def _fix_c(var):
+    """Make string ``var`` a valid C literal by removing invalid characters."""
+    if not var:
+        return var
+    for ch in ['/', '#']:
+        var = var.replace(ch, '')
+    return var.split('.')[-1]
+
+
 # Utility functions for the caller
 
 def get_compile_opts(compiler='gnu'):
@@ -421,7 +551,6 @@ def get_compile_opts(compiler='gnu'):
     optimization_opts = ['-O3']
     optimization_opts.append('-fopenmp')
     if Inspector._globaldata['mode'] == 'OMP':
-        functional_opts.append('-DSLOPE_OMP')
         if compiler == 'intel':
             optimization_opts.append('-par-affinity=scatter,verbose')
     if compiler == 'intel':
@@ -446,16 +575,16 @@ def get_lib_dir():
 
 # Functions for setting global information for inspection and execution
 
-def set_debug_mode(mode, coordinates):
-    """Add a coordinates field such that inspection can generate VTK files
-    useful for debugging and visualization purposes.
+def set_debug_mode(mode, coordinates=None):
+    """Output useful information once inspection is terminated.
 
-    :param mode: the verbosity level for debug mode (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
-    :param coordinates: a 3-tuple, in which the first entry is the set name the
-                        coordinates belong to; the second entry is a numpy array of
-                        coordinates values; the third entry indicates the dimension
-                        of the dataset (accepted [1, 2, 3], for 1D, 2D, and 3D
-                        datasets, respectively)
+    :param mode: the verbosity level of debug mode (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
+    :param coordinates: (optional) Add a coordinates field that allows the inspector to
+        generate VTK files useful for debugging and visualization purposes.
+    :type coordinates: a 3-tuple, in which the first entry is the set name the
+        coordinates belong to; the second entry is a numpy array of coordinates values;
+        the third entry indicates the dimension of the dataset (accepted [1, 2, 3],
+        for 1D, 2D, and 3D datasets, respectively)
     """
     modes = ['MINIMAL', 'VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
@@ -463,15 +592,17 @@ def set_debug_mode(mode, coordinates):
         mode = 'MINIMAL'
     Inspector._globaldata['debug_mode'] = mode
 
-    _, _, arity = coordinates
-    if arity not in [1, 2, 3]:
-        raise SlopeError("Arity should be a number in [1, 2, 3]")
-    Inspector._globaldata['coordinates'] = coordinates
+    if coordinates:
+        _, _, arity = coordinates
+        if arity not in [1, 2, 3]:
+            raise SlopeError("Arity should be a number in [1, 2, 3]")
+        Inspector._globaldata['coordinates'] = coordinates
 
 
 def set_mesh_maps(maps):
     """Add the mesh topology through maps from generic mesh components (e.g. edges,
     cells) to nodes."""
+    maps = [(_fix_c(n), _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
     Inspector._globaldata['mesh_maps'] = maps
 
 

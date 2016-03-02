@@ -18,6 +18,8 @@ enum insp_verbose {MINIMAL = 1, VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
  * The inspector main data structure.
  */
 typedef struct {
+  /* unique name identifying the inspector */
+  std::string name;
   /* tiling strategy: can be for sequential, openmp, or mpi execution */
   insp_strategy strategy;
   /* the seed loop index */
@@ -36,8 +38,17 @@ typedef struct {
   set_t* tileRegions;
   /* number of tiling sweeps */
   int nSweeps;
+  /* partitioning mode */
+  std::string partitioningMode;
+
   /* the mesh structure, as a list of maps to nodes */
   map_list* meshMaps;
+  /* available set partitionings, may be used for deriving tiles */
+  map_list* partitionings;
+
+  /* the following fields track the time spent in various code sections*/
+  double totalInspectionTime;
+  double partitioningTime;
 
 } inspector_t;
 
@@ -54,10 +65,19 @@ typedef struct {
  *   can optionally be used to partition an iteration space using an external
  *   library, such that tiles of particular shape (e.g., squarish, rather than
  *   strip-like) can be carved.
+ * @param partitionings (optional)
+ *   a partitioning of one or more sets into disjoint, contiguous subsets.
+ *   Can be used in place of explicit tile partitioning if the seed loop
+ *   iteration set is in this list
+ * @param name (optional)
+ *   a unique name that identifies the inspector. Only useful if more than
+ *   one inspectors are planned.
  * @return
  *   an inspector data structure
  */
-inspector_t* insp_init (int tileSize, insp_strategy strategy, map_list* meshMaps = NULL);
+inspector_t* insp_init (int tileSize, insp_strategy strategy,
+                        map_list* meshMaps = NULL, map_list* partitionings = NULL,
+                        std::string name = "");
 
 /*
  * Add a parloop to the inspector

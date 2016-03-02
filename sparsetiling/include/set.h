@@ -86,6 +86,15 @@ inline bool set_eq(const set_t* a, const set_t* b)
   return a && b && a->name == b->name;
 }
 
+ /*
+  * Return /true/ if /a/ goes before /b/, /false/ otherwise. This just boils down
+  * to compare the name of the two sets
+  */
+inline bool set_cmp(const set_t* a, const set_t* b)
+{
+  return a && b && a->name < b->name;
+}
+
 /*
  * Destroy a set
  */

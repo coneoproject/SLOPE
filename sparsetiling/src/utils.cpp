@@ -62,7 +62,7 @@ void generate_vtk (inspector_t* insp,
     }
 
     std::stringstream stream;
-    stream << VTK_DIR << "/loop" << i << "_" << loopName << "_rank" << rank << ".vtk";
+    stream << VTK_DIR << "/" << insp->name << "_rank" << rank << "_loop" << i << ".vtk";
     std::ofstream vtkfile;
     vtkfile.open (stream.str());
     stream.str("");

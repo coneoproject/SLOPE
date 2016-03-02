@@ -179,20 +179,19 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
     nColor += 32;
   }
 
-  // shift up the halo tile colors, since these tiles must be executed as last
+  // shift up the halo tile colors, since these tiles must be executed after all core tiles
   set_t* tileRegions = insp->tileRegions;
-  std::set<int> newColors;
-  int maxExecHaloColor = -1;
+  int maxExecHaloColor = nColors;
   for (int i = 0; i < tileRegions->execHalo; i++) {
     int newHaloColor = colors[tileRegions->core + i] + nColors;
     maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
     colors[tileRegions->core + i] = newHaloColor;
-    newColors.insert(newHaloColor);
   }
   if (tileRegions->nonExecHalo > 0) {
-    colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor + 1;
+    maxExecHaloColor += 1;
+    colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor;
   }
-  nColors += newColors.size() + 1;
+  nColors = maxExecHaloColor + 1;
 
   // create the iteration to colors map
   int* iter2color = color_apply(tiles, tile2iter, colors);

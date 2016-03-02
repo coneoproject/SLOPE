@@ -94,9 +94,6 @@ int main(int argc, char **argv)
   const int seedTilePoint = nLoops / 2;
 
   printf("running inspector\n");
-  printf("average tile size: %d iterations\n", avgTileSize);
-
-  double startInsp = time_stamp();
 
   // sets
   // note: the 0s indicate that MPI execution is not supported
@@ -135,9 +132,6 @@ int main(int argc, char **argv)
   insp_add_parloop (insp, "resCalc2", edges, &resCalcDesc);
 
   insp_run (insp, seedTilePoint);
-
-  double endInsp = time_stamp();
-  printf("inspector run-time = %f\n", endInsp - startInsp);
 
   insp_print (insp, VERY_LOW);
 
@@ -180,9 +174,7 @@ int main(int argc, char **argv)
         // for all tiles of this color
         const int nTilesPerColor = exec_tiles_per_color (exec, i);
 
-#ifdef SLOPE_OMP
         #pragma omp parallel for
-#endif
         for (int j = 0; j < nTilesPerColor; j++) {
           // execute the tile
           tile_t* tile = exec_tile_at (exec, i, j);
@@ -301,11 +293,7 @@ int main(int argc, char **argv)
 
     // print iteration history
     rms = sqrt(rms/(double) nCells);
-#ifdef SLOPE_OMP
     if (iter%100 == 0)
-#else
-    if (iter%10 == 0)
-#endif
       printf(" %d  %10.5e \n",iter,rms);
   }
 

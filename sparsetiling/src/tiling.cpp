@@ -51,6 +51,11 @@ void project_forward (loop_t* tiledLoop,
     else {
       // indirect set case
 
+      // is there anything to project ?
+      if (descMap->inSet->size == 0 || descMode == READ) {
+        continue;
+      }
+
       // use the inverse map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
@@ -69,33 +74,49 @@ void project_forward (loop_t* tiledLoop,
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
-      // iterate over the projected loop iteration set, and use the map to access
-      // the tiledLoop iteration set's elements.
-      for (int i = 0; i < projSetSize; i++) {
-        projIter2tile[i] = -1;
-        projIter2color[i] = -1;
-        // determine the projected set iteration arity, which may vary from
-        // iteration to iteration
-        int prevOffset = offsets[i];
-        int nextOffset = offsets[i + 1];
-        // temporary variables for updating the tracker
-        tracker_t iterTilesPerColor;
-        index_set iterColors;
-        for (int j = prevOffset; j < nextOffset; j++) {
-          int indIter = indMap[j];
-          int indTile = iter2tile[indIter];
-          int indColor = iter2color[indIter];
-          // may have to change color and tile of the projected iteration
-          int maxColor = MAX(projIter2color[i], indColor);
-          if (maxColor != projIter2color[i]) {
-            projIter2tile[i] = indTile;
-            projIter2color[i] = maxColor;
+      #pragma omp parallel
+      {
+        tracker_t localTracker;
+        // iterate over the projected loop iteration set, and use the map to access
+        // the tiledLoop iteration set's elements.
+        #pragma omp for schedule(static)
+        for (int i = 0; i < projSetSize; i++) {
+          projIter2tile[i] = -1;
+          projIter2color[i] = -1;
+          // determine the projected set iteration arity, which may vary from
+          // iteration to iteration
+          int prevOffset = offsets[i];
+          int nextOffset = offsets[i + 1];
+          // temporary variables for updating the tracker
+          tracker_t iterTilesPerColor;
+          index_set iterColors;
+          for (int j = prevOffset; j < nextOffset; j++) {
+            int indIter = indMap[j];
+            int indTile = iter2tile[indIter];
+            int indColor = iter2color[indIter];
+            // may have to change color and tile of the projected iteration
+            int maxColor = MAX(projIter2color[i], indColor);
+            if (maxColor != projIter2color[i]) {
+              projIter2tile[i] = indTile;
+              projIter2color[i] = maxColor;
+            }
+            // track adjacent tiles, stored by colors
+            iterTilesPerColor[indColor].insert (indTile);
+            iterColors.insert (indColor);
           }
-          // track adjacent tiles, stored by colors
-          iterTilesPerColor[indColor].insert (indTile);
-          iterColors.insert (indColor);
+          updateTilesTracker (iterTilesPerColor, iterColors, localTracker);
         }
-        updateTilesTracker (iterTilesPerColor, iterColors, *conflictsTracker);
+
+        // need to copy back the conflicts detected by a thread into the global structure
+        #pragma omp critical
+        {
+          tracker_t::const_iterator it, end;
+          for (it = localTracker.begin(), end = localTracker.end(); it != end; it++) {
+            int tileID = it->first;
+            index_set localAdjTiles = it->second;
+            (*conflictsTracker)[tileID].insert (localAdjTiles.begin(), localAdjTiles.end());
+          }
+        }
       }
 
       // if projecting from a subset, an older projection must be present. This
@@ -172,6 +193,11 @@ void project_backward (loop_t* tiledLoop,
     else {
       // indirect set case
 
+      // is there anything to project ?
+      if (descMap->inSet->size == 0 || descMode == READ) {
+        continue;
+      }
+
       // use the inverse map to compute the projection for two reasons:
       // - the outer loop along the projected set is fully parallel, so it can
       //   be straightforwardly decorated with a /#pragma omp for/
@@ -190,33 +216,49 @@ void project_backward (loop_t* tiledLoop,
       int* projIter2color = new int[projSetSize];
       projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
 
-      // iterate over the projected loop iteration set, and use the map to access
-      // the tiledLoop iteration set's elements.
-      for (int i = 0; i < projSetSize; i++) {
-        projIter2tile[i] = INT_MAX;
-        projIter2color[i] = INT_MAX;
-        // determine the projected set iteration arity, which may vary from
-        // iteration to iteration
-        int prevOffset = offsets[i];
-        int nextOffset = offsets[i + 1];
-        // temporary variables for updating the tracker
-        tracker_t iterTilesPerColor;
-        index_set iterColors;
-        for (int j = prevOffset; j < nextOffset; j++) {
-          int indIter = indMap[j];
-          int indTile = iter2tile[indIter];
-          int indColor = iter2color[indIter];
-          // may have to change color and tile of the projected iteration
-          int minColor = MIN(projIter2color[i], indColor);
-          if (minColor != projIter2color[i]) {
-            projIter2tile[i] = indTile;
-            projIter2color[i] = minColor;
+      #pragma omp parallel
+      {
+        tracker_t localTracker;
+        // iterate over the projected loop iteration set, and use the map to access
+        // the tiledLoop iteration set's elements.
+        #pragma omp for schedule(static)
+        for (int i = 0; i < projSetSize; i++) {
+          projIter2tile[i] = INT_MAX;
+          projIter2color[i] = INT_MAX;
+          // determine the projected set iteration arity, which may vary from
+          // iteration to iteration
+          int prevOffset = offsets[i];
+          int nextOffset = offsets[i + 1];
+          // temporary variables for updating the tracker
+          tracker_t iterTilesPerColor;
+          index_set iterColors;
+          for (int j = prevOffset; j < nextOffset; j++) {
+            int indIter = indMap[j];
+            int indTile = iter2tile[indIter];
+            int indColor = iter2color[indIter];
+            // may have to change color and tile of the projected iteration
+            int minColor = MIN(projIter2color[i], indColor);
+            if (minColor != projIter2color[i]) {
+              projIter2tile[i] = indTile;
+              projIter2color[i] = minColor;
+            }
+            // track adjacent tiles, stored by colors
+            iterTilesPerColor[indColor].insert (indTile);
+            iterColors.insert (indColor);
           }
-          // track adjacent tiles, stored by colors
-          iterTilesPerColor[indColor].insert (indTile);
-          iterColors.insert (indColor);
+          updateTilesTracker (iterTilesPerColor, iterColors, localTracker);
         }
-        updateTilesTracker (iterTilesPerColor, iterColors, *conflictsTracker);
+
+        // need to copy back the conflicts detected by a thread into the global structure
+        #pragma omp critical
+        {
+          tracker_t::const_iterator it, end;
+          for (it = localTracker.begin(), end = localTracker.end(); it != end; it++) {
+            int tileID = it->first;
+            index_set localAdjTiles = it->second;
+            (*conflictsTracker)[tileID].insert (localAdjTiles.begin(), localAdjTiles.end());
+          }
+        }
       }
 
       // if projecting from a subset, an older projection must be present. This
@@ -262,7 +304,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
@@ -270,6 +312,11 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   std::fill_n (loopIter2tile, toTileSetSize, -1);
   std::fill_n (loopIter2color, toTileSetSize, -1);
   loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
+
+  if (toTileSetSize == 0) {
+    // no need to tile
+    return loopIter2tc;
+  }
 
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
@@ -299,6 +346,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
     if (touchedSet == toTile) {
       // direct set case
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = projIter2tile[i];
         int iterColor = MAX(projIter2color[i], loopIter2color[i]);
@@ -319,6 +367,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
@@ -370,7 +419,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
-  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_eq);
+  std::set<set_t*, bool(*)(const set_t* a, const set_t* b)> checkedSets (&set_cmp);
 
   // allocate and initialize space to keep tiling and coloring results
   int* loopIter2tile = new int[toTileSetSize];
@@ -378,6 +427,11 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   std::fill_n (loopIter2tile, toTileSetSize, INT_MAX);
   std::fill_n (loopIter2color, toTileSetSize, INT_MAX);
   loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
+
+  if (toTileSetSize == 0) {
+    // no need to tile
+    return loopIter2tc;
+  }
 
   desc_list::const_iterator it, end;
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
@@ -407,6 +461,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
     if (touchedSet == toTile) {
       // direct set case
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = projIter2tile[i];
         int iterColor = MIN(projIter2color[i], loopIter2color[i]);
@@ -427,6 +482,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
+      #pragma omp parallel for schedule(static)
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = loopIter2tile[i];
         int iterColor = loopIter2color[i];
@@ -501,6 +557,11 @@ void iter2tc_free (iter2tc_t* iter2tc)
   delete[] iter2tc->iter2tile;
   delete[] iter2tc->iter2color;
   delete iter2tc;
+}
+
+projection_t* projection_init()
+{
+  return new projection_t (&iter2tc_cmp);
 }
 
 void projection_free (projection_t* projection)

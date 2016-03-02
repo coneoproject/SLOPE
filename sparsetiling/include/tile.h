@@ -37,18 +37,6 @@ typedef struct {
 typedef std::vector<tile_t*> tile_list;
 
 /*
- * The domain of a tracker is the set of tile identifiers, while the codomain an
- * integer set, where each integer is a tile identifier indicating a conflicting
- * tile. For example, an entry:
- *   1 -> {2, 3}
- * indicates that tile 1 conflicts with tiles 2 and 3 (i.e., in the tiling process,
- * tiles 1, 2, 3 had the same color and grew up to a point in which they "touch"
- * each other.
- */
-typedef std::set<int> index_set;
-typedef std::map<int, index_set> tracker_t;
-
-/*
  * Initialize a tile
  *
  * @param crossedLoops
