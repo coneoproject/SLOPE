@@ -17,27 +17,35 @@ static int* chunk(loop_t* seedLoop, int tileSize,
                   int* nCore, int* nExec, int* nNonExec);
 static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
                   int* nCore, int* nExec, int* nNonExec);
+static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
+                    int* nCore, int* nExec, int* nNonExec);
 
 void partition (inspector_t* insp)
 {
   // aliases
   insp_strategy strategy = insp->strategy;
   map_list* meshMaps = insp->meshMaps;
+  map_list* partitionings = insp->partitionings;
   int tileSize = insp->avgTileSize;
   int nLoops = insp->loops->size();
   int seed = insp->seed;
   loop_t* seedLoop = insp->loops->at(seed);
   set_t* seedLoopSet = seedLoop->set;
 
-  // partition the seed loop iteration space (try metis first, otherwise just split
-  // it into chunks)
-  int *indMap = NULL;
+  // partition the seed loop iteration space
+  int* indMap = NULL;
   int nCore, nExec, nNonExec;
-  if (meshMaps) {
+  if (partitionings) {
+    indMap = inherit (seedLoop, tileSize, partitionings, &nCore, &nExec, &nNonExec);
+    insp->partitioningMode = "inherited";
+  }
+  if (! indMap && meshMaps) {
     indMap = metis (seedLoop, tileSize, meshMaps, &nCore, &nExec, &nNonExec);
+    insp->partitioningMode = "metis";
   }
   if (! indMap) {
     indMap = chunk (seedLoop, tileSize, &nCore, &nExec, &nNonExec);
+    insp->partitioningMode = "chunk";
   }
 
   // initialize tiles:
@@ -111,7 +119,8 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap,
 /*
  * Assign loop iterations to tiles sequentially as blocks of /tileSize/ elements
  */
-static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec, int* nNonExec)
+static int* chunk(loop_t* seedLoop, int tileSize,
+                  int* nCore, int* nExec, int* nNonExec)
 {
   int setCore = seedLoop->set->core;
   int setSize = seedLoop->set->size;
@@ -211,6 +220,58 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
   // 0: {0,1,...}, 1: {4,5,...}, 2: {}, 3: {6,10,...} ...
   // we instead want to have
   // 0: {0,1,...}, 1: {4,5,...}, 2: {6,10,...}, ...
+  std::map<int, int> mapper;
+  std::set<int>::const_iterator sIt, sEnd;
+  for (i = 0, sIt = partitions.begin(), sEnd = partitions.end(); sIt != sEnd; sIt++, i++) {
+    mapper[*sIt] = i;
+  }
+  for (i = 0; i < setCore; i++) {
+    indMap[i] = mapper[indMap[i]];
+  }
+  *nCore = partitions.size();
+
+  // partition the exec halo region
+  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec);
+
+  return indMap;
+}
+
+/*
+ * Assign loop iterations to tiles simply inheriting a seed loop partitioning
+ * provided to the inspector.
+ */
+static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
+                    int* nCore, int* nExec, int* nNonExec)
+{
+  map_t* partitioning = NULL;
+  map_list::const_iterator it, end;
+  for (it = partitionings->begin(), end = partitionings->end(); it != end; it++) {
+    if (set_eq(seedLoop->set, (*it)->inSet)) {
+      partitioning = *it;
+      break;
+    }
+  }
+  if (! partitioning) {
+    return NULL;
+  }
+
+  int setCore = seedLoop->set->core;
+  int setSize = seedLoop->set->size;
+  int* indMap = new int[setSize];
+
+  ASSERT(partitioning->size == setSize, "Set partitioning size and seed loop size don't match");
+
+  // need to work on a copy because we can't modify an array provided by the user
+  memcpy (indMap, partitioning->values, sizeof(int)*setSize);
+
+  // restrict partitions to the core region
+  std::fill (indMap + setCore, indMap + setSize, 0);
+  std::set<int> partitions (indMap, indMap + setCore);
+  // ensure the set of partitions IDs is compact (i.e., if we have a partitioning
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {}, 3: {6,10,...} ...
+  // we instead want to have
+  // 0: {0,1,...}, 1: {4,5,...}, 2: {6,10,...}, ...
+  int i;
   std::map<int, int> mapper;
   std::set<int>::const_iterator sIt, sEnd;
   for (i = 0, sIt = partitions.begin(), sEnd = partitions.end(); sIt != sEnd; sIt++, i++) {

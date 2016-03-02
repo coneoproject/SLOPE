@@ -7,6 +7,7 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#include <string.h>
 #include <stdint.h>
 #include <time.h>
 #include <unistd.h>

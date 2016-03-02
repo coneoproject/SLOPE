@@ -4,6 +4,7 @@
 # Author: Fabio Luporini (2015)
 
 import ctypes
+from collections import defaultdict
 
 
 ### SLOPE C-types for python-C interaction ###
@@ -25,6 +26,12 @@ class Map(ctypes.Structure):
                 ('map', ctypes.POINTER(ctypes.c_int)),
                 ('size', ctypes.c_int)]
 
+class Part(ctypes.Structure):
+    _fields_ = [('name', ctypes.c_char_p),
+                ('data', ctypes.POINTER(ctypes.c_int)),
+                ('size', ctypes.c_int),
+                ('nparts', ctypes.c_int)]
+
 
 class Inspector(object):
 
@@ -35,6 +42,8 @@ class Inspector(object):
     set_def = 'set_t* %s = set(sets[%d].name, sets[%d].core, sets[%d].exec, sets[%d].nonexec, %s);'
     map_def = 'map_t* %s = map(maps[%d].name, %s, %s, maps[%d].map, maps[%d].size);'
     mesh_map_def = 'map_t* %s = map(mesh_maps[%d].name, %s, %s, mesh_maps[%d].map, mesh_maps[%d].size);'
+    part_def = 'set_t* %s = set(partitionings[%d].name, partitionings[%d].nparts, 0, 0, NULL);\n  '
+    part_def += 'map_t* %s = map(%s, %s, %s, partitionings[%d].part, partitionings[%d].size);'
     desc_def = 'desc(%s, %s)'
     desc_list_def = 'desc_list %s ({%s});'
     loop_def = 'insp_add_parloop(insp, "%s", %s, &%s);'
@@ -66,12 +75,20 @@ typedef struct {
   int size;
 } slope_dat;
 
+typedef struct {
+  char* name;
+  int* part;
+  int size;
+  int nparts;
+} slope_part;
+
 extern "C" void* inspector(slope_set sets[%(n_sets)d],
                            slope_map maps[%(n_maps)d],
                            int tileSize,
                            int rank,
                            slope_dat coords_dat[1],
-                           slope_map* mesh_maps);
+                           slope_map* mesh_maps,
+                           slope_part* partitionings);
 /****************************/
 
 void* inspector(slope_set sets[%(n_sets)d],
@@ -79,7 +96,8 @@ void* inspector(slope_set sets[%(n_sets)d],
                 int tileSize,
                 int rank,
                 slope_dat coords_dat[1],
-                slope_map* mesh_maps)
+                slope_map* mesh_maps,
+                slope_part* partitionings)
 {
   // Declare sets, maps, dats
   %(set_defs)s
@@ -92,8 +110,12 @@ void* inspector(slope_set sets[%(n_sets)d],
   map_list* meshMaps = new map_list();
   %(mesh_map_defs)s
 
+  // Additional set partitionings (may be used to avoid explicit seed loop partitioning)
+  map_list* setPartitionings = new map_list();
+  %(partitionings_defs)s
+
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s, %(name)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s, %(partitionings_list)s, %(name)s);
 
   %(loop_defs)s
 
@@ -112,8 +134,9 @@ void* inspector(slope_set sets[%(n_sets)d],
 
     def __init__(self, name):
         self._name = name
-        self._sets, self._maps, self._loops, self._mesh_maps = [], [], [], []
-        self._partitioning = 'chunk'
+        self._sets, self._maps, self._loops = [], [], []
+        self._mesh_maps, self._partitionings = [], []
+        self._slope_part_mode = 'chunk'
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -139,8 +162,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         maps = [(_fix_c(n), _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
-        return (ctype, ctype(*[Map(n,
-                                   v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        return (ctype, ctype(*[Map(n, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                    v.size) for n, _, _, v in maps]))
 
     def add_loops(self, loops):
@@ -160,7 +182,20 @@ void* inspector(slope_set sets[%(n_sets)d],
         self._loops = [(_fix_c(n), _fix_c(s), [(_fix_c(i[0]), i[1]) for i in d])
                        for n, s, d in loops]
 
-    def set_partitioning(self, mode):
+    def add_partitionings(self, partitionings):
+        """Add sets partitionings. Can be used by SLOPE to derive tiles.
+
+        :param partitionins: iterator of 2-tuple ``(set, nparray)``, where the nparray
+                             represents a map from iterations to partition ids
+        """
+        partitionings = [("%s_to_partitioning" % _fix_c(s), _fix_c(s),
+                          '%s_partitioning' % _fix_c(s), v) for s, v in partitionings]
+        ctype = Part*len(partitionings)
+        self._partitionings = partitionings
+        return (ctype, ctype(*[Part(s, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                                    v.size, max(v)) for n, _, _, v in partitionings]))
+
+    def set_part_mode(self, mode):
         """Set the seed iteration space partitioning mode. This method should be
         called prior to /generate_code/.
 
@@ -168,7 +203,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         """
         if mode not in ['chunk', 'metis']:
             raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
-        self._partitioning = mode
+        self._slope_part_mode = mode
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -236,14 +271,24 @@ void* inspector(slope_set sets[%(n_sets)d],
             desc_defs.append(Inspector.desc_list_def % (descs_name, ", ".join(descs)))
             loop_defs.append(Inspector.loop_def % (loop_name, loop_it_space, descs_name))
 
+        avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
+
         mesh_map_defs, mesh_map_list = "", "NULL"
-        if self._mesh_maps and self._partitioning == 'metis':
-            avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
+        if self._mesh_maps and self._slope_part_mode == 'metis':
             mesh_map_defs = [Inspector.mesh_map_def % ("mm_%s" % m[0], i, m[1], m[2], i, i)
                              for i, m in enumerate(self._mesh_maps) if avail([m[1], m[2]])]
-            mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0] for m in self._mesh_maps
-                              if avail([m[1], m[2]])]
+            mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0]
+                              for m in self._mesh_maps if avail([m[1], m[2]])]
             mesh_map_list = "meshMaps"
+
+        partitionings_defs, partitionings_list = "", "NULL"
+        if self._partitionings:
+            partitionings_defs = [Inspector.part_def % (m[2], i, i, m[0], '"%s"' % m[0], m[1],
+                                  m[2], i, i) for i, m in enumerate(self._partitionings)
+                                  if avail([m[1]])]
+            partitionings_defs += ["setPartitionings->insert(%s);" % m[0]
+                                   for m in self._partitionings if avail([m[1]])]
+            partitionings_list = "setPartitionings"
 
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
@@ -265,6 +310,8 @@ void* inspector(slope_set sets[%(n_sets)d],
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
+            'partitionings_defs': "\n  ".join(partitionings_defs),
+            'partitionings_list': partitionings_list,
             'name': '"%s"' % self._name,
             'output_vtk': output_vtk,
             'output_insp': output_insp

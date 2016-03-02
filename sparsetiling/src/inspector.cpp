@@ -28,7 +28,7 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy,
-                        map_list* meshMaps, string name)
+                        map_list* meshMaps, map_list* partitionings, string name)
 {
   inspector_t* insp = new inspector_t;
 
@@ -42,11 +42,13 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy,
   insp->iter2color = NULL;
   insp->tiles = NULL;
   insp->nSweeps = 0;
+  insp->partitioningMode = "";
 
   insp->totalInspectionTime = 0.0;
   insp->partitioningTime = 0.0;
 
   insp->meshMaps = meshMaps;
+  insp->partitionings = partitionings;
 
   return insp;
 }
@@ -246,6 +248,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   map_list* meshMaps = insp->meshMaps;
   int seed = insp->seed;
   int nSweeps = insp->nSweeps;
+  string partitioningMode = insp->partitioningMode;
   double totalInspectionTime = insp->totalInspectionTime;
   double partitioningTime = insp->partitioningTime;
   int avgTileSize = insp->avgTileSize;
@@ -277,7 +280,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   if (loops) {
     cout << "Number of loops: " << nLoops << endl;
     cout << "Seed loop: " << seed
-         << " (partitioning mode: " << ((meshMaps) ? "metis" : "chunk") << ")" << endl;
+         << " (partitioning mode: " << partitioningMode << ")" << endl;
   }
   else {
     cout << "No loops specified" << endl;
@@ -304,7 +307,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       backend = "Hybrid MPI-OpenMP";
       break;
   }
-  cout << endl << "Backend: " << backend << endl;
+  cout << "Backend: " << backend << endl;
   cout << "Number of threads per process: " << omp_get_max_threads() << endl;
 
   if (level != VERY_LOW && level != MINIMAL) {
@@ -379,7 +382,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     }
   }
 
-  cout << endl << "<<<< SLOPE inspection summary end>>>" << endl << endl;;
+  cout << endl << "<<<< SLOPE inspection summary end >>>" << endl << endl;;
 }
 
 void insp_free (inspector_t* insp)
