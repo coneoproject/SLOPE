@@ -3,6 +3,8 @@
  *
  */
 
+#include <algorithm>
+
 #include "tile.h"
 #include "utils.h"
 
@@ -37,6 +39,12 @@ void tile_assign_loop (tile_list* tiles, loop_t* loop, int* iter2tileMap)
   int execSize = loopSet->core + loopSet->execHalo;
   for (int i = 0; i < execSize; i++) {
     tiles->at(iter2tileMap[i])->iterations[loopIndex]->push_back(i);
+  }
+
+  // finally, sort the iterations within each tile, hopefully creating some
+  // spatial locality
+  for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
+    std::sort ((*tIt)->iterations[loopIndex]->begin(), (*tIt)->iterations[loopIndex]->end());
   }
 }
 
