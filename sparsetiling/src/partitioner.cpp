@@ -123,6 +123,7 @@ static int* chunk(loop_t* seedLoop, int tileSize,
                   int* nCore, int* nExec, int* nNonExec)
 {
   int setCore = seedLoop->set->core;
+  int setExecHalo = seedLoop->set->execHalo;
   int setSize = seedLoop->set->size;
 
   // partition the local core region
@@ -142,7 +143,7 @@ static int* chunk(loop_t* seedLoop, int tileSize,
   }
 
   // partition the exec halo region
-  chunk_halo(seedLoop, tileSize, tileID, indMap, nExec, nNonExec);
+  chunk_halo(seedLoop, setExecHalo, tileID, indMap, nExec, nNonExec);
 
   return indMap;
 }
