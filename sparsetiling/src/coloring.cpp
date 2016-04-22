@@ -116,7 +116,8 @@ void color_fully_parallel (inspector_t* insp)
                           iter2color, iter2tile->inSet->size*1);
 }
 
-void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
+void color_diff_adj (inspector_t* insp, map_t* seedMap,
+                     tracker_t* conflictsTracker, bool onlyCore)
 {
   // aliases
   tile_list* tiles = insp->tiles;
@@ -204,12 +205,20 @@ void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker)
   }
 
   // shift up the halo tile colors, since these tiles must be executed after all core tiles
-  set_t* tileRegions = insp->tileRegions;
   int maxExecHaloColor = nColors;
-  for (int i = 0; i < tileRegions->execHalo; i++) {
-    int newHaloColor = colors[tileRegions->core + i] + nColors;
-    maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
-    colors[tileRegions->core + i] = newHaloColor;
+  set_t* tileRegions = insp->tileRegions;
+  if (onlyCore) {
+    for (int i = 0; i < tileRegions->execHalo; i++) {
+      colors[tileRegions->core + i] = maxExecHaloColor++;
+    }
+    maxExecHaloColor --;
+  }
+  else {
+    for (int i = 0; i < tileRegions->execHalo; i++) {
+      int newHaloColor = colors[tileRegions->core + i] + nColors;
+      maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
+      colors[tileRegions->core + i] = newHaloColor;
+    }
   }
   if (tileRegions->nonExecHalo > 0) {
     maxExecHaloColor += 1;

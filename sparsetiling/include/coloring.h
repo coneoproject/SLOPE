@@ -49,9 +49,15 @@ void color_fully_parallel (inspector_t* insp);
  *   a map used in the indirect seed loop to determine adjacent tiles
  * @param conflictsTracker
  *   track tiles that despite not being adjacent should not be assigned the same color
+ * @param onlyCore
+ *   if set to true, the coloring scheme is applied to core tiles only, with the
+ *   exec and non exec tiles that are given increasing colors
  * @return
  *   build up the /iter2color/ field in /insp/
  */
-void color_shm (inspector_t* insp, map_t* seedMap, tracker_t* conflictsTracker);
+void color_diff_adj (inspector_t* insp,
+                     map_t* seedMap,
+                     tracker_t* conflictsTracker,
+                     bool onlyCore = false);
 
 #endif

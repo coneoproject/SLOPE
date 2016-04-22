@@ -123,14 +123,14 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
         color_rand (insp);
       }
       else if (coloring == COL_MINCOLS) {
-        color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
+        color_diff_adj (insp, seedLoop->seedMap, &crossSweepConflictsTracker, true);
       }
       else {
         color_sequential (insp);
       }
     }
     else if (strategy == OMP || strategy == OMP_MPI) {
-      color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
+      color_diff_adj (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
     }
     else {
       ASSERT(false, "Cannot compute a seed coloring");
