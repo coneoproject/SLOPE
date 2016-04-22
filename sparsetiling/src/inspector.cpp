@@ -22,12 +22,13 @@ using namespace std;
 
 
 // prototypes of static functions
-static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed);
+static int select_seed_loop (insp_strategy strategy, insp_coloring coloring,
+                             loop_list* loops, int suggestedSeed);
 static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles);
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 
-inspector_t* insp_init (int avgTileSize, insp_strategy strategy,
+inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring coloring,
                         map_list* meshMaps, map_list* partitionings, string name)
 {
   inspector_t* insp = new inspector_t;
@@ -47,6 +48,7 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy,
   insp->totalInspectionTime = 0.0;
   insp->partitioningTime = 0.0;
 
+  insp->coloring = coloring;
   insp->meshMaps = meshMaps;
   insp->partitionings = partitionings;
 
@@ -77,6 +79,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
   // aliases
+  insp_coloring coloring = insp->coloring;
   insp_strategy strategy = insp->strategy;
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
@@ -85,10 +88,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   double start = time_stamp();
 
   // establish the seed loop
-  int seed = select_seed_loop (strategy, loops, suggestedSeed);
+  int seed = select_seed_loop (strategy, coloring, loops, suggestedSeed);
   insp->seed = seed;
-
-  // aliases
   loop_t* seedLoop = loops->at(seed);
   ASSERT(!seedLoop->set->superset || nLoops == 1, "Seed loop cannot be a subset");
   string seedLoopSetName = seedLoop->set->name;
@@ -118,7 +119,15 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       color_fully_parallel (insp);
     }
     else if (strategy == SEQUENTIAL || strategy == ONLY_MPI) {
-      color_sequential (insp);
+      if (coloring == COL_RAND) {
+        color_rand (insp);
+      }
+      else if (coloring == COL_MINCOLS) {
+        color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
+      }
+      else {
+        color_sequential (insp);
+      }
     }
     else if (strategy == OMP || strategy == OMP_MPI) {
       color_shm (insp, seedLoop->seedMap, &crossSweepConflictsTracker);
@@ -245,6 +254,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   map_t* iter2color = insp->iter2color;
   tile_list* tiles = insp->tiles;
   insp_strategy strategy = insp->strategy;
+  insp_coloring coloring = insp->coloring;
   map_list* meshMaps = insp->meshMaps;
   int seed = insp->seed;
   int nSweeps = insp->nSweeps;
@@ -255,6 +265,13 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   int nTiles = tiles->size();
   int nLoops = loops->size();
   int itSetSize = loops->at(seed)->set->size;
+
+  cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
+
+  if (! loops) {
+    cout << "No loops specified" << endl;
+    cout << endl << "<<<< SLOPE inspection summary end >>>>" << endl << endl;
+  }
 
   // set verbosity level
   int verbosityItSet, verbosityTiles;
@@ -276,21 +293,6 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       verbosityTiles = INT_MAX;
   }
 
-  cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
-  if (loops) {
-    cout << "Number of loops: " << nLoops << endl;
-    cout << "Seed loop: " << seed
-         << " (partitioning mode: " << partitioningMode << ")" << endl;
-  }
-  else {
-    cout << "No loops specified" << endl;
-  }
-  cout << "Number of tiles: " << nTiles << endl;
-  cout << "Average tile size: " << avgTileSize << endl;
-  cout << "Inspection time: " << totalInspectionTime << " s" << endl
-       << "    Sweeps required: " << nSweeps << endl
-       << "    Partitioning time: " << partitioningTime << " s" << endl;
-
   // backend-related info:
   string backend;
   switch (strategy) {
@@ -307,8 +309,35 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       backend = "Hybrid MPI-OpenMP";
       break;
   }
+
+  // map coloring mode to something sane
+  string coloringMode;
+  switch (coloring) {
+    case COL_DEFAULT:
+      coloringMode = "default";
+      break;
+    case COL_RAND:
+      coloringMode = "rand";
+      break;
+    case COL_MINCOLS:
+      coloringMode = "mincols";
+      break;
+  }
+
   cout << "Backend: " << backend << endl;
-  cout << "Number of threads per process: " << omp_get_max_threads() << endl;
+  cout << "Loop chain info" << endl
+       << "  Number of loops: " << nLoops << endl
+       << "  Number of tiles: " << nTiles << endl
+       << "  Initial tile size: " << avgTileSize << endl;
+  cout << "Seed loop" << endl
+       << "  ID: " << seed << endl
+       << "  Partitioning: " << partitioningMode << endl
+       << "  Coloring: " << coloringMode << endl;
+  cout << "Inspection performance" << endl
+       << "  Number of threads: " << omp_get_max_threads() << endl
+       << "  Partitioning time: " << partitioningTime << " s" << endl
+       << "  Sweeps required for tiling: " << nSweeps << endl
+       << "  Total inspection time: " << totalInspectionTime << " s" << endl;
 
   if (level != VERY_LOW && level != MINIMAL) {
     if (iter2tile && iter2color) {
@@ -382,7 +411,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
     }
   }
 
-  cout << endl << "<<<< SLOPE inspection summary end >>>" << endl << endl;;
+  cout << endl << "<<<< SLOPE inspection summary end >>>>" << endl << endl;
 }
 
 void insp_free (inspector_t* insp)
@@ -496,7 +525,8 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
        << loop->set->size << " iterations" << endl;
 }
 
-static int select_seed_loop (insp_strategy strategy, loop_list* loops, int suggestedSeed)
+static int select_seed_loop (insp_strategy strategy, insp_coloring coloring,
+                             loop_list* loops, int suggestedSeed)
 {
   int nLoops = loops->size();
   loop_t* suggestedLoop = loops->at(suggestedSeed);
@@ -511,13 +541,19 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
   if (strategy == SEQUENTIAL) {
     if (nLoops > 1 && suggestedLoop->set->superset) {
       int i = 0;
+      suggestedSeed = -1;
       loop_list::const_iterator it, end;
       for (it = loops->begin(), end = loops->end(); it != end; it++, i++) {
         if (! (*it)->set->superset) {
-          return i;
+          suggestedSeed = i;
+          break;
         }
       }
-      ASSERT(false, "Invalid loop chain iterating over supersets only");
+      ASSERT (suggestedSeed != -1, "Invalid loop chain iterating over supersets only");
+    }
+    if (coloring == COL_MINCOLS) {
+      ASSERT (loop_load_seed_map (loops->at(suggestedSeed), loops),
+              "Couldn't load a map for coloring");
     }
     return suggestedSeed;
   }
@@ -539,26 +575,18 @@ static int select_seed_loop (insp_strategy strategy, loop_list* loops, int sugge
     return suggestedSeed;
   }
 
-  // for MPI backends, the only legal seed is 0
+  // for MPI backends, the only legal seed is 0.
+  // tiling starts from the top of the loop chain so that the halo region can
+  // progressively grow over the core tiles (the user must have provided a
+  // sufficiently large halo region).
   int legalSeed = 0;
   ASSERT (! loops->at(legalSeed)->set->superset || nLoops == 1, "Illegal subset seed loop");
-
-  // pure mpi backend (one mpi rank per process). Tiling starts from the bottom
-  // of the loop chain so that tiles can progressively grow over the halo region.
-  // Note that the user is expected to provide a "sufficiently large" halo region.
-  if (strategy == ONLY_MPI) {
-    ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
-    return legalSeed;
-  }
-
-  // mixed mpi and openmp backend. Need both coloring and a "sufficiently large"
-  // halo region (comments above also apply here)
-  if (strategy == OMP_MPI) {
-    ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
+  ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
+  if (strategy == OMP_MPI || coloring == COL_MINCOLS) {
     ASSERT (loop_load_seed_map (loops->at(legalSeed), loops),
             "Couldn't load a map for coloring");
-    return legalSeed;
   }
+  return legalSeed;
 }
 
 static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)

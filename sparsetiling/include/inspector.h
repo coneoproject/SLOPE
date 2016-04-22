@@ -11,6 +11,7 @@
 #include "tile.h"
 
 enum insp_strategy {SEQUENTIAL, OMP, ONLY_MPI, OMP_MPI};
+enum insp_coloring {COL_DEFAULT, COL_RAND, COL_MINCOLS};
 enum insp_info {INSP_OK, INSP_ERR};
 enum insp_verbose {MINIMAL = 1, VERY_LOW = 5, LOW = 20, MEDIUM = 40, HIGH};
 
@@ -41,6 +42,8 @@ typedef struct {
   /* partitioning mode */
   std::string partitioningMode;
 
+  /* how tiles are going to be colored */
+  insp_coloring coloring;
   /* the mesh structure, as a list of maps to nodes */
   map_list* meshMaps;
   /* available set partitionings, may be used for deriving tiles */
@@ -60,6 +63,14 @@ typedef struct {
  * @param strategy
  *   tiling strategy (SEQUENTIAL; OMP - openmp; ONLY_MPI - one MPI process for
  *   each core; OMP_MPI - mixed OMP (within a node) and MPI (cross-node))
+ * @param coloring
+ *   by default, tiles are colored based on the inspection strategy. For example,
+ *   the OMP strategy requires adjacent tiles be given different colors to preserve
+ *   correctness of shared memory parallelism. However, the default behaviour of
+ *   some strategies can be altered, particularly that of SEQUENTIAL and ONLY_MPI.
+ *   Accepted values are COL_DEFAULT, COL_RAND (random coloring), COL_MINCOLS
+ *   (try to minimize the number of colors such that adjacent tiles have different
+ *   colors).
  * @param meshMaps (optional)
  *   a high level description of the mesh through a list of maps to nodes. This
  *   can optionally be used to partition an iteration space using an external
@@ -75,8 +86,11 @@ typedef struct {
  * @return
  *   an inspector data structure
  */
-inspector_t* insp_init (int tileSize, insp_strategy strategy,
-                        map_list* meshMaps = NULL, map_list* partitionings = NULL,
+inspector_t* insp_init (int tileSize,
+                        insp_strategy strategy,
+                        insp_coloring coloring = COL_DEFAULT,
+                        map_list* meshMaps = NULL,
+                        map_list* partitionings = NULL,
                         std::string name = "");
 
 /*
@@ -94,7 +108,9 @@ inspector_t* insp_init (int tileSize, insp_strategy strategy,
  * @return
  *   the inspector is updated with a new loop the tiles will have to cross
  */
-insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
+insp_info insp_add_parloop (inspector_t* insp,
+                            std::string name,
+                            set_t* set,
                             desc_list* descriptors);
 
 /*
@@ -111,7 +127,8 @@ insp_info insp_add_parloop (inspector_t* insp, std::string name, set_t* set,
  *   characterized by a list of iterations that are supposed to be executed,
  *   for each crossed parloop
  */
-insp_info insp_run (inspector_t* insp, int suggestedSeed);
+insp_info insp_run (inspector_t* insp,
+                    int suggestedSeed);
 
 /*
  * Print a summary of the inspector
@@ -123,7 +140,9 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed);
  * @param loopIndex
  *   if different than -1, print information only for loop of index loopIndex
  */
-void insp_print (inspector_t* insp, insp_verbose level, int loopIndex = -1);
+void insp_print (inspector_t* insp,
+                 insp_verbose level,
+                 int loopIndex = -1);
 
 /*
  * Destroy an inspector

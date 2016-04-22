@@ -10,7 +10,7 @@
 #include "tiling.h"
 
 /*
- * Assign increasing colors to the various tiles.
+ * Assign increasing colors to the tiles.
  *
  * @param insp
  *   the inspector data structure
@@ -20,7 +20,17 @@
 void color_sequential (inspector_t* insp);
 
 /*
- * Assign the same color to all tiles. This means all tiles will run in parallel.
+ * Assign different colors to the tiles, in random order.
+ *
+ * @param insp
+ *   the inspector data structure
+ * @return
+ *   build up the /iter2color/ field in /insp/
+ */
+void color_rand (inspector_t* insp);
+
+/*
+ * Assign the same color to all tiles. This means all tiles can run in parallel.
  * The only exceptions are the halo tiles, which get assigned a higher color.
  *
  * @param insp

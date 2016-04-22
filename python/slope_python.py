@@ -35,7 +35,7 @@ class Part(ctypes.Structure):
 
 class Inspector(object):
 
-    _globaldata = {'mode': 'SEQUENTIAL'}
+    _globaldata = {'mode': 'SEQUENTIAL', 'coloring': 'DEFAULT'}
 
     ### Templates for code generation ###
 
@@ -115,7 +115,7 @@ void* inspector(slope_set sets[%(n_sets)d],
   %(partitionings_defs)s
 
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(mesh_map_list)s, %(partitionings_list)s, %(name)s);
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, %(name)s);
 
   %(loop_defs)s
 
@@ -134,9 +134,16 @@ void* inspector(slope_set sets[%(n_sets)d],
 
     def __init__(self, name):
         self._name = name
-        self._sets, self._maps, self._loops = [], [], []
-        self._mesh_maps, self._partitionings = [], []
+
+        self._sets = []
+        self._maps = []
+        self._loops = []
+
+        self._mesh_maps = []
+        self._partitionings = []
+
         self._slope_part_mode = 'chunk'
+        self._slope_coloring = 'default'
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -204,6 +211,17 @@ void* inspector(slope_set sets[%(n_sets)d],
         if mode not in ['chunk', 'metis']:
             raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
         self._slope_part_mode = mode
+
+    def set_coloring(self, coloring):
+        """Set the way tiles should be colored. This method should be called prior
+        to /generate_code/.
+
+        :param coloring: defaults to 'default' (available: 'default', 'rand', 'mincols')
+        """
+        valid = ['default', 'rand', 'mincols']
+        if coloring not in valid:
+            raise SlopeError("Invalid coloring (available: %s)" % str(valid))
+        self._slope_coloring = coloring
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -290,6 +308,8 @@ void* inspector(slope_set sets[%(n_sets)d],
                                    for m in self._partitionings if avail([m[1]])]
             partitionings_list = "setPartitionings"
 
+        coloring = "COL_%s" % self._slope_coloring.upper()
+
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
         output_insp, output_vtk = "", ""
@@ -307,6 +327,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_maps': len(self._maps),
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
+            'coloring': coloring,
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,

@@ -4,8 +4,7 @@
  */
 
 #include <set>
-
-#include <string.h>
+#include <algorithm>
 
 #include "coloring.h"
 #include "utils.h"
@@ -39,14 +38,39 @@ void color_sequential (inspector_t* insp)
   map_t* iter2tile = insp->iter2tile;
   int nTiles = iter2tile->outSet->size;
 
-  // each tile is assigned a different color. This way, the tiling algorithm,
-  // which is based on colors, works seamless regardless of whether the
-  // execution strategy is sequential or parallel (shared memory).
-  // Note: halo tiles always get the maximum colors
+  // tiles are assigned colors in increasing order.
+  // note: halo tiles always get the maximum colors
   int* colors = new int[nTiles];
   for (int i = 0; i < nTiles; i++) {
     colors[i] = i;
   }
+
+  map_t* tile2iter = map_invert (iter2tile, NULL);
+  int* iter2color = color_apply(tiles, tile2iter, colors);
+
+  map_free (tile2iter, true);
+  delete[] colors;
+
+  // note we have as many colors as the number of tiles
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1);
+}
+
+void color_rand (inspector_t* insp)
+{
+  // aliases
+  tile_list* tiles = insp->tiles;
+  map_t* iter2tile = insp->iter2tile;
+  int nCore = insp->tileRegions->core;
+  int nTiles = iter2tile->outSet->size;
+
+  // each tile is assigned a different color, in random order
+  // note: halo tiles always get the maximum colors
+  int* colors = new int[nTiles];
+  for (int i = 0; i < nTiles; i++) {
+    colors[i] = i;
+  }
+  std::random_shuffle (colors, colors + nCore);
 
   map_t* tile2iter = map_invert (iter2tile, NULL);
   int* iter2color = color_apply(tiles, tile2iter, colors);
