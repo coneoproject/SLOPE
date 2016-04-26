@@ -49,6 +49,9 @@ typedef struct {
   /* available set partitionings, may be used for deriving tiles */
   map_list* partitionings;
 
+  /* number of extra iterations in a tile, useful for SW prefetching */
+  int prefetchHalo;
+
   /* the following fields track the time spent in various code sections*/
   double totalInspectionTime;
   double partitioningTime;
@@ -59,7 +62,7 @@ typedef struct {
  * Initialize a new inspector
  *
  * @param tileSize
- *   average tile size after partitioning of the base loop's iteration set
+ *   average tile size after partitioning of the seed loop's iteration set
  * @param strategy
  *   tiling strategy (SEQUENTIAL; OMP - openmp; ONLY_MPI - one MPI process for
  *   each core; OMP_MPI - mixed OMP (within a node) and MPI (cross-node))
@@ -70,19 +73,22 @@ typedef struct {
  *   some strategies can be altered, particularly that of SEQUENTIAL and ONLY_MPI.
  *   Accepted values are COL_DEFAULT, COL_RAND (random coloring), COL_MINCOLS
  *   (try to minimize the number of colors such that adjacent tiles have different
- *   colors).
+ *   colors)
  * @param meshMaps (optional)
  *   a high level description of the mesh through a list of maps to nodes. This
  *   can optionally be used to partition an iteration space using an external
  *   library, such that tiles of particular shape (e.g., squarish, rather than
- *   strip-like) can be carved.
+ *   strip-like) can be carved
  * @param partitionings (optional)
  *   a partitioning of one or more sets into disjoint, contiguous subsets.
  *   Can be used in place of explicit tile partitioning if the seed loop
  *   iteration set is in this list
+ * @param prefetchHalo (optional)
+ *   number of duplicate iterations that a tile owns, for each loop. This
+ *   can simplify the implementation of software prefetching in the executor
  * @param name (optional)
  *   a unique name that identifies the inspector. Only useful if more than
- *   one inspectors are planned.
+ *   one inspectors are planned
  * @return
  *   an inspector data structure
  */
@@ -91,6 +97,7 @@ inspector_t* insp_init (int tileSize,
                         insp_coloring coloring = COL_DEFAULT,
                         map_list* meshMaps = NULL,
                         map_list* partitionings = NULL,
+                        int prefetchHalo = 1,
                         std::string name = "");
 
 /*

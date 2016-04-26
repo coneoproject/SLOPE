@@ -183,7 +183,7 @@ int main(int argc, char **argv)
           // loop adt_calc (calculate area/timstep)
           iterations_list& lc2n_0 = tile_get_local_map (tile, 0, "c2n");
           iterations_list& iterations_0 = tile_get_iterations (tile, 0);
-          tileLoopSize = iterations_0.size();
+          tileLoopSize = tile_loop_size (tile, 0);
           #pragma ivdep
           for (int k = 0; k < tileLoopSize; k++) {
             adt_calc (x + lc2n_0[k*4 + 0]*2,
@@ -198,7 +198,7 @@ int main(int argc, char **argv)
           iterations_list& le2n_1 = tile_get_local_map (tile, 1, "e2n");
           iterations_list& le2c_1 = tile_get_local_map (tile, 1, "e2c");
           iterations_list& iterations_1 = tile_get_iterations (tile, 1);
-          tileLoopSize = iterations_1.size();
+          tileLoopSize = tile_loop_size (tile, 1);
           for (int k = 0; k < tileLoopSize; k++) {
             res_calc (x + le2n_1[k*2 + 0]*2,
                       x + le2n_1[k*2 + 1]*2,
@@ -214,7 +214,7 @@ int main(int argc, char **argv)
           iterations_list& lbe2n_2 = tile_get_local_map (tile, 2, "be2n");
           iterations_list& lbe2c_2 = tile_get_local_map (tile, 2, "be2c");
           iterations_list& iterations_2 = tile_get_iterations (tile, 2);
-          tileLoopSize = iterations_2.size();
+          tileLoopSize = tile_loop_size (tile, 2);
           for (int k = 0; k < tileLoopSize; k++) {
             bres_calc (x + lbe2n_2[k*2 + 0]*2,
                        x + lbe2n_2[k*2 + 1]*2,
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 
           // loop update
           iterations_list& iterations_3 = tile_get_iterations (tile, 3);
-          tileLoopSize = iterations_3.size();
+          tileLoopSize = tile_loop_size (tile, 3);
           for (int k = 0; k < tileLoopSize; k++) {
             update    (qold + iterations_3[k]*4,
                        q + iterations_3[k]*4,
@@ -238,7 +238,7 @@ int main(int argc, char **argv)
           // loop adt_calc (k = 2)
           iterations_list& lc2n_4 = tile_get_local_map (tile, 4, "c2n");
           iterations_list& iterations_4 = tile_get_iterations (tile, 4);
-          tileLoopSize = iterations_4.size();
+          tileLoopSize = tile_loop_size (tile, 4);
           #pragma ivdep
           for (int k = 0; k < tileLoopSize; k++) {
             adt_calc (x + lc2n_4[k*4 + 0]*2,
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
           iterations_list& le2n_5 = tile_get_local_map (tile, 5, "e2n");
           iterations_list& le2c_5 = tile_get_local_map (tile, 5, "e2c");
           iterations_list& iterations_5 = tile_get_iterations (tile, 5);
-          tileLoopSize = iterations_5.size();
+          tileLoopSize = tile_loop_size (tile, 5);
           for (int k = 0; k < tileLoopSize; k++) {
             res_calc (x + le2n_5[k*2 + 0]*2,
                       x + le2n_5[k*2 + 1]*2,

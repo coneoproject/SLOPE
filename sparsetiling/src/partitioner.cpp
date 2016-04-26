@@ -27,6 +27,7 @@ void partition (inspector_t* insp)
   map_list* meshMaps = insp->meshMaps;
   map_list* partitionings = insp->partitionings;
   int tileSize = insp->avgTileSize;
+  int prefetchHalo = insp->prefetchHalo;
   int nLoops = insp->loops->size();
   int seed = insp->seed;
   loop_t* seedLoop = insp->loops->at(seed);
@@ -53,13 +54,13 @@ void partition (inspector_t* insp)
   int t;
   tile_list* tiles = new tile_list (nCore + nExec + nNonExec);
   for (t = 0; t < nCore; t++) {
-    tiles->at(t) = tile_init (nLoops);
+    tiles->at(t) = tile_init (nLoops, LOCAL, prefetchHalo);
   }
   for (; t < nCore + nExec; t++) {
-    tiles->at(t) = tile_init (nLoops, EXEC_HALO);
+    tiles->at(t) = tile_init (nLoops, EXEC_HALO, prefetchHalo);
   }
   for (; t < nCore + nExec + nNonExec; t++) {
-    tiles->at(t) = tile_init (nLoops, NON_EXEC_HALO);
+    tiles->at(t) = tile_init (nLoops, NON_EXEC_HALO, prefetchHalo);
   }
   // ... explicitly track the tile region (core, exec_halo, and non_exec_halo) ...
   set_t* tileRegions = set("tiles", nCore, nExec, nNonExec);

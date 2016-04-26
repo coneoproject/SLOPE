@@ -35,7 +35,11 @@ class Part(ctypes.Structure):
 
 class Inspector(object):
 
-    _globaldata = {'mode': 'SEQUENTIAL', 'coloring': 'DEFAULT'}
+    _globaldata = {
+        'mode': 'SEQUENTIAL',
+        'coloring': 'DEFAULT',
+        'prefetchHalo': 1
+    }
 
     ### Templates for code generation ###
 
@@ -115,7 +119,8 @@ void* inspector(slope_set sets[%(n_sets)d],
   %(partitionings_defs)s
 
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, %(name)s);
+  int prefetchHalo = %(prefetchHalo)d;
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, prefetchHalo, %(name)s);
 
   %(loop_defs)s
 
@@ -310,6 +315,8 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         coloring = "COL_%s" % self._slope_coloring.upper()
 
+        prefetchHalo = Inspector._globaldata['prefetchHalo']
+
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
         output_insp, output_vtk = "", ""
@@ -328,6 +335,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
             'coloring': coloring,
+            'prefetchHalo': prefetchHalo,
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
@@ -389,7 +397,7 @@ iterations_list& %(lmap)s = tile_get_local_map (tile, %(loop_id)d, "%(gmap)s");
 """
     local_iters = """\
 iterations_list& %(local_iters)s = tile_get_iterations (tile, %(loop_id)d);
-tileLoopSize = iterations_%(loop_id)d.size();
+tileLoopSize = tile_loop_size (tile, %(loop_id)d);
 """
 
     debug_init = """
@@ -618,6 +626,11 @@ def set_debug_mode(mode, coordinates=None):
         if arity not in [1, 2, 3]:
             raise SlopeError("Arity should be a number in [1, 2, 3]")
         Inspector._globaldata['coordinates'] = coordinates
+
+
+def set_prefetch_halo(val):
+    assert isinstance(val, int) and val >= 0
+    Inspector._globaldata['prefetchHalo'] = val
 
 
 def set_mesh_maps(maps):

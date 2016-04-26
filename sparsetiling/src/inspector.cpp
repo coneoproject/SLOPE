@@ -29,7 +29,8 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring coloring,
-                        map_list* meshMaps, map_list* partitionings, string name)
+                        map_list* meshMaps, map_list* partitionings, int prefetchHalo,
+                        string name)
 {
   inspector_t* insp = new inspector_t;
 
@@ -51,6 +52,8 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring c
   insp->coloring = coloring;
   insp->meshMaps = meshMaps;
   insp->partitionings = partitionings;
+
+  insp->prefetchHalo = prefetchHalo;
 
   return insp;
 }
@@ -494,13 +497,13 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 
   int tilesRange = MIN(nTiles, verbosityTiles);
   for (int i = 0; i < tilesRange; i++) {
-    int tileSize = tiles->at(i)->iterations[loop->index]->size();
-    totalIterationsAssigned += tileSize;
+    int tileLoopSize = tile_loop_size (tiles->at(i), loop->index);
+    totalIterationsAssigned += tileLoopSize;
     string tileInfo = (tiles->at(i)->region == LOCAL) ? "      " : "(HALO)";
-    int range = MIN(tileSize, verbosityTiles);
+    int range = MIN(tileLoopSize, verbosityTiles);
     cout << " " << tileInfo << " " << i << "   |    " << tiles->at(i)->color << "    |   "
-         << tileSize << " : {";
-    if (tileSize == 0) {
+         << tileLoopSize << " : {";
+    if (tileLoopSize == 0) {
       cout << "No iterations}" << endl;
       continue;
     }
@@ -508,16 +511,16 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
     for (int j = 1; j < range; j++) {
       cout << ", " << tiles->at(i)->iterations[loop->index]->at(j);
     }
-    if (tileSize > verbosityTiles) {
-      int lastIterID = tiles->at(i)->iterations[loop->index]->at(tileSize - 1);
+    if (tileLoopSize > verbosityTiles) {
+      int lastIterID = tiles->at(i)->iterations[loop->index]->at(tileLoopSize - 1);
       cout << "..., " << lastIterID;
     }
     cout << "}" << endl;
   }
   if (nTiles > tilesRange) {
     for (int i = tilesRange; i < nTiles; i++) {
-      int tileSize = tiles->at(i)->iterations[loop->index]->size();
-      totalIterationsAssigned += tileSize;
+      int tileLoopSize = tile_loop_size (tiles->at(i), loop->index);
+      totalIterationsAssigned += tileLoopSize;
     }
     cout << "         ..." << endl;
   }
@@ -625,7 +628,7 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
           continue;
         }
 
-        int tileLoopSize = (*tIt)->iterations[i]->size();
+        int tileLoopSize = tile_loop_size (*tIt, i);
         int* globalIndMap = globalMap->values;
         int arity = (tileLoopSize > 0) ? globalMap->size / globalMap->inSet->size : 0;
 
