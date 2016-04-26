@@ -26,12 +26,12 @@ typedef struct {
  * Initialize a new executor
  *
  * @param insp
- *   the inspector data structure
+ *   the inspector from which the executor is built
  */
 executor_t* exec_init (inspector_t* insp);
 
 /*
- * Return the total number of colors computed
+ * Return the number of colors computed
  *
  * @param exec
  *   the executor data structure
@@ -39,36 +39,36 @@ executor_t* exec_init (inspector_t* insp);
 int exec_num_colors (executor_t* exec);
 
 /*
- * Return the total number of tiles for a given color
+ * Return the number of tiles for a given color
  *
  * @param exec
  *   the executor data structure
  * @param color
  *   the color for which the number of tiles is retrieved
  */
-int exec_tiles_per_color (executor_t* exec, int color);
+int exec_tiles_per_color (executor_t* exec,
+                          int color);
 
 /*
- * Return the ith tile having a given color
+ * Return the i-th tile with given color
  *
  * @param exec
  *   the executor data structure
  * @param color
- *   the color for which the ith tile is retrieved
+ *   the color of the tile
  * @param ithTile
  *   the ID of the tile that needs be retrieved
  * @param region
  *   a flag to specify the tile region; if this does not match with the retrieved
  *   tile's region, then NULL is returned
  */
-tile_t* exec_tile_at (executor_t* exec, int color, int ithTile,
+tile_t* exec_tile_at (executor_t* exec,
+                      int color,
+                      int ithTile,
                       tile_region region = LOCAL);
 
 /*
  * Destroy an executor
- *
- * @param exec
- *   the executor data structure
  */
 void exec_free (executor_t* exec);
 

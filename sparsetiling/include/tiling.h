@@ -31,12 +31,15 @@ typedef struct {
 } iter2tc_t;
 
 /*
- * Bind iterations to tile IDs and colors.
+ * Map iterations to tile IDs and colors.
  *
  * Note: the caller loses ownership of iter2tile and iter2color after calling
- * this function. Access to these two maps becomes therefore undefined.
+ * this function.
  */
-iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile, int* iter2color);
+iter2tc_t* iter2tc_init (std::string name,
+                         int itSetSize,
+                         int* iter2tile,
+                         int* iter2color);
 
 /*
  * Clone an iter2tc_t
@@ -49,7 +52,8 @@ iter2tc_t* iter2tc_cpy (iter2tc_t* iter2tc);
 void iter2tc_free (iter2tc_t* iter2tc);
 
 
-inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
+inline bool iter2tc_cmp (const iter2tc_t* a,
+                         const iter2tc_t* b)
 {
   return a->name < b->name;
 }
@@ -96,8 +100,8 @@ typedef std::map<int, index_set> tracker_t;
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by a parloop i, as tiling goes forward.
- * This produces the required information for calling tile_forward on a parloop i+1.
+ * touched (read, incremented, written) by a parloop /i/, as tiling goes forward.
+ * This produces the required information for calling tile_forward on parloop /i+1/.
  * In particular, update prevLoopProj by exploiting information in tilingInfo. Also,
  * seedLoopProj is updated if new sets are encountered.
  *
@@ -124,8 +128,8 @@ void project_forward (loop_t* tiledLoop,
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by a parloop i, as tiling goes backward.
- * This produces the required information for calling tile_backward on a parloop i-1.
+ * touched (read, incremented, written) by a parloop /i/, as tiling goes backward.
+ * This produces the required information for calling tile_backward on a parloop /i-1/.
  * In particular, update prevLoopProj by exploiting information in tilingInfo.
  *
  * @param tiledLoop
@@ -145,7 +149,7 @@ void project_backward (loop_t* tiledLoop,
                        tracker_t* conflictsTracker);
 
 /*
- * Tile a parloop when going forward along the loop chain.
+ * Tile a parloop moving forward along the loop chain.
  *
  * @param curLoop
  *   the loop whose iterations will be colored and assigned a tile
@@ -156,7 +160,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
                          projection_t* prevLoopProj);
 
 /*
- * Tile a parloop when going backward along the loop chain.
+ * Tile a parloop moving backward along the loop chain.
  *
  * @param curLoop
  *   the loop whose iterations will be colored and assigned a tile

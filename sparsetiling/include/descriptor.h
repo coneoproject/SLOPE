@@ -20,9 +20,9 @@
 enum am_t {READ, WRITE, RW, INC};
 
 /*
- * Represent an access descriptor, which binds two things:
+ * Represent an access descriptor, which includes two fields:
  * - a map from the iteration set of a parloop to a target set
- * - the way the target set is accessed (READ, WRITE, RW, INC)
+ * - the access mode to the target set (READ, WRITE, RW, INC)
  */
 typedef struct {
   /* map used to access a certain set */
@@ -36,7 +36,8 @@ typedef std::set<descriptor_t*> desc_list;
 /*
  * Initialize an access descriptor
  */
-inline descriptor_t* desc (map_t* map, am_t mode)
+inline descriptor_t* desc (map_t* map,
+                           am_t mode)
 {
   descriptor_t* desc = new descriptor_t;
   desc->map = map;
@@ -46,8 +47,6 @@ inline descriptor_t* desc (map_t* map, am_t mode)
 
 /*
  * Destroy an access descriptor
- *
- * Note that it is responsible of the caller to delete the descriptor's mapping
  */
 inline void desc_free (descriptor_t* desc)
 {

@@ -48,7 +48,10 @@ typedef std::set<set_t*> set_list;
  *                  this region should be proportial to the depth of tiling
  *    - `nonExecHalo`: read when executing the halo region
  */
-inline set_t* set (std::string name, int core, int execHalo = 0, int nonExecHalo = 0,
+inline set_t* set (std::string name,
+                   int core,
+                   int execHalo = 0,
+                   int nonExecHalo = 0,
                    set_t* superset = NULL)
 {
   set_t* set =  new set_t;
@@ -81,7 +84,8 @@ inline set_t* set_cpy (set_t* toCopy)
 /*
  * Return /true/ if two sets are identical (same identifier), /false/ otherwise
  */
-inline bool set_eq(const set_t* a, const set_t* b)
+inline bool set_eq(const set_t* a,
+                   const set_t* b)
 {
   return a && b && a->name == b->name;
 }
@@ -90,7 +94,8 @@ inline bool set_eq(const set_t* a, const set_t* b)
   * Return /true/ if /a/ goes before /b/, /false/ otherwise. This just boils down
   * to compare the name of the two sets
   */
-inline bool set_cmp(const set_t* a, const set_t* b)
+inline bool set_cmp(const set_t* a,
+                    const set_t* b)
 {
   return a && b && a->name < b->name;
 }

@@ -50,7 +50,8 @@ typedef std::vector<loop_t*> loop_list;
  * @return
  *   true if one such map is found. false otherwise
  */
-bool loop_load_seed_map (loop_t* loop, loop_list* loops = NULL);
+bool loop_load_seed_map (loop_t* loop,
+                         loop_list* loops = NULL);
 
 /*
  * @return
