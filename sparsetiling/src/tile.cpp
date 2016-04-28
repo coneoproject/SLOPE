@@ -42,7 +42,8 @@ void tile_assign_loop (tile_list* tiles, loop_t* loop, int* iter2tileMap)
   }
 
   for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
-    iterations_list& iterations = *((*tIt)->iterations[loopIndex]);
+    tile_t* tile = *tIt;
+    iterations_list& iterations = *(tile->iterations[loopIndex]);
     if (! iterations.size()) {
       continue;
     }
@@ -50,9 +51,9 @@ void tile_assign_loop (tile_list* tiles, loop_t* loop, int* iter2tileMap)
     // 3) sort the iterations within each tile, hopefully creating some spatial locality
     std::sort (iterations.begin(), iterations.end());
 
-    // 4) add fake iterations in case one wants to start prefetching iteration /i+1/
-    // while about to execute iteration /i/
-    for (int i = 0; i < (*tIt)->prefetchHalo; i++) {
+    // 4) add fake /d/ extra elements in case one wants to prefetch iterations
+    // /i/, /i+1/, ..., /i+d/, before having executed iteration /i/
+    for (int i = 0; i < tile->prefetchHalo; i++) {
       iterations.push_back(iterations.back());
     }
   }
