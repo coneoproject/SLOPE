@@ -55,9 +55,19 @@ bool loop_load_seed_map (loop_t* loop,
 
 /*
  * @return
- *   true if the loop is direct (i.e., all access descriptors represent direct
- *   data accesses), false otherwise
+ *   /true/ if the loop is direct (i.e., all access descriptors represent direct
+ *   data accesses), /false/ otherwise
  */
 bool loop_is_direct (loop_t* loop);
+
+/*
+ * @return
+ *   /true/ if the two loops have same iteration space, /false/ otherwise
+ */
+inline bool loop_eq_itspace (loop_t* loop_a,
+                             loop_t* loop_b)
+{
+  return loop_a && loop_b && set_eq (loop_a->set, loop_b->set);
+}
 
 #endif

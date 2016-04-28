@@ -109,17 +109,20 @@ schedule_t* tile_backward (loop_t* curLoop,
 /*
  * Distribute the iterations of a tiled loop to tiles
  *
- * @param tiles
- *   the list of tiles that are added new iterations
  * @param loop
- *   the tiled loop
+ *   the tiled loop whose iterations will be assigned to tiles
+ * @param loops
+ *   the loop chain
+ * @param tiles
+ *   the list of tiles to be populated
  * @param iter2tile
  *   an integer map from iterations to tiles
  * @param direction
  *  the tiling direction
  */
-void assign_loop (tile_list* tiles,
-                  loop_t* loop,
+void assign_loop (loop_t* loop,
+                  loop_list* loops,
+                  tile_list* tiles,
                   int* iter2tile,
                   direction_t direction);
 

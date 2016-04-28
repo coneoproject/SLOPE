@@ -185,7 +185,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
       // tile loop /i/
       tilingInfo = tile_forward (curLoop, prevLoopProj);
-      assign_loop (tiles, curLoop, tilingInfo->iter2tile, tilingInfo->direction);
+      assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
@@ -209,7 +209,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
       // tile loop /i/
       tilingInfo = tile_backward (curLoop, prevLoopProj);
-      assign_loop (tiles, curLoop, tilingInfo->iter2tile, tilingInfo->direction);
+      assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
@@ -628,7 +628,7 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
           continue;
         }
 
-        int tileLoopSize = tile_loop_size (*tIt, i);
+        int tileLoopSize = (*tIt)->iterations[i]->size();
         int* globalIndMap = globalMap->values;
         int arity = (tileLoopSize > 0) ? globalMap->size / globalMap->inSet->size : 0;
 

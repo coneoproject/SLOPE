@@ -525,7 +525,8 @@ schedule_t* tile_backward (loop_t* curLoop,
   return loopIter2tc;
 }
 
-void assign_loop (tile_list* tiles, loop_t* loop, int* iter2tile, direction_t direction)
+void assign_loop (loop_t* loop, loop_list* loops, tile_list* tiles,
+                  int* iter2tile, direction_t direction)
 {
   // aliases
   int loopIndex = loop->index;
@@ -545,13 +546,57 @@ void assign_loop (tile_list* tiles, loop_t* loop, int* iter2tile, direction_t di
 
   for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
     tile_t* tile = *tIt;
+    int nLoops = tile->crossedLoops;
     iterations_list& iterations = *(tile->iterations[loopIndex]);
-    if (! iterations.size()) {
+    int tileLoopSize = iterations.size();
+    if (! tileLoopSize) {
       continue;
     }
 
-    // 3) sort the iterations within each tile, hopefully creating some spatial locality
+    // 3) create a sorted iteration list:
+    // first put all iterations already in the tile, then all others
+    iterations_list sortedIters;
+    switch (direction) {
+      case SEED:
+        break;
+      case DOWN:
+        for (int i = loopIndex - 1; i >= 0; i--) {
+          if (loop_eq_itspace (loop, loops->at(i))) {
+            iterations_list& prevIters = *(tile->iterations[i]);
+            int tilePrevLoopSize = prevIters.size();
+            for (int e = 0; e < tilePrevLoopSize; e++) {
+              iterations_list::iterator isIn;
+              isIn = std::find (iterations.begin(), iterations.end(), prevIters[e]);
+              if (isIn != iterations.end()) {
+                sortedIters.push_back(*isIn);
+                iterations.erase(isIn);
+              }
+            }
+            break;
+          }
+        }
+        break;
+      case UP:
+        for (int i = loopIndex + 1; i < nLoops; i++) {
+          if (loop_eq_itspace (loop, loops->at(i))) {
+            iterations_list& prevIters = *(tile->iterations[i]);
+            int tilePrevLoopSize = prevIters.size();
+            for (int e = 0; e < tilePrevLoopSize; e++) {
+              iterations_list::iterator isIn;
+              isIn = std::find (iterations.begin(), iterations.end(), prevIters[e]);
+              if (isIn != iterations.end()) {
+                sortedIters.push_back(*isIn);
+                iterations.erase(isIn);
+              }
+            }
+            break;
+          }
+        }
+        break;
+    }
     std::sort (iterations.begin(), iterations.end());
+    sortedIters.insert (sortedIters.end(), iterations.begin(), iterations.end());
+    iterations.assign (sortedIters.begin(), sortedIters.end());
 
     // 4) add fake /d/ extra elements in case one wants to prefetch iterations
     // /i/, /i+1/, ..., /i+d/, before having executed iteration /i/
