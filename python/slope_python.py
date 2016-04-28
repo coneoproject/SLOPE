@@ -38,7 +38,6 @@ class Inspector(object):
     _globaldata = {
         'mode': 'SEQUENTIAL',
         'coloring': 'DEFAULT',
-        'prefetchHalo': 1
     }
 
     ### Templates for code generation ###
@@ -149,6 +148,7 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         self._slope_part_mode = 'chunk'
         self._slope_coloring = 'default'
+        self._slope_prefetch = 0
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -227,6 +227,10 @@ void* inspector(slope_set sets[%(n_sets)d],
         if coloring not in valid:
             raise SlopeError("Invalid coloring (available: %s)" % str(valid))
         self._slope_coloring = coloring
+
+    def set_prefetch_halo(self, val):
+        assert isinstance(val, int) and val >= 0
+        self._slope_prefetch = val
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -315,8 +319,6 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         coloring = "COL_%s" % self._slope_coloring.upper()
 
-        prefetchHalo = Inspector._globaldata['prefetchHalo']
-
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
         output_insp, output_vtk = "", ""
@@ -335,7 +337,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
             'coloring': coloring,
-            'prefetchHalo': prefetchHalo,
+            'prefetchHalo': self._slope_prefetch,
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
@@ -626,11 +628,6 @@ def set_debug_mode(mode, coordinates=None):
         if arity not in [1, 2, 3]:
             raise SlopeError("Arity should be a number in [1, 2, 3]")
         Inspector._globaldata['coordinates'] = coordinates
-
-
-def set_prefetch_halo(val):
-    assert isinstance(val, int) and val >= 0
-    Inspector._globaldata['prefetchHalo'] = val
 
 
 def set_mesh_maps(maps):

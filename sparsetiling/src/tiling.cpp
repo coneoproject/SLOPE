@@ -10,7 +10,6 @@
 #include <limits.h>
 
 #include "tiling.h"
-#include "utils.h"
 
 
 // return true if there are at least two tiles having a same color
@@ -19,7 +18,7 @@ inline static void updateTilesTracker (tracker_t& iterTilesPerColor,
                                        tracker_t& conflictsTracker);
 
 void project_forward (loop_t* tiledLoop,
-                      iter2tc_t* tilingInfo,
+                      schedule_t* tilingInfo,
                       projection_t* prevLoopProj,
                       projection_t* seedLoopProj,
                       tracker_t* conflictsTracker)
@@ -36,7 +35,7 @@ void project_forward (loop_t* tiledLoop,
     map_t* descMap = (*it)->map;
     am_t descMode = (*it)->mode;
 
-    iter2tc_t* projIter2tc;
+    schedule_t* projIter2tc;
     if (descMap == DIRECT) {
       if (directHandled) {
         // no need to handle direct descriptors more than once
@@ -72,7 +71,8 @@ void project_forward (loop_t* tiledLoop,
 
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
-      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
+      projIter2tc = schedule_init (projSetName, projSetSize, projIter2tile,
+                                   projIter2color, DOWN);
 
       #pragma omp parallel
       {
@@ -148,12 +148,12 @@ void project_forward (loop_t* tiledLoop,
     //       is not in prevLoopProj either. On the other hand, if the projection is
     //       in seedLoopProj, then a projection on the same set is in prevLoopProj
     if (seedLoopProj->find (projIter2tc) == seedLoopProj->end()) {
-      seedLoopProj->insert (iter2tc_cpy(projIter2tc));
+      seedLoopProj->insert (schedule_cpy(projIter2tc));
     }
     else {
       projection_t::iterator toFree = prevLoopProj->find (projIter2tc);
       if (toFree != prevLoopProj->end()) {
-        iter2tc_free (*toFree);
+        schedule_free (*toFree);
         prevLoopProj->erase (toFree);
       }
     }
@@ -162,7 +162,7 @@ void project_forward (loop_t* tiledLoop,
 }
 
 void project_backward (loop_t* tiledLoop,
-                       iter2tc_t* tilingInfo,
+                       schedule_t* tilingInfo,
                        projection_t* prevLoopProj,
                        tracker_t* conflictsTracker)
 {
@@ -178,7 +178,7 @@ void project_backward (loop_t* tiledLoop,
     map_t* descMap = (*it)->map;
     am_t descMode = (*it)->mode;
 
-    iter2tc_t* projIter2tc;
+    schedule_t* projIter2tc;
     if (descMap == DIRECT) {
       if (directHandled) {
         // no need to handle direct descriptors more than once
@@ -214,7 +214,8 @@ void project_backward (loop_t* tiledLoop,
 
       int* projIter2tile = new int[projSetSize];
       int* projIter2color = new int[projSetSize];
-      projIter2tc = iter2tc_init (projSetName, projSetSize, projIter2tile, projIter2color);
+      projIter2tc = schedule_init (projSetName, projSetSize, projIter2tile,
+                                   projIter2color, UP);
 
       #pragma omp parallel
       {
@@ -285,14 +286,14 @@ void project_backward (loop_t* tiledLoop,
     //   any previous projections for a same set are deleted and memory is freed
     projection_t::iterator toFree = prevLoopProj->find (projIter2tc);
     if (toFree != prevLoopProj->end()) {
-      iter2tc_free (*toFree);
+      schedule_free (*toFree);
       prevLoopProj->erase (toFree);
     }
     prevLoopProj->insert (projIter2tc);
   }
 }
 
-iter2tc_t* tile_forward (loop_t* curLoop,
+schedule_t* tile_forward (loop_t* curLoop,
                          projection_t* prevLoopProj)
 {
   // aliases
@@ -300,7 +301,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   int toTileSetSize = toTile->size;
   std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
-  iter2tc_t *loopIter2tc;
+  schedule_t *loopIter2tc;
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
@@ -311,7 +312,8 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   int* loopIter2color = new int[toTileSetSize];
   std::fill_n (loopIter2tile, toTileSetSize, -1);
   std::fill_n (loopIter2color, toTileSetSize, -1);
-  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
+  loopIter2tc = schedule_init (toTileSetName, toTileSetSize, loopIter2tile,
+                               loopIter2color, DOWN);
 
   if (toTileSetSize == 0) {
     // no need to tile
@@ -336,7 +338,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
     // if no projection is present, just go on to the next descriptor because it
     // means that the touched set, regardless of whether it is touched directly
     // or indirectly, does not introduce any dependency with the loop being tiled
-    iter2tc_t projIter2tc = {touchedSetName};
+    schedule_t projIter2tc = {touchedSetName};
     projection_t::iterator iprojIter2tc = prevLoopProj->find (&projIter2tc);
     if (iprojIter2tc == prevLoopProj->end()) {
       continue;
@@ -407,7 +409,7 @@ iter2tc_t* tile_forward (loop_t* curLoop,
   return loopIter2tc;
 }
 
-iter2tc_t* tile_backward (loop_t* curLoop,
+schedule_t* tile_backward (loop_t* curLoop,
                           projection_t* prevLoopProj)
 {
   // aliases
@@ -415,7 +417,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   int toTileSetSize = toTile->size;
   std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
-  iter2tc_t *loopIter2tc;
+  schedule_t *loopIter2tc;
 
   // the following contains all projected iteration sets that have already been
   // used to determine a tiling and a coloring for curLoop
@@ -426,7 +428,8 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   int* loopIter2color = new int[toTileSetSize];
   std::fill_n (loopIter2tile, toTileSetSize, INT_MAX);
   std::fill_n (loopIter2color, toTileSetSize, INT_MAX);
-  loopIter2tc = iter2tc_init (toTileSetName, toTileSetSize, loopIter2tile, loopIter2color);
+  loopIter2tc = schedule_init (toTileSetName, toTileSetSize, loopIter2tile,
+                               loopIter2color, UP);
 
   if (toTileSetSize == 0) {
     // no need to tile
@@ -451,7 +454,7 @@ iter2tc_t* tile_backward (loop_t* curLoop,
     // if no projection is present, just go on to the next descriptor because it
     // means that the touched set, regardless of whether it is touched directly
     // or indirectly, does not introduce any dependency with the loop being tiled
-    iter2tc_t projIter2tc = {touchedSetName};
+    schedule_t projIter2tc = {touchedSetName};
     projection_t::iterator iprojIter2tc = prevLoopProj->find (&projIter2tc);
     if (iprojIter2tc == prevLoopProj->end()) {
       continue;
@@ -522,56 +525,42 @@ iter2tc_t* tile_backward (loop_t* curLoop,
   return loopIter2tc;
 }
 
-iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile, int* iter2color)
+void assign_loop (tile_list* tiles, loop_t* loop, int* iter2tile, direction_t direction)
 {
-  iter2tc_t* iter2tc = new iter2tc_t;
+  // aliases
+  int loopIndex = loop->index;
+  set_t* loopSet = loop->set;
 
-  iter2tc->name = name;
-  iter2tc->itSetSize = itSetSize;
-  iter2tc->iter2tile = iter2tile;
-  iter2tc->iter2color = iter2color;
-
-  return iter2tc;
-}
-
-iter2tc_t* iter2tc_cpy (iter2tc_t* toCopy)
-{
-  iter2tc_t* iter2tc = new iter2tc_t;
-
-  iter2tc->name = toCopy->name;
-  iter2tc->itSetSize = toCopy->itSetSize;
-  iter2tc->iter2tile = new int[toCopy->itSetSize];
-  iter2tc->iter2color = new int[toCopy->itSetSize];
-
-  memcpy (iter2tc->iter2tile, toCopy->iter2tile, sizeof(int)*toCopy->itSetSize);
-  memcpy (iter2tc->iter2color, toCopy->iter2color, sizeof(int)*toCopy->itSetSize);
-
-  return iter2tc;
-}
-
-void iter2tc_free (iter2tc_t* iter2tc)
-{
-  if (! iter2tc) {
-    return;
+  // 1) remove any previously assigned iteration for loop /loopIndex/
+  tile_list::const_iterator tIt, tEnd;
+  for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
+    (*tIt)->iterations[loopIndex]->clear();
   }
-  delete[] iter2tc->iter2tile;
-  delete[] iter2tc->iter2color;
-  delete iter2tc;
-}
 
-projection_t* projection_init()
-{
-  return new projection_t (&iter2tc_cmp);
-}
-
-void projection_free (projection_t* projection)
-{
-  projection_t::iterator it, end;
-  for (it = projection->begin(), end = projection->end(); it != end; it++) {
-    iter2tc_free(*it);
+  // 2) distribute iterations to tiles (note: we do not assign non-exec iterations)
+  int execSize = loopSet->core + loopSet->execHalo;
+  for (int i = 0; i < execSize; i++) {
+    tiles->at(iter2tile[i])->iterations[loopIndex]->push_back(i);
   }
-  delete projection;
+
+  for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
+    tile_t* tile = *tIt;
+    iterations_list& iterations = *(tile->iterations[loopIndex]);
+    if (! iterations.size()) {
+      continue;
+    }
+
+    // 3) sort the iterations within each tile, hopefully creating some spatial locality
+    std::sort (iterations.begin(), iterations.end());
+
+    // 4) add fake /d/ extra elements in case one wants to prefetch iterations
+    // /i/, /i+1/, ..., /i+d/, before having executed iteration /i/
+    for (int i = 0; i < tile->prefetchHalo; i++) {
+      iterations.push_back(iterations.back());
+    }
+  }
 }
+
 
 /***** Static / utility functions *****/
 

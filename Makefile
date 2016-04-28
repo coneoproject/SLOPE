@@ -29,7 +29,8 @@ ST_DEMOS = $(DEMOS)/sparsetiling
 ST_TESTS = $(TESTS)/sparsetiling
 
 ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
-		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o
+		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o \
+		   $(OBJ)/schedule.o
 
 METIS_INC = $(SLOPE_METIS)/include
 METIS_LIB = $(SLOPE_METIS)/lib
@@ -72,6 +73,7 @@ sparsetiling: mklib
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
 	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
 	ar cru $(LIB)/libst.a $(ALL_OBJS)
 	ranlib $(LIB)/libst.a

@@ -170,30 +170,30 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     loop_t* prevTiledLoop = seedLoop;
     projection_t* seedLoopProj = projection_init();
     projection_t* prevLoopProj = projection_init();
-    iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
-                                              tmpIter2tileMap, tmpIter2colorMap);
-    iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
+    schedule_t* seedTilingInfo = schedule_init (seedLoopSetName, seedLoopSetSize,
+                                                tmpIter2tileMap, tmpIter2colorMap, SEED);
+    schedule_t* prevTilingInfo = schedule_cpy (seedTilingInfo);
 
     // forward tiling
     for (int i = seed + 1; i < nLoops; i++) {
       loop_t* curLoop = loops->at(i);
-      iter2tc_t* curTilingInfo;
+      schedule_t* tilingInfo;
 
       // compute projection from loop /i-1/ for tiling loop /i/
       project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj,
                        &conflictsTracker);
 
       // tile loop /i/
-      curTilingInfo = tile_forward (curLoop, prevLoopProj);
-      tile_assign_loop (tiles, curLoop, curTilingInfo->iter2tile);
+      tilingInfo = tile_forward (curLoop, prevLoopProj);
+      assign_loop (tiles, curLoop, tilingInfo->iter2tile, tilingInfo->direction);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
-      prevTilingInfo = curTilingInfo;
+      prevTilingInfo = tilingInfo;
     }
 
     // prepare for backward tiling
-    iter2tc_free (prevTilingInfo);
+    schedule_free (prevTilingInfo);
     projection_free (prevLoopProj);
     prevLoopProj = seedLoopProj;
     prevTiledLoop = seedLoop;
@@ -202,22 +202,22 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // backward tiling
     for (int i = seed - 1; i >= 0; i--) {
       loop_t* curLoop = loops->at(i);
-      iter2tc_t* curTilingInfo;
+      schedule_t* tilingInfo;
 
       // compute projection from loop /i+1/ for tiling loop /i/
       project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj, &conflictsTracker);
 
       // tile loop /i/
-      curTilingInfo = tile_backward (curLoop, prevLoopProj);
-      tile_assign_loop (tiles, curLoop, curTilingInfo->iter2tile);
+      tilingInfo = tile_backward (curLoop, prevLoopProj);
+      assign_loop (tiles, curLoop, tilingInfo->iter2tile, tilingInfo->direction);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
-      prevTilingInfo = curTilingInfo;
+      prevTilingInfo = tilingInfo;
     }
 
     // free memory
-    iter2tc_free (prevTilingInfo);
+    schedule_free (prevTilingInfo);
     projection_free (prevLoopProj);
 
     // if color conflicts are found, we need to perform another tiling sweep this

@@ -128,12 +128,6 @@ inline double time_stamp()
 }
 
 /*
- * Generic utility functions
- */
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#define MIN(a,b) (((a)<(b))?(a):(b))
-
-/*
  * Generate a VTK file showing the coloring of each tiled parloop once opened
  * with a program such as Paraview.
  *

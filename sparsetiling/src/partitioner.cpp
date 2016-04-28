@@ -7,11 +7,14 @@
 #include <omp.h>
 #include "metis.h"
 
-#include "partitioner.h"
-#include "utils.h"
-
 #include <algorithm>
 #include <iostream>
+
+#include "partitioner.h"
+#include "utils.h"
+#include "schedule.h"
+#include "tiling.h"
+#include "common.h"
 
 static int* chunk(loop_t* seedLoop, int tileSize,
                   int* nCore, int* nExec, int* nNonExec);
@@ -32,6 +35,7 @@ void partition (inspector_t* insp)
   int seed = insp->seed;
   loop_t* seedLoop = insp->loops->at(seed);
   set_t* seedLoopSet = seedLoop->set;
+  int setSize = seedLoopSet->size;
 
   // partition the seed loop iteration space
   int* indMap = NULL;
@@ -65,12 +69,10 @@ void partition (inspector_t* insp)
   // ... explicitly track the tile region (core, exec_halo, and non_exec_halo) ...
   set_t* tileRegions = set("tiles", nCore, nExec, nNonExec);
   // ... and, finally, map the partitioned seed loop to tiles
-  map_t* iter2tile = map ("i2t", set_cpy(seedLoopSet), set_cpy(tileRegions),
-                          indMap, seedLoopSet->size);
-  tile_assign_loop (tiles, seedLoop, indMap);
+  assign_loop (tiles, seedLoop, indMap, SEED);
 
   insp->tileRegions = tileRegions;
-  insp->iter2tile = iter2tile;
+  insp->iter2tile = map ("i2t", set_cpy(seedLoopSet), set_cpy(tileRegions), indMap, setSize);
   insp->tiles = tiles;
 }
 

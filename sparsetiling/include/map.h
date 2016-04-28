@@ -49,6 +49,12 @@ map_t* map (std::string name,
             int size);
 
 /*
+ * Return a fresh copy of /map/
+ */
+map_t* map_cpy (std::string name,
+                map_t* map);
+
+/*
  * Initialize an irregular map, in which input entries can be mapped to a
  * varying number of output entries. The offsets track the distance between
  * two different output entries in /values/.

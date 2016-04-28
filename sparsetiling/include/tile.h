@@ -58,20 +58,6 @@ tile_t* tile_init (int crossedLoops,
                    int prefetchHalo = 1);
 
 /*
- * Distribute a loop iteration set to tiles
- *
- * @param tiles
- *   the list of tiles the iterations are added to
- * @param loop
- *   the tiled loop
- * @param iter2tile
- *   indirection array from iterations to tile identifiers
- */
-void tile_assign_loop (tile_list* tiles,
-                       loop_t* loop,
-                       int* iter2tileMap);
-
-/*
  * Retrieve a local map given a loop index and a map name
  *
  * @param tile
