@@ -486,21 +486,23 @@ nIters[%(loop_id)d] += tileLoopSize;
             header_code.append(("%s%s" % (local_maps_def, local_iters)).strip('\n'))
             gtl_map.update({'DIRECT': name_local_iters})
             gtl_maps.append(gtl_map)
-            if Inspector._globaldata.get('debug_mode'):
+            if Inspector._globaldata.get('time_mode'):
                 header_code[-1] += Executor.time_start
                 end_code.append(Executor.time_end % {'loop_id': i})
+            else:
+                end_code.append("")
 
         return (header_code, gtl_maps, end_code)
 
     def _debug_init(self, loops):
         init = ""
-        if Inspector._globaldata.get('debug_mode'):
+        if Inspector._globaldata.get('time_mode'):
             init = Executor.debug_init % {'nloops': len(loops)}
         return init
 
     def _debug_end(self, name, loops):
         end = ""
-        if Inspector._globaldata.get('debug_mode'):
+        if Inspector._globaldata.get('time_mode'):
             end = Executor.debug_end % {
                 'name': name,
                 'nloops': len(loops)
@@ -537,7 +539,7 @@ nIters[%(loop_id)d] += tileLoopSize;
     @property
     def c_headers(self):
         headers = Executor.meta['headers']
-        if Executor._globaldata.get('debug_mode'):
+        if Executor._globaldata.get('time_mode'):
             headers += ['#include <vector>']
         return headers
 
@@ -585,7 +587,7 @@ def get_compile_opts(compiler='gnu'):
         if compiler == 'intel':
             optimization_opts.append('-par-affinity=scatter,verbose')
     if compiler == 'intel':
-        optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
+        optimization_opts.extend(['-xHost', '-ip'])
     return functional_opts + debug_opts + optimization_opts
 
 
@@ -628,6 +630,13 @@ def set_debug_mode(mode, coordinates=None):
         if arity not in [1, 2, 3]:
             raise SlopeError("Arity should be a number in [1, 2, 3]")
         Inspector._globaldata['coordinates'] = coordinates
+
+
+def set_time_mode(mode):
+    """In time mode (default off) each iteration of the loop chain is timed
+    and printed to file (one file per MPI rank)."""
+    assert mode in [True, False]
+    Inspector._globaldata['time_mode'] = mode
 
 
 def set_mesh_maps(maps):
