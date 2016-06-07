@@ -42,40 +42,57 @@ typedef std::set<map_t*> map_list;
 /*
  * Initialize a map
  */
-map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size);
+map_t* map (std::string name,
+            set_t* inSet,
+            set_t* outSet,
+            int* values,
+            int size);
+
+/*
+ * Return a fresh copy of /map/
+ */
+map_t* map_cpy (std::string name,
+                map_t* map);
 
 /*
  * Initialize an irregular map, in which input entries can be mapped to a
- * variable number of output entries. The offsets track the distance between
+ * varying number of output entries. The offsets track the distance between
  * two different output entries in /values/.
  */
-map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* values, int* offsets);
+map_t* imap (std::string name,
+             set_t* inSet,
+             set_t* outSet,
+             int* values,
+             int* offsets);
 
 /*
  * Destroy a map
  */
-void map_free (map_t* map, bool freeIndMap = false);
+void map_free (map_t* map,
+               bool freeIndMap = false);
 
 /*
  * Retrieve the offset of /element/ in map.
  *
  * @return
- *   populate (offset, size)
+ *   update /offset/ and /size/
  */
-void map_ofs (map_t* map, int element, int* offset, int* size);
+void map_ofs (map_t* map,
+              int element,
+              int* offset,
+              int* size);
 
 /*
- * Invert a mapping from a set X to a set Y.
- * The only assumption here is that all elements in X are mapped to a same number
- * K of elements in Y.
+ * Invert a fixed-arity mapping from a set X to a set Y. This function CANNOT be
+ * used for inverting irregular maps.
  *
  * @param x2y
  *   a mapping from a set x to a set y
- * @param maxIncidence
- *   on return: maximum incidence on a y element
  * @return
- *   a mapping from set y to set x
+ *   a mapping from set y to set x. Also update /maxIncidence/, which tells the
+ *   maximum incidence degree on a y element
  */
-map_t* map_invert (map_t* x2y, int* maxIncidence);
+map_t* map_invert (map_t* x2y,
+                   int* maxIncidence);
 
 #endif

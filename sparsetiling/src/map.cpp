@@ -3,33 +3,58 @@
  *
  */
 
+#include <algorithm>
+
 #include <stdlib.h>
 
 #include "map.h"
 #include "utils.h"
+#include "common.h"
 
 map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size)
 {
   map_t* map = new map_t;
+
   map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
   map->values = values;
   map->size = size;
   map->offsets = NULL;
+
   return map;
 }
 
 map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* values, int* offsets)
 {
   map_t* map = new map_t;
+
   map->name = name;
   map->inSet = inSet;
   map->outSet = outSet;
   map->values = values;
   map->size = offsets[inSet->size];
   map->offsets = offsets;
+
   return map;
+}
+
+map_t* map_cpy (std::string name, map_t* map)
+{
+  map_t* new_map = new map_t;
+
+  new_map->name = name;
+  new_map->inSet = set_cpy (map->inSet);
+  new_map->outSet = set_cpy (map->outSet);
+
+  new_map->values = new int[map->size];
+  std::copy (map->values, map->values + map->size, new_map->values);
+  new_map->size = map->size;
+
+  if (map->offsets) {
+    new_map->offsets = new int[map->inSet->size];
+    std::copy (map->offsets, map->offsets + map->inSet->size, new_map->offsets);
+  }
 }
 
 void map_free (map_t* map, bool freeIndMap)

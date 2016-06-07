@@ -13,69 +13,9 @@
 
 #include "parloop.h"
 #include "tile.h"
-
-/**************************************************************************/
-
-/*
- * Simple structure to map iteration set elements to a tile and a color
- */
-typedef struct {
-  /* set name identifier */
-  std::string name;
-  /* iteration set */
-  int itSetSize;
-  /* tiling of the iteration set */
-  int* iter2tile;
-  /* coloring of the iteration set */
-  int* iter2color;
-} iter2tc_t;
-
-/*
- * Bind iterations to tile IDs and colors.
- *
- * Note: the caller loses ownership of iter2tile and iter2color after calling
- * this function. Access to these two maps becomes therefore undefined.
- */
-iter2tc_t* iter2tc_init (std::string name, int itSetSize, int* iter2tile, int* iter2color);
-
-/*
- * Clone an iter2tc_t
- */
-iter2tc_t* iter2tc_cpy (iter2tc_t* iter2tc);
-
-/*
- * Destroy an iter2tc_t
- */
-void iter2tc_free (iter2tc_t* iter2tc);
-
-
-inline bool iter2tc_cmp(const iter2tc_t* a, const iter2tc_t* b)
-{
-  return a->name < b->name;
-}
-
-
-
-/**************************************************************************/
-
-/*
- * Represent a projection
- */
-typedef std::set<iter2tc_t*, bool(*)(const iter2tc_t* a, const iter2tc_t* b)> projection_t;
-
-/*
- * Initialize a new projection
- */
-projection_t* projection_init();
-
-/*
- * Destroy a projection
- */
-void projection_free (projection_t* projection);
-
-
-
-/**************************************************************************/
+#include "utils.h"
+#include "schedule.h"
+#include "common.h"
 
 /* Prototypes and data structures for the tiling and projection functions
  *
@@ -96,8 +36,8 @@ typedef std::map<int, index_set> tracker_t;
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by a parloop i, as tiling goes forward.
- * This produces the required information for calling tile_forward on a parloop i+1.
+ * touched (read, incremented, written) by a parloop /i/, as tiling goes forward.
+ * This produces the required information for calling tile_forward on parloop /i+1/.
  * In particular, update prevLoopProj by exploiting information in tilingInfo. Also,
  * seedLoopProj is updated if new sets are encountered.
  *
@@ -117,15 +57,15 @@ typedef std::map<int, index_set> tracker_t;
  *   track conflicting tiles encountered by each tile during the tiling process
  */
 void project_forward (loop_t* tiledLoop,
-                      iter2tc_t* tilingInfo,
+                      schedule_t* tilingInfo,
                       projection_t* prevLoopProj,
                       projection_t* seedLoopProj,
                       tracker_t* conflictsTracker);
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
- * touched (read, incremented, written) by a parloop i, as tiling goes backward.
- * This produces the required information for calling tile_backward on a parloop i-1.
+ * touched (read, incremented, written) by a parloop /i/, as tiling goes backward.
+ * This produces the required information for calling tile_backward on a parloop /i-1/.
  * In particular, update prevLoopProj by exploiting information in tilingInfo.
  *
  * @param tiledLoop
@@ -140,31 +80,51 @@ void project_forward (loop_t* tiledLoop,
  *   track conflicting tiles encountered by each tile during the tiling process
  */
 void project_backward (loop_t* tiledLoop,
-                       iter2tc_t* tilingInfo,
+                       schedule_t* tilingInfo,
                        projection_t* prevLoopProj,
                        tracker_t* conflictsTracker);
 
 /*
- * Tile a parloop when going forward along the loop chain.
+ * Tile a parloop moving forward along the loop chain.
  *
  * @param curLoop
  *   the loop whose iterations will be colored and assigned a tile
  * @param prevLoopProj
  *   the projection of tiling up to curLoop
  */
-iter2tc_t* tile_forward (loop_t* curLoop,
+schedule_t* tile_forward (loop_t* curLoop,
                          projection_t* prevLoopProj);
 
 /*
- * Tile a parloop when going backward along the loop chain.
+ * Tile a parloop moving backward along the loop chain.
  *
  * @param curLoop
  *   the loop whose iterations will be colored and assigned a tile
  * @param prevLoopProj
  *   the projection of tiling up to curLoop
  */
-iter2tc_t* tile_backward (loop_t* curLoop,
+schedule_t* tile_backward (loop_t* curLoop,
                           projection_t* prevLoopProj);
+
+/*
+ * Distribute the iterations of a tiled loop to tiles
+ *
+ * @param loop
+ *   the tiled loop whose iterations will be assigned to tiles
+ * @param loops
+ *   the loop chain
+ * @param tiles
+ *   the list of tiles to be populated
+ * @param iter2tile
+ *   an integer map from iterations to tiles
+ * @param direction
+ *  the tiling direction
+ */
+void assign_loop (loop_t* loop,
+                  loop_list* loops,
+                  tile_list* tiles,
+                  int* iter2tile,
+                  direction_t direction);
 
 /**************************************************************************/
 

@@ -8,7 +8,7 @@
 #include "tile.h"
 #include "utils.h"
 
-tile_t* tile_init (int crossedLoops, tile_region region)
+tile_t* tile_init (int crossedLoops, tile_region region, int prefetchHalo)
 {
   tile_t* tile = new tile_t;
   tile->iterations = new iterations_list*[crossedLoops];
@@ -19,33 +19,8 @@ tile_t* tile_init (int crossedLoops, tile_region region)
   tile->crossedLoops = crossedLoops;
   tile->region = region;
   tile->color = -1;
+  tile->prefetchHalo = prefetchHalo;
   return tile;
-}
-
-void tile_assign_loop (tile_list* tiles, loop_t* loop, int* iter2tileMap)
-{
-  // aliases
-  int loopIndex = loop->index;
-  set_t* loopSet = loop->set;
-
-  // first, remove any previously assigned iteration for loop /loopIndex/
-  tile_list::const_iterator tIt, tEnd;
-  for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
-    (*tIt)->iterations[loopIndex]->clear();
-  }
-
-  // then, distribute iterations among the tiles
-  // note: we do not assign non-exec iterations
-  int execSize = loopSet->core + loopSet->execHalo;
-  for (int i = 0; i < execSize; i++) {
-    tiles->at(iter2tileMap[i])->iterations[loopIndex]->push_back(i);
-  }
-
-  // finally, sort the iterations within each tile, hopefully creating some
-  // spatial locality
-  for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {
-    std::sort ((*tIt)->iterations[loopIndex]->begin(), (*tIt)->iterations[loopIndex]->end());
-  }
 }
 
 iterations_list& tile_get_local_map (tile_t* tile, int loopIndex, std::string mapName)
@@ -58,6 +33,11 @@ iterations_list& tile_get_local_map (tile_t* tile, int loopIndex, std::string ma
 iterations_list& tile_get_iterations (tile_t* tile, int loopIndex)
 {
   return *(tile->iterations[loopIndex]);
+}
+
+int tile_loop_size (tile_t* tile, int loopIndex)
+{
+  return tile->iterations[loopIndex]->size() - tile->prefetchHalo;
 }
 
 void tile_free (tile_t* tile)

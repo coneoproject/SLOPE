@@ -29,7 +29,8 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring coloring,
-                        map_list* meshMaps, map_list* partitionings, string name)
+                        map_list* meshMaps, map_list* partitionings, int prefetchHalo,
+                        string name)
 {
   inspector_t* insp = new inspector_t;
 
@@ -51,6 +52,8 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring c
   insp->coloring = coloring;
   insp->meshMaps = meshMaps;
   insp->partitionings = partitionings;
+
+  insp->prefetchHalo = prefetchHalo;
 
   return insp;
 }
@@ -167,30 +170,30 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     loop_t* prevTiledLoop = seedLoop;
     projection_t* seedLoopProj = projection_init();
     projection_t* prevLoopProj = projection_init();
-    iter2tc_t* seedTilingInfo = iter2tc_init (seedLoopSetName, seedLoopSetSize,
-                                              tmpIter2tileMap, tmpIter2colorMap);
-    iter2tc_t* prevTilingInfo = iter2tc_cpy (seedTilingInfo);
+    schedule_t* seedTilingInfo = schedule_init (seedLoopSetName, seedLoopSetSize,
+                                                tmpIter2tileMap, tmpIter2colorMap, SEED);
+    schedule_t* prevTilingInfo = schedule_cpy (seedTilingInfo);
 
     // forward tiling
     for (int i = seed + 1; i < nLoops; i++) {
       loop_t* curLoop = loops->at(i);
-      iter2tc_t* curTilingInfo;
+      schedule_t* tilingInfo;
 
       // compute projection from loop /i-1/ for tiling loop /i/
       project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj,
                        &conflictsTracker);
 
       // tile loop /i/
-      curTilingInfo = tile_forward (curLoop, prevLoopProj);
-      tile_assign_loop (tiles, curLoop, curTilingInfo->iter2tile);
+      tilingInfo = tile_forward (curLoop, prevLoopProj);
+      assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
-      prevTilingInfo = curTilingInfo;
+      prevTilingInfo = tilingInfo;
     }
 
     // prepare for backward tiling
-    iter2tc_free (prevTilingInfo);
+    schedule_free (prevTilingInfo);
     projection_free (prevLoopProj);
     prevLoopProj = seedLoopProj;
     prevTiledLoop = seedLoop;
@@ -199,22 +202,22 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // backward tiling
     for (int i = seed - 1; i >= 0; i--) {
       loop_t* curLoop = loops->at(i);
-      iter2tc_t* curTilingInfo;
+      schedule_t* tilingInfo;
 
       // compute projection from loop /i+1/ for tiling loop /i/
       project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj, &conflictsTracker);
 
       // tile loop /i/
-      curTilingInfo = tile_backward (curLoop, prevLoopProj);
-      tile_assign_loop (tiles, curLoop, curTilingInfo->iter2tile);
+      tilingInfo = tile_backward (curLoop, prevLoopProj);
+      assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // prepare for next loop
       prevTiledLoop = curLoop;
-      prevTilingInfo = curTilingInfo;
+      prevTilingInfo = tilingInfo;
     }
 
     // free memory
-    iter2tc_free (prevTilingInfo);
+    schedule_free (prevTilingInfo);
     projection_free (prevLoopProj);
 
     // if color conflicts are found, we need to perform another tiling sweep this
@@ -494,13 +497,13 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
 
   int tilesRange = MIN(nTiles, verbosityTiles);
   for (int i = 0; i < tilesRange; i++) {
-    int tileSize = tiles->at(i)->iterations[loop->index]->size();
-    totalIterationsAssigned += tileSize;
+    int tileLoopSize = tile_loop_size (tiles->at(i), loop->index);
+    totalIterationsAssigned += tileLoopSize;
     string tileInfo = (tiles->at(i)->region == LOCAL) ? "      " : "(HALO)";
-    int range = MIN(tileSize, verbosityTiles);
+    int range = MIN(tileLoopSize, verbosityTiles);
     cout << " " << tileInfo << " " << i << "   |    " << tiles->at(i)->color << "    |   "
-         << tileSize << " : {";
-    if (tileSize == 0) {
+         << tileLoopSize << " : {";
+    if (tileLoopSize == 0) {
       cout << "No iterations}" << endl;
       continue;
     }
@@ -508,16 +511,16 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
     for (int j = 1; j < range; j++) {
       cout << ", " << tiles->at(i)->iterations[loop->index]->at(j);
     }
-    if (tileSize > verbosityTiles) {
-      int lastIterID = tiles->at(i)->iterations[loop->index]->at(tileSize - 1);
+    if (tileLoopSize > verbosityTiles) {
+      int lastIterID = tiles->at(i)->iterations[loop->index]->at(tileLoopSize - 1);
       cout << "..., " << lastIterID;
     }
     cout << "}" << endl;
   }
   if (nTiles > tilesRange) {
     for (int i = tilesRange; i < nTiles; i++) {
-      int tileSize = tiles->at(i)->iterations[loop->index]->size();
-      totalIterationsAssigned += tileSize;
+      int tileLoopSize = tile_loop_size (tiles->at(i), loop->index);
+      totalIterationsAssigned += tileLoopSize;
     }
     cout << "         ..." << endl;
   }

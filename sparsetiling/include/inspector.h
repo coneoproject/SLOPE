@@ -25,9 +25,9 @@ typedef struct {
   insp_strategy strategy;
   /* the seed loop index */
   int seed;
-  /* partitioning of the base loop */
+  /* seed loop partitioning */
   map_t* iter2tile;
-  /* coloring of the base loop */
+  /* seed loop coloring */
   map_t* iter2color;
   /* average tile size */
   int avgTileSize;
@@ -49,6 +49,9 @@ typedef struct {
   /* available set partitionings, may be used for deriving tiles */
   map_list* partitionings;
 
+  /* number of extra iterations in a tile, useful for SW prefetching */
+  int prefetchHalo;
+
   /* the following fields track the time spent in various code sections*/
   double totalInspectionTime;
   double partitioningTime;
@@ -59,7 +62,7 @@ typedef struct {
  * Initialize a new inspector
  *
  * @param tileSize
- *   average tile size after partitioning of the base loop's iteration set
+ *   average tile size to be used when partitioning the seed loop
  * @param strategy
  *   tiling strategy (SEQUENTIAL; OMP - openmp; ONLY_MPI - one MPI process for
  *   each core; OMP_MPI - mixed OMP (within a node) and MPI (cross-node))
@@ -70,27 +73,31 @@ typedef struct {
  *   some strategies can be altered, particularly that of SEQUENTIAL and ONLY_MPI.
  *   Accepted values are COL_DEFAULT, COL_RAND (random coloring), COL_MINCOLS
  *   (try to minimize the number of colors such that adjacent tiles have different
- *   colors).
+ *   colors)
  * @param meshMaps (optional)
  *   a high level description of the mesh through a list of maps to nodes. This
  *   can optionally be used to partition an iteration space using an external
  *   library, such that tiles of particular shape (e.g., squarish, rather than
- *   strip-like) can be carved.
+ *   stripy) can be created
  * @param partitionings (optional)
- *   a partitioning of one or more sets into disjoint, contiguous subsets.
- *   Can be used in place of explicit tile partitioning if the seed loop
- *   iteration set is in this list
+ *   one or more partitionings of sets into disjoint, contiguous subsets.
+ *   Can be used in place of the default tile partitioning scheme if the seed loop
+ *   iteration set is found in this list
+ * @param prefetchHalo (optional)
+ *   number of extra iterations in a tile, for each loop. This can simplify
+ *   the implementation of software prefetching in the executor
  * @param name (optional)
  *   a unique name that identifies the inspector. Only useful if more than
- *   one inspectors are planned.
+ *   one inspectors are needed
  * @return
- *   an inspector data structure
+ *   an empty inspector
  */
 inspector_t* insp_init (int tileSize,
                         insp_strategy strategy,
                         insp_coloring coloring = COL_DEFAULT,
                         map_list* meshMaps = NULL,
                         map_list* partitionings = NULL,
+                        int prefetchHalo = 1,
                         std::string name = "");
 
 /*
@@ -99,14 +106,14 @@ inspector_t* insp_init (int tileSize,
  * @param insp
  *   the inspector data structure
  * @param name
- *   identifier name of the parloop
+ *   a string to identify the parloop
  * @param set
  *   iteration set of the parloop
  * @param descriptors
  *   list of access descriptors used by the parloop. Each descriptor specifies
  *   what and how a set is accessed.
  * @return
- *   the inspector is updated with a new loop the tiles will have to cross
+ *   the inspector is added a new parloop
  */
 insp_info insp_add_parloop (inspector_t* insp,
                             std::string name,
@@ -114,18 +121,16 @@ insp_info insp_add_parloop (inspector_t* insp,
                             desc_list* descriptors);
 
 /*
- * Inspect a sequence of parloops and compute a tiled scheduling
+ * Inspect a sequence of parloops and compute a tiling scheme
  *
  * @param insp
- *   the inspector data structure, already defined over a range of parloops
+ *   the inspector data structure, already initialized with some parloops
  * @param suggestedSeed
- *   user-provided start point of the tiling (a number between 0 and the number of
- *   parloops crossed by the inspector). The loop has to be an indirect one if the
- *   inspector strategy targets shared memory parallelism
+ *   the ID of a loop from which tiling should be derived (i.e., a number between
+ *   0 and the number of parloops in the inspector). This parameters may be
+ *   ignored depending on the tiling strategy
  * @return
- *   on return from the function, insp will contain a list of tiles, each tile
- *   characterized by a list of iterations that are supposed to be executed,
- *   for each crossed parloop
+ *   populates the tiles in the inspector
  */
 insp_info insp_run (inspector_t* insp,
                     int suggestedSeed);
@@ -136,7 +141,7 @@ insp_info insp_run (inspector_t* insp,
  * @param insp
  *   the inspector data structure
  * @param level
- *   level of verbosity (LOW, MEDIUM, HIGH)
+ *   level of verbosity (MINIMAL, VERY_LOW, LOW, MEDIUM, HIGH)
  * @param loopIndex
  *   if different than -1, print information only for loop of index loopIndex
  */
@@ -146,9 +151,6 @@ void insp_print (inspector_t* insp,
 
 /*
  * Destroy an inspector
- *
- * @param insp
- *   the inspector data structure
  */
 void insp_free (inspector_t* insp);
 

@@ -35,7 +35,10 @@ class Part(ctypes.Structure):
 
 class Inspector(object):
 
-    _globaldata = {'mode': 'SEQUENTIAL', 'coloring': 'DEFAULT'}
+    _globaldata = {
+        'mode': 'SEQUENTIAL',
+        'coloring': 'DEFAULT',
+    }
 
     ### Templates for code generation ###
 
@@ -115,7 +118,8 @@ void* inspector(slope_set sets[%(n_sets)d],
   %(partitionings_defs)s
 
   int avgTileSize = tileSize;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, %(name)s);
+  int prefetchHalo = %(prefetchHalo)d;
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, prefetchHalo, %(name)s);
 
   %(loop_defs)s
 
@@ -144,6 +148,7 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         self._slope_part_mode = 'chunk'
         self._slope_coloring = 'default'
+        self._slope_prefetch = 0
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -222,6 +227,10 @@ void* inspector(slope_set sets[%(n_sets)d],
         if coloring not in valid:
             raise SlopeError("Invalid coloring (available: %s)" % str(valid))
         self._slope_coloring = coloring
+
+    def set_prefetch_halo(self, val):
+        assert isinstance(val, int) and val >= 0
+        self._slope_prefetch = val
 
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
@@ -328,6 +337,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
             'coloring': coloring,
+            'prefetchHalo': self._slope_prefetch,
             'seed': len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
@@ -389,7 +399,7 @@ iterations_list& %(lmap)s = tile_get_local_map (tile, %(loop_id)d, "%(gmap)s");
 """
     local_iters = """\
 iterations_list& %(local_iters)s = tile_get_iterations (tile, %(loop_id)d);
-tileLoopSize = iterations_%(loop_id)d.size();
+tileLoopSize = tile_loop_size (tile, %(loop_id)d);
 """
 
     debug_init = """
@@ -476,21 +486,23 @@ nIters[%(loop_id)d] += tileLoopSize;
             header_code.append(("%s%s" % (local_maps_def, local_iters)).strip('\n'))
             gtl_map.update({'DIRECT': name_local_iters})
             gtl_maps.append(gtl_map)
-            if Inspector._globaldata.get('debug_mode'):
+            if Inspector._globaldata.get('time_mode'):
                 header_code[-1] += Executor.time_start
                 end_code.append(Executor.time_end % {'loop_id': i})
+            else:
+                end_code.append("")
 
         return (header_code, gtl_maps, end_code)
 
     def _debug_init(self, loops):
         init = ""
-        if Inspector._globaldata.get('debug_mode'):
+        if Inspector._globaldata.get('time_mode'):
             init = Executor.debug_init % {'nloops': len(loops)}
         return init
 
     def _debug_end(self, name, loops):
         end = ""
-        if Inspector._globaldata.get('debug_mode'):
+        if Inspector._globaldata.get('time_mode'):
             end = Executor.debug_end % {
                 'name': name,
                 'nloops': len(loops)
@@ -527,7 +539,7 @@ nIters[%(loop_id)d] += tileLoopSize;
     @property
     def c_headers(self):
         headers = Executor.meta['headers']
-        if Executor._globaldata.get('debug_mode'):
+        if Executor._globaldata.get('time_mode'):
             headers += ['#include <vector>']
         return headers
 
@@ -575,7 +587,7 @@ def get_compile_opts(compiler='gnu'):
         if compiler == 'intel':
             optimization_opts.append('-par-affinity=scatter,verbose')
     if compiler == 'intel':
-        optimization_opts.extend(['-xHost', '-inline-forceinline', '-ipo'])
+        optimization_opts.extend(['-xHost', '-ip'])
     return functional_opts + debug_opts + optimization_opts
 
 
@@ -618,6 +630,13 @@ def set_debug_mode(mode, coordinates=None):
         if arity not in [1, 2, 3]:
             raise SlopeError("Arity should be a number in [1, 2, 3]")
         Inspector._globaldata['coordinates'] = coordinates
+
+
+def set_time_mode(mode):
+    """In time mode (default off) each iteration of the loop chain is timed
+    and printed to file (one file per MPI rank)."""
+    assert mode in [True, False]
+    Inspector._globaldata['time_mode'] = mode
 
 
 def set_mesh_maps(maps):
