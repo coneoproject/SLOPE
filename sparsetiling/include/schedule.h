@@ -23,6 +23,8 @@ typedef struct {
   int* iter2color;
   /* tiling direction */
   direction_t direction;
+  /* has the schedule been computed ? */
+  bool computed;
 
 } schedule_t;
 

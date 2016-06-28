@@ -98,6 +98,15 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
+  // try load an indirection map for all loops - especially direct loops - as
+  // this may be used for a more sensible tiling when no projections are available
+  loop_list::const_iterator lIt, lEnd;
+  for (lIt = loops->begin(), lEnd = loops->end(); lIt != lEnd; lIt++) {
+    if (! set_super((*lIt)->set)) {
+      loop_load_seed_map (*lIt, loops);
+    }
+  }
+
   // partition the seed loop iteration set into tiles
   double startPartitioning = time_stamp();
   partition (insp);
