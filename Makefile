@@ -78,7 +78,7 @@ sparsetiling: mklib
 	ar cru $(LIB)/libst.a $(ALL_OBJS)
 	ranlib $(LIB)/libst.a
 ifeq ($(SLOPE_LIB),shared)
-	$(CXX) -shared -Wl,-soname,libst.so.1 -o $(LIB)/libst.so.1.0.1 $(ALL_OBJS)
+	$(CXX) -shared -Wl,-soname,libst.so -o $(LIB)/libst.so $(ALL_OBJS) $(METIS_LINK)
 endif
 
 tests: mklib
