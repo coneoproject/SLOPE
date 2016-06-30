@@ -23,7 +23,8 @@ void project_forward (loop_t* tiledLoop,
                       schedule_t* tilingInfo,
                       projection_t* prevLoopProj,
                       projection_t* seedLoopProj,
-                      tracker_t* conflictsTracker)
+                      tracker_t* conflictsTracker,
+                      bool ignoreWAR)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -53,7 +54,7 @@ void project_forward (loop_t* tiledLoop,
       // indirect set case
 
       // is there anything to project ?
-      if (descMap->inSet->size == 0 || descMode == READ) {
+      if (descMap->inSet->size == 0 || (descMode == READ && ignoreWAR)) {
         continue;
       }
 
@@ -171,7 +172,8 @@ void project_forward (loop_t* tiledLoop,
 void project_backward (loop_t* tiledLoop,
                        schedule_t* tilingInfo,
                        projection_t* prevLoopProj,
-                       tracker_t* conflictsTracker)
+                       tracker_t* conflictsTracker,
+                       bool ignoreWAR)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -201,7 +203,7 @@ void project_backward (loop_t* tiledLoop,
       // indirect set case
 
       // is there anything to project ?
-      if (descMap->inSet->size == 0 || descMode == READ) {
+      if (descMap->inSet->size == 0 || (descMode == READ && ignoreWAR)) {
         continue;
       }
 

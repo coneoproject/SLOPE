@@ -55,12 +55,17 @@ typedef std::map<int, index_set> tracker_t;
  *   accessed as tiling forward that has to be used for backward tiling.
  * @param conflictsTracker
  *   track conflicting tiles encountered by each tile during the tiling process
+ * @param ignoreWAR
+ *   if true, avoid tracking write-after-read dependencies, which decreases
+ *   inspection time and, potentially, improves load balancing. This may be useful
+ *   in unstructured mesh codes.
  */
 void project_forward (loop_t* tiledLoop,
                       schedule_t* tilingInfo,
                       projection_t* prevLoopProj,
                       projection_t* seedLoopProj,
-                      tracker_t* conflictsTracker);
+                      tracker_t* conflictsTracker,
+                      bool ignoreWAR);
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
@@ -78,11 +83,16 @@ void project_forward (loop_t* tiledLoop,
  *   projection of tiling at loop_{i+1}.
  * @param conflictsTracker
  *   track conflicting tiles encountered by each tile during the tiling process
+ * @param ignoreWAR
+ *   if true, avoid tracking write-after-read dependencies, which decreases
+ *   inspection time and, potentially, improves load balancing. This may be useful
+ *   in unstructured mesh codes.
  */
 void project_backward (loop_t* tiledLoop,
                        schedule_t* tilingInfo,
                        projection_t* prevLoopProj,
-                       tracker_t* conflictsTracker);
+                       tracker_t* conflictsTracker,
+                       bool ignoreWAR);
 
 /*
  * Tile a parloop moving forward along the loop chain.

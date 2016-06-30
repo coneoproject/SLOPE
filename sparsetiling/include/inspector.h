@@ -52,6 +52,9 @@ typedef struct {
   /* number of extra iterations in a tile, useful for SW prefetching */
   int prefetchHalo;
 
+  /* should we ignore write-after-read dependencies during inspection ? */
+  bool ignoreWAR;
+
   /* the following fields track the time spent in various code sections*/
   double totalInspectionTime;
   double partitioningTime;
@@ -98,6 +101,7 @@ inspector_t* insp_init (int tileSize,
                         map_list* meshMaps = NULL,
                         map_list* partitionings = NULL,
                         int prefetchHalo = 1,
+                        bool ignoreWAR = false,
                         std::string name = "");
 
 /*

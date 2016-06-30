@@ -30,7 +30,7 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles);
 
 inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring coloring,
                         map_list* meshMaps, map_list* partitionings, int prefetchHalo,
-                        string name)
+                        bool ignoreWAR, string name)
 {
   inspector_t* insp = new inspector_t;
 
@@ -54,6 +54,8 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring c
   insp->partitionings = partitionings;
 
   insp->prefetchHalo = prefetchHalo;
+
+  insp->ignoreWAR = ignoreWAR;
 
   return insp;
 }
@@ -86,6 +88,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   insp_strategy strategy = insp->strategy;
   loop_list* loops = insp->loops;
   int nLoops = loops->size();
+  bool ignoreWAR = insp->ignoreWAR;
 
   // start timing the inspection
   double start = time_stamp();
@@ -183,7 +186,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     schedule_t* seedTilingInfoCpy = schedule_cpy (seedTilingInfo);
 
     // compute forward projection from the seed loop
-    project_forward (seedLoop, seedTilingInfoCpy, prevLoopProj, seedLoopProj, &conflicts);
+    project_forward (seedLoop, seedTilingInfoCpy, prevLoopProj, seedLoopProj,
+                     &conflicts, ignoreWAR);
 
     // forward tiling
     for (int i = seed + 1; i < nLoops; i++) {
@@ -194,7 +198,8 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // compute projection from loop /i-1/ for tiling loop /i/
-      project_forward (curLoop, tilingInfo, prevLoopProj, seedLoopProj, &conflicts);
+      project_forward (curLoop, tilingInfo, prevLoopProj, seedLoopProj,
+                       &conflicts, ignoreWAR);
     }
 
     // prepare for backward tiling
@@ -202,7 +207,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     prevLoopProj = seedLoopProj;
 
     // compute backward projection from the seed loop
-    project_backward (seedLoop, seedTilingInfo, prevLoopProj, &conflicts);
+    project_backward (seedLoop, seedTilingInfo, prevLoopProj, &conflicts, ignoreWAR);
 
     // backward tiling
     for (int i = seed - 1; i >= 0; i--) {
@@ -213,7 +218,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // compute projection from loop /i+1/ for tiling loop /i/
-      project_backward (curLoop, tilingInfo, prevLoopProj, &conflicts);
+      project_backward (curLoop, tilingInfo, prevLoopProj, &conflicts, ignoreWAR);
     }
 
     // free memory

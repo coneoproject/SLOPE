@@ -119,7 +119,9 @@ void* inspector(slope_set sets[%(n_sets)d],
 
   int avgTileSize = tileSize;
   int prefetchHalo = %(prefetchHalo)d;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, prefetchHalo, %(name)s);
+  bool ignoreWAR = %(ignore_war)s;
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s,
+                                 %(partitionings_list)s, prefetchHalo, ignoreWAR, %(name)s);
 
   %(loop_defs)s
 
@@ -150,6 +152,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         self._coloring = kwargs.get('coloring', 'default')
         self._prefetch = kwargs.get('prefetch', 0)
         self._seed_loop = kwargs.get('seed_loop', None)
+        self._ignore_war = kwargs.get('ignore_war', False)
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -247,6 +250,15 @@ void* inspector(slope_set sets[%(n_sets)d],
         """Set the loop chain seed loop, on top of which tiles are derived."""
         assert seed_loop >= 0 and seed_loop < len(self._loops)
         self._seed_loop = seed_loop
+
+    def drive_inspection(self, **kwargs):
+        """Provide additional information that can be useful to speed up inspection.
+
+        :param kwargs:
+            * 'ignore_war': inform the inspector that for the given loop chain
+                there is no need to track write-after-read dependencies
+        """
+        self._ignore_war = kwargs.get('ignore_war', False)
 
     def add_extra_info(self):
         """Inspection/Execution can benefit of certain data fields that are not
@@ -351,6 +363,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'mesh_map_list': mesh_map_list,
             'partitionings_defs': "\n  ".join(partitionings_defs),
             'partitionings_list': partitionings_list,
+            'ignore_war': str(self._ignore_war).lower(),
             'name': '"%s"' % self._name,
             'output_vtk': output_vtk,
             'output_insp': output_insp
