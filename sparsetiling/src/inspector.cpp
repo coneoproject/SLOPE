@@ -121,10 +121,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   // the same color as /i/, would end up "touching" /i/ (i.e., the "conflicting" tiles),
   // leading to potential race conditions during shared memory parallel execution
   tracker_t crossSweepConflictsTracker;
-  bool conflicts;
+  bool foundConflicts;
   do {
     // assume there are no color conflicts
-    conflicts = false;
+    foundConflicts = false;
 
     // color the seed loop iteration set
     if (nLoops == 1 && loop_is_direct(seedLoop)) {
@@ -173,76 +173,66 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     // do the same for backward tiling
 
     // the tracker for conflicts arising in this tiling sweep
-    tracker_t conflictsTracker;
+    tracker_t conflicts;
 
     // prepare for forward tiling
-    loop_t* prevTiledLoop = seedLoop;
     projection_t* seedLoopProj = projection_init();
     projection_t* prevLoopProj = projection_init();
     schedule_t* seedTilingInfo = schedule_init (seedLoopSetName, seedLoopSetSize,
                                                 tmpIter2tileMap, tmpIter2colorMap, SEED);
-    schedule_t* prevTilingInfo = schedule_cpy (seedTilingInfo);
+    schedule_t* seedTilingInfoCpy = schedule_cpy (seedTilingInfo);
+
+    // compute forward projection from the seed loop
+    project_forward (seedLoop, seedTilingInfoCpy, prevLoopProj, seedLoopProj, &conflicts);
 
     // forward tiling
     for (int i = seed + 1; i < nLoops; i++) {
       loop_t* curLoop = loops->at(i);
-      schedule_t* tilingInfo;
-
-      // compute projection from loop /i-1/ for tiling loop /i/
-      project_forward (prevTiledLoop, prevTilingInfo, prevLoopProj, seedLoopProj,
-                       &conflictsTracker);
 
       // tile loop /i/
-      tilingInfo = tile_forward (curLoop, prevLoopProj);
+      schedule_t* tilingInfo = tile_forward (curLoop, prevLoopProj);
       assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
-      // prepare for next loop
-      prevTiledLoop = curLoop;
-      prevTilingInfo = tilingInfo;
+      // compute projection from loop /i-1/ for tiling loop /i/
+      project_forward (curLoop, tilingInfo, prevLoopProj, seedLoopProj, &conflicts);
     }
 
     // prepare for backward tiling
-    schedule_free (prevTilingInfo);
     projection_free (prevLoopProj);
     prevLoopProj = seedLoopProj;
-    prevTiledLoop = seedLoop;
-    prevTilingInfo = seedTilingInfo;
+
+    // compute backward projection from the seed loop
+    project_backward (seedLoop, seedTilingInfo, prevLoopProj, &conflicts);
 
     // backward tiling
     for (int i = seed - 1; i >= 0; i--) {
       loop_t* curLoop = loops->at(i);
-      schedule_t* tilingInfo;
-
-      // compute projection from loop /i+1/ for tiling loop /i/
-      project_backward (prevTiledLoop, prevTilingInfo, prevLoopProj, &conflictsTracker);
 
       // tile loop /i/
-      tilingInfo = tile_backward (curLoop, prevLoopProj);
+      schedule_t* tilingInfo = tile_backward (curLoop, prevLoopProj);
       assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
-      // prepare for next loop
-      prevTiledLoop = curLoop;
-      prevTilingInfo = tilingInfo;
+      // compute projection from loop /i+1/ for tiling loop /i/
+      project_backward (curLoop, tilingInfo, prevLoopProj, &conflicts);
     }
 
     // free memory
-    schedule_free (prevTilingInfo);
     projection_free (prevLoopProj);
 
     // if color conflicts are found, we need to perform another tiling sweep this
     // time starting off with a "constrained" seed coloring
     tracker_t::const_iterator it, end;
-    for (it = conflictsTracker.begin(), end = conflictsTracker.end(); it != end; it++) {
+    for (it = conflicts.begin(), end = conflicts.end(); it != end; it++) {
       if (it->second.size() > 0) {
         // at least one conflict, so execute another tiling sweep
-        conflicts = true;
+        foundConflicts = true;
       }
       // update the cross-sweep tracker, in case there will be another sweep
       crossSweepConflictsTracker[it->first].insert(it->second.begin(), it->second.end());
     }
 
     insp->nSweeps++;
-  } while (conflicts);
+  } while (foundConflicts);
 
   // compute local indirection maps (this avoids double indirections in the executor)
   compute_local_ind_maps (loops, tiles);

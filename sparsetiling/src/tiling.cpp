@@ -161,6 +161,11 @@ void project_forward (loop_t* tiledLoop,
     }
     prevLoopProj->insert (projIter2tc);
   }
+
+  // can free a tiling function if unused later on
+  if (! directHandled) {
+    schedule_free (tilingInfo);
+  }
 }
 
 void project_backward (loop_t* tiledLoop,
@@ -292,6 +297,11 @@ void project_backward (loop_t* tiledLoop,
       prevLoopProj->erase (toFree);
     }
     prevLoopProj->insert (projIter2tc);
+  }
+
+  // can free a tiling function if unused later on
+  if (! directHandled) {
+    schedule_free (tilingInfo);
   }
 }
 
