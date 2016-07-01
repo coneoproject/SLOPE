@@ -211,31 +211,6 @@ void* inspector(slope_set sets[%(n_sets)d],
         return (ctype, ctype(*[Part(s, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                     v.size, max(v)) for n, _, _, v in partitionings]))
 
-    def set_part_mode(self, mode):
-        """Set the seed iteration space partitioning mode. This method should be
-        called prior to /generate_code/.
-
-        :param mode: defaults to 'chunk' (available: 'chunk', 'metis')
-        """
-        if mode not in ['chunk', 'metis']:
-            raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
-        self._part_mode = mode
-
-    def set_coloring(self, coloring):
-        """Set the way tiles should be colored. This method should be called prior
-        to /generate_code/.
-
-        :param coloring: defaults to 'default' (available: 'default', 'rand', 'mincols')
-        """
-        valid = ['default', 'rand', 'mincols']
-        if coloring not in valid:
-            raise SlopeError("Invalid coloring (available: %s)" % str(valid))
-        self._coloring = coloring
-
-    def set_prefetch_halo(self, val):
-        assert isinstance(val, int) and val >= 0
-        self._prefetch = val
-
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
         ctype = ctypes.c_int
@@ -246,19 +221,34 @@ void* inspector(slope_set sets[%(n_sets)d],
         ctype = ctypes.c_int
         return (ctype, ctype(rank))
 
-    def set_seed_loop(self, seed_loop):
-        """Set the loop chain seed loop, on top of which tiles are derived."""
-        assert seed_loop >= 0 and seed_loop < len(self._loops)
-        self._seed_loop = seed_loop
-
     def drive_inspection(self, **kwargs):
-        """Provide additional information that can be useful to speed up inspection.
+        """Provide additional information to optimize the inspection phase.
+        This method should be called prior to ``generate_code``.
 
         :param kwargs:
             * 'ignore_war': inform the inspector that for the given loop chain
-                there is no need to track write-after-read dependencies
+                there is no need to track write-after-read dependencies.
+            * 'seed_loop': set the loop from which tiles are derived.
+            * 'prefetch': a value N such that N >= 0, default N = 0. N is the
+                software prefetch distance that will be used by the executor.
+            * 'coloring': set a coloring mode (available: ``default``, ``rand``,
+                ``mincols``). May be used to improve load balancing.
+            * 'part_mode': set the seed loop partitioning mode (available:
+                ``chunk``, ``metis``). May be used to improve load balancing.
         """
         self._ignore_war = kwargs.get('ignore_war', False)
+
+        self._seed_loop = kwargs.get('seed_loop', 0)
+        assert self._seed_loop >= 0 and self._seed_loop < len(self._loops)
+
+        self._prefetch = kwargs.get('prefetch', 0)
+        assert isinstance(self._prefetch, int) and self._prefetch >= 0
+
+        self._coloring = kwargs.get('coloring', 'default')
+        assert self._coloring in ['default', 'rand', 'mincols']
+
+        self._part_mode = kwargs.get('part_mode', 'chunk')
+        assert self._part_mode in ['chunk', 'metis']
 
     def add_extra_info(self):
         """Inspection/Execution can benefit of certain data fields that are not
