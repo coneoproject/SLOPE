@@ -324,6 +324,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         output_insp, output_vtk = "", ""
         if debug_mode:
             output_insp = Inspector.output_insp % debug_mode
+            output_insp = "if (rank == 0) {\n    %s\n  }\n" % output_insp
             if coordinates and coordinates[0] in [s[0] for s in self._sets]:
                 output_vtk = Inspector.output_vtk % (debug_mode, coordinates[0],
                                                      "DIM%d" % coordinates[2])
@@ -338,7 +339,7 @@ void* inspector(slope_set sets[%(n_sets)d],
             'mode': Inspector._globaldata['mode'],
             'coloring': coloring,
             'prefetchHalo': self._slope_prefetch,
-            'seed': len(self._loops) / 2,
+            'seed': 0,  #len(self._loops) / 2,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
             'partitionings_defs': "\n  ".join(partitionings_defs),
