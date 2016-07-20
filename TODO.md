@@ -1,0 +1,2 @@
+- [ ] a proper configure - make - make install building process
+- [ ] more unit testing, more demos
