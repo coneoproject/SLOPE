@@ -18,6 +18,7 @@ schedule_t* schedule_init (std::string name, int itSetSize, int* iter2tile,
   schedule->iter2tile = iter2tile;
   schedule->iter2color = iter2color;
   schedule->direction = direction;
+  schedule->computed = false;
 
   return schedule;
 }
@@ -31,6 +32,7 @@ schedule_t* schedule_cpy (schedule_t* toCopy)
   schedule->iter2tile = new int[toCopy->itSetSize];
   schedule->iter2color = new int[toCopy->itSetSize];
   schedule->direction = toCopy->direction;
+  schedule->computed = toCopy->computed;
 
   memcpy (schedule->iter2tile, toCopy->iter2tile, sizeof(int)*toCopy->itSetSize);
   memcpy (schedule->iter2color, toCopy->iter2color, sizeof(int)*toCopy->itSetSize);

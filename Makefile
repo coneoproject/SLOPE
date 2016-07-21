@@ -1,10 +1,10 @@
 #
-# The following environment variable(s) should be predefined:
+# The following environment variable(s) should have been set:
 #
-# CXX
-# CXX_OPTS
-# SLOPE_ARCH (mac,linux)
-# SLOPE_LIB (static,shared)
+# SLOPE_ARCH (mac,linux) [default: linux]
+# SLOPE_COMPILER (gnu,intel) [default: gnu]
+# CXX_OPTS [default: -O3]
+# MPICXX [default: mpicc]
 
 #
 # The following environment variable(s) can be predefined
@@ -32,29 +32,41 @@ ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile
 		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o \
 		   $(OBJ)/schedule.o
 
-METIS_INC = $(SLOPE_METIS)/include
-METIS_LIB = $(SLOPE_METIS)/lib
-METIS_LINK = -L$(METIS_LIB) -lmetis
+ifdef SLOPE_METIS
+  METIS_INC = -I$(SLOPE_METIS)/include
+  METIS_LIB = $(SLOPE_METIS)/lib
+  METIS_LINK = -L$(METIS_LIB) -lmetis
+endif
 
 #
 # Compiler settings
 #
 
-CXX := $(CXX)
-MPICXX := $(MPICXX)
-CXXFLAGS := -std=c++0x $(CXX_OPTS) $(SLOPE_VTK)
+CXX := g++
+MPICXX := mpicc
+CXXFLAGS := -std=c++0x -fPIC -O3 $(CXX_OPTS) $(SLOPE_VTK)
+CLOCK_LIB = -lrt
+
+ifeq ($(SLOPE_COMPILER),gnu)
+  CXX := g++
+endif
+ifeq ($(SLOPE_COMPILER),intel)
+  CXX := icpc
+endif
+
+ifdef MPICXX
+  MPICXX := $(MPICXX)
+endif
 
 ifeq ($(SLOPE_ARCH),linux)
   CLOCK_LIB = -lrt
 endif
 
-ifeq ($(SLOPE_LIB),shared)
-  LIBFLAGS = -fPIC
-endif
-
 .PHONY: clean mklib
 
-all: warning clean mklib sparsetiling tests demos
+all: sparsetiling
+
+full: warning clean mklib sparsetiling tests demos
 
 warning:
 	@echo "Recommended compiler options for maximum performance on an Intel processor:"
@@ -65,21 +77,19 @@ mklib:
 
 sparsetiling: mklib
 	@echo "Compiling the library"
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/inspector.cpp -o $(OBJ)/inspector.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/executor.cpp -o $(OBJ)/executor.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -I$(METIS_INC) -c $(ST_SRC)/partitioner.cpp -o $(OBJ)/partitioner.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/coloring.cpp -o $(OBJ)/coloring.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/map.cpp -o $(OBJ)/map.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
-	$(CXX) $(LIBFLAGS) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/inspector.cpp -o $(OBJ)/inspector.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/executor.cpp -o $(OBJ)/executor.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(METIS_INC) -c $(ST_SRC)/partitioner.cpp -o $(OBJ)/partitioner.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/coloring.cpp -o $(OBJ)/coloring.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/map.cpp -o $(OBJ)/map.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
 	ar cru $(LIB)/libst.a $(ALL_OBJS)
 	ranlib $(LIB)/libst.a
-ifeq ($(SLOPE_LIB),shared)
-	$(CXX) -shared -Wl,-soname,libst.so.1 -o $(LIB)/libst.so.1.0.1 $(ALL_OBJS)
-endif
+	$(CXX) -shared -Wl,-soname,libst.so -o $(LIB)/libst.so $(ALL_OBJS) $(METIS_LINK)
 
 tests: mklib
 	@echo "Compiling the tests"

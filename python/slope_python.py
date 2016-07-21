@@ -4,7 +4,6 @@
 # Author: Fabio Luporini (2015)
 
 import ctypes
-from collections import defaultdict
 
 
 ### SLOPE C-types for python-C interaction ###
@@ -25,6 +24,7 @@ class Map(ctypes.Structure):
     _fields_ = [('name', ctypes.c_char_p),
                 ('map', ctypes.POINTER(ctypes.c_int)),
                 ('size', ctypes.c_int)]
+
 
 class Part(ctypes.Structure):
     _fields_ = [('name', ctypes.c_char_p),
@@ -119,7 +119,9 @@ void* inspector(slope_set sets[%(n_sets)d],
 
   int avgTileSize = tileSize;
   int prefetchHalo = %(prefetchHalo)d;
-  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s, %(partitionings_list)s, prefetchHalo, %(name)s);
+  bool ignoreWAR = %(ignore_war)s;
+  inspector_t* insp = insp_init (avgTileSize, %(mode)s, %(coloring)s, %(mesh_map_list)s,
+                                 %(partitionings_list)s, prefetchHalo, ignoreWAR, %(name)s);
 
   %(loop_defs)s
 
@@ -136,19 +138,21 @@ void* inspector(slope_set sets[%(n_sets)d],
 }
 """
 
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         self._name = name
 
-        self._sets = []
-        self._maps = []
-        self._loops = []
+        self._sets = kwargs.get('sets', [])
+        self._maps = kwargs.get('maps', [])
+        self._loops = kwargs.get('loops', [])
 
-        self._mesh_maps = []
-        self._partitionings = []
+        self._mesh_maps = kwargs.get('mesh_maps', [])
+        self._partitionings = kwargs.get('partitionings', [])
 
-        self._slope_part_mode = 'chunk'
-        self._slope_coloring = 'default'
-        self._slope_prefetch = 0
+        self._part_mode = kwargs.get('part_mode', 'chunk')
+        self._coloring = kwargs.get('coloring', 'default')
+        self._prefetch = kwargs.get('prefetch', 0)
+        self._seed_loop = kwargs.get('seed_loop', None)
+        self._ignore_war = kwargs.get('ignore_war', False)
 
     def add_sets(self, sets):
         """Add ``sets`` to this Inspector
@@ -207,31 +211,6 @@ void* inspector(slope_set sets[%(n_sets)d],
         return (ctype, ctype(*[Part(s, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                     v.size, max(v)) for n, _, _, v in partitionings]))
 
-    def set_part_mode(self, mode):
-        """Set the seed iteration space partitioning mode. This method should be
-        called prior to /generate_code/.
-
-        :param mode: defaults to 'chunk' (available: 'chunk', 'metis')
-        """
-        if mode not in ['chunk', 'metis']:
-            raise SlopeError("Invalid partitioning mode (available: 'chunk', 'metis')")
-        self._slope_part_mode = mode
-
-    def set_coloring(self, coloring):
-        """Set the way tiles should be colored. This method should be called prior
-        to /generate_code/.
-
-        :param coloring: defaults to 'default' (available: 'default', 'rand', 'mincols')
-        """
-        valid = ['default', 'rand', 'mincols']
-        if coloring not in valid:
-            raise SlopeError("Invalid coloring (available: %s)" % str(valid))
-        self._slope_coloring = coloring
-
-    def set_prefetch_halo(self, val):
-        assert isinstance(val, int) and val >= 0
-        self._slope_prefetch = val
-
     def set_tile_size(self, tile_size):
         """Set a tile size for this Inspector"""
         ctype = ctypes.c_int
@@ -241,6 +220,35 @@ void* inspector(slope_set sets[%(n_sets)d],
         """Inform about the process MPI rank."""
         ctype = ctypes.c_int
         return (ctype, ctype(rank))
+
+    def drive_inspection(self, **kwargs):
+        """Provide additional information to optimize the inspection phase.
+        This method should be called prior to ``generate_code``.
+
+        :param kwargs:
+            * 'ignore_war': inform the inspector that for the given loop chain
+                there is no need to track write-after-read dependencies.
+            * 'seed_loop': set the loop from which tiles are derived.
+            * 'prefetch': a value N such that N >= 0, default N = 0. N is the
+                software prefetch distance that will be used by the executor.
+            * 'coloring': set a coloring mode (available: ``default``, ``rand``,
+                ``mincols``). May be used to improve load balancing.
+            * 'part_mode': set the seed loop partitioning mode (available:
+                ``chunk``, ``metis``). May be used to improve load balancing.
+        """
+        self._ignore_war = kwargs.get('ignore_war', False)
+
+        self._seed_loop = kwargs.get('seed_loop', 0)
+        assert self._seed_loop >= 0 and self._seed_loop < len(self._loops)
+
+        self._prefetch = kwargs.get('prefetch', 0)
+        assert isinstance(self._prefetch, int) and self._prefetch >= 0
+
+        self._coloring = kwargs.get('coloring', 'default')
+        assert self._coloring in ['default', 'rand', 'mincols']
+
+        self._part_mode = kwargs.get('part_mode', 'chunk')
+        assert self._part_mode in ['chunk', 'metis']
 
     def add_extra_info(self):
         """Inspection/Execution can benefit of certain data fields that are not
@@ -301,7 +309,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         avail = lambda s: all(i in [s[0] for s in self._sets] for i in s)
 
         mesh_map_defs, mesh_map_list = "", "NULL"
-        if self._mesh_maps and self._slope_part_mode == 'metis':
+        if self._mesh_maps and self._part_mode == 'metis':
             mesh_map_defs = [Inspector.mesh_map_def % ("mm_%s" % m[0], i, m[1], m[2], i, i)
                              for i, m in enumerate(self._mesh_maps) if avail([m[1], m[2]])]
             mesh_map_defs += ["meshMaps->insert(mm_%s);" % m[0]
@@ -317,7 +325,9 @@ void* inspector(slope_set sets[%(n_sets)d],
                                    for m in self._partitionings if avail([m[1]])]
             partitionings_list = "setPartitionings"
 
-        coloring = "COL_%s" % self._slope_coloring.upper()
+        coloring = "COL_%s" % self._coloring.upper()
+
+        seed_loop = self._seed_loop if self._seed_loop is not None else len(self._loops) / 2
 
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
@@ -337,12 +347,13 @@ void* inspector(slope_set sets[%(n_sets)d],
             'n_sets': len(self._sets),
             'mode': Inspector._globaldata['mode'],
             'coloring': coloring,
-            'prefetchHalo': self._slope_prefetch,
-            'seed': len(self._loops) / 2,
+            'prefetchHalo': self._prefetch,
+            'seed': seed_loop,
             'mesh_map_defs': "\n  ".join(mesh_map_defs),
             'mesh_map_list': mesh_map_list,
             'partitionings_defs': "\n  ".join(partitionings_defs),
             'partitionings_list': partitionings_list,
+            'ignore_war': str(self._ignore_war).lower(),
             'name': '"%s"' % self._name,
             'output_vtk': output_vtk,
             'output_insp': output_insp

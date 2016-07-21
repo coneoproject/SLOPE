@@ -12,16 +12,19 @@
 #include "tiling.h"
 
 
-// return true if there are at least two tiles having a same color
-inline static void updateTilesTracker (tracker_t& iterTilesPerColor,
-                                       index_set iterColors,
-                                       tracker_t& conflictsTracker);
+inline static void derive_dependency_free_tiling (loop_t* curLoop,
+                                                  projection_t* prevLoopProj,
+                                                  schedule_t* loopIter2tc);
+inline static void update_tiles_tracker (tracker_t& iterTilesPerColor,
+                                         index_set iterColors,
+                                         tracker_t& conflictsTracker);
 
 void project_forward (loop_t* tiledLoop,
                       schedule_t* tilingInfo,
                       projection_t* prevLoopProj,
                       projection_t* seedLoopProj,
-                      tracker_t* conflictsTracker)
+                      tracker_t* conflictsTracker,
+                      bool ignoreWAR)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -51,7 +54,7 @@ void project_forward (loop_t* tiledLoop,
       // indirect set case
 
       // is there anything to project ?
-      if (descMap->inSet->size == 0 || descMode == READ) {
+      if (descMap->inSet->size == 0 || (descMode == READ && ignoreWAR)) {
         continue;
       }
 
@@ -104,7 +107,7 @@ void project_forward (loop_t* tiledLoop,
             iterTilesPerColor[indColor].insert (indTile);
             iterColors.insert (indColor);
           }
-          updateTilesTracker (iterTilesPerColor, iterColors, localTracker);
+          update_tiles_tracker (iterTilesPerColor, iterColors, localTracker);
         }
 
         // need to copy back the conflicts detected by a thread into the global structure
@@ -159,12 +162,18 @@ void project_forward (loop_t* tiledLoop,
     }
     prevLoopProj->insert (projIter2tc);
   }
+
+  // can free a tiling function if unused later on
+  if (! directHandled) {
+    schedule_free (tilingInfo);
+  }
 }
 
 void project_backward (loop_t* tiledLoop,
                        schedule_t* tilingInfo,
                        projection_t* prevLoopProj,
-                       tracker_t* conflictsTracker)
+                       tracker_t* conflictsTracker,
+                       bool ignoreWAR)
 {
   // aliases
   desc_list* descriptors = tiledLoop->descriptors;
@@ -194,7 +203,7 @@ void project_backward (loop_t* tiledLoop,
       // indirect set case
 
       // is there anything to project ?
-      if (descMap->inSet->size == 0 || descMode == READ) {
+      if (descMap->inSet->size == 0 || (descMode == READ && ignoreWAR)) {
         continue;
       }
 
@@ -247,7 +256,7 @@ void project_backward (loop_t* tiledLoop,
             iterTilesPerColor[indColor].insert (indTile);
             iterColors.insert (indColor);
           }
-          updateTilesTracker (iterTilesPerColor, iterColors, localTracker);
+          update_tiles_tracker (iterTilesPerColor, iterColors, localTracker);
         }
 
         // need to copy back the conflicts detected by a thread into the global structure
@@ -291,10 +300,15 @@ void project_backward (loop_t* tiledLoop,
     }
     prevLoopProj->insert (projIter2tc);
   }
+
+  // can free a tiling function if unused later on
+  if (! directHandled) {
+    schedule_free (tilingInfo);
+  }
 }
 
 schedule_t* tile_forward (loop_t* curLoop,
-                         projection_t* prevLoopProj)
+                          projection_t* prevLoopProj)
 {
   // aliases
   set_t* toTile = curLoop->set;
@@ -394,7 +408,18 @@ schedule_t* tile_forward (loop_t* curLoop,
       }
     }
 
+    // mark the schedule as performed
+    loopIter2tc->computed = true;
+
     checkedSets.insert (touchedSet);
+  }
+
+  // if no schedule could be computed (as, for example, the iteration set of
+  // /curLoop/ is encountered for the first time), try deriving a sensible tiling
+  // from any of the previously tiled loops
+  if (! loopIter2tc->computed) {
+    derive_dependency_free_tiling (curLoop, prevLoopProj, loopIter2tc);
+    loopIter2tc->computed = true;
   }
 
 #ifdef SLOPE_VTK
@@ -410,7 +435,7 @@ schedule_t* tile_forward (loop_t* curLoop,
 }
 
 schedule_t* tile_backward (loop_t* curLoop,
-                          projection_t* prevLoopProj)
+                           projection_t* prevLoopProj)
 {
   // aliases
   set_t* toTile = curLoop->set;
@@ -510,7 +535,18 @@ schedule_t* tile_backward (loop_t* curLoop,
       }
     }
 
+    // mark the schedule as performed
+    loopIter2tc->computed = true;
+
     checkedSets.insert (touchedSet);
+  }
+
+  // if no schedule could be computed (as, for example, the iteration set of
+  // /curLoop/ is encountered for the first time), try deriving a sensible tiling
+  // from any of the previously tiled loops
+  if (! loopIter2tc->computed) {
+    derive_dependency_free_tiling (curLoop, prevLoopProj, loopIter2tc);
+    loopIter2tc->computed = true;
   }
 
 #ifdef SLOPE_VTK
@@ -609,9 +645,9 @@ void assign_loop (loop_t* loop, loop_list* loops, tile_list* tiles,
 
 /***** Static / utility functions *****/
 
-inline static void updateTilesTracker (tracker_t& iterTilesPerColor,
-                                       index_set iterColors,
-                                       tracker_t& conflictsTracker)
+inline static void update_tiles_tracker (tracker_t& iterTilesPerColor,
+                                         index_set iterColors,
+                                         tracker_t& conflictsTracker)
 {
   tracker_t::const_iterator it, end;
   for (it = iterTilesPerColor.begin(), end = iterTilesPerColor.end(); it != end; it++) {
@@ -628,4 +664,45 @@ inline static void updateTilesTracker (tracker_t& iterTilesPerColor,
       conflictsTracker[*tIt].erase (*tIt);
     }
   }
+}
+
+inline static void derive_dependency_free_tiling (loop_t* curLoop,
+                                                  projection_t* prevLoopProj,
+                                                  schedule_t* loopIter2tc)
+{
+  // aliases
+  int toTileSetSize = loopIter2tc->itSetSize;
+  int* loopIter2tile = loopIter2tc->iter2tile;
+  int* loopIter2color = loopIter2tc->iter2color;
+  map_t* indMap = curLoop->seedMap;
+  bool fallback = true;
+
+  if (indMap) {
+    // try applying the schedule of the indirect set, if it's already been tiled
+    schedule_t projIter2tc = {indMap->outSet->name};
+    projection_t::iterator iprojIter2tc = prevLoopProj->find (&projIter2tc);
+    if (iprojIter2tc != prevLoopProj->end()) {
+      int indSetSize = (*iprojIter2tc)->itSetSize;
+      int* indIter2tile = (*iprojIter2tc)->iter2tile;
+      int* indIter2color = (*iprojIter2tc)->iter2color;
+
+      int maxSize = MIN(toTileSetSize, indSetSize);
+      memcpy (loopIter2tile, indIter2tile, sizeof(int)*maxSize);
+      memcpy (loopIter2color, indIter2color, sizeof(int)*maxSize);
+      // remainder, if necessary
+      for (int i = indSetSize; i < toTileSetSize; i++) {
+        loopIter2tile[i] = loopIter2tile[i-1];
+        loopIter2color[i] = loopIter2color[i-1];
+      }
+      fallback = false;
+    }
+  }
+
+  if (fallback) {
+    // the /curLoop/ iteration space is never accessed directly and this is the
+    // first time it's encountered; readapt one of the known schedules
+    std::fill_n (loopIter2tile, toTileSetSize, 0);
+    std::fill_n (loopIter2color, toTileSetSize, 0);
+  }
+
 }
