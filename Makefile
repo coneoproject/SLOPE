@@ -87,19 +87,19 @@ sparsetiling: mklib
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
-	ar cru $(LIB)/libst.a $(ALL_OBJS)
-	ranlib $(LIB)/libst.a
-	$(CXX) -shared -Wl,-soname,libst.so -o $(LIB)/libst.so $(ALL_OBJS) $(METIS_LINK)
+	ar cru $(LIB)/libslope.a $(ALL_OBJS)
+	ranlib $(LIB)/libslope.a
+	$(CXX) -shared -Wl,-soname,libslope.so -o $(LIB)/libslope.so $(ALL_OBJS) $(METIS_LINK)
 
 tests: mklib
 	@echo "Compiling the tests"
-	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 $(LIB)/libst.a $(METIS_LINK) $(CLOCK_LIB)
-	$(MPICXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_mpi.cpp -o $(ST_BIN)/tests/test_mpi $(LIB)/libst.a $(METIS_LINK) $(CLOCK_LIB)
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_loopchain_1.cpp -o $(ST_BIN)/tests/test_loopchain_1 $(LIB)/libslope.a $(METIS_LINK) $(CLOCK_LIB)
+	$(MPICXX) $(CXXFLAGS) -I$(ST_INC) $(ST_TESTS)/test_mpi.cpp -o $(ST_BIN)/tests/test_mpi $(LIB)/libslope.a $(METIS_LINK) $(CLOCK_LIB)
 
 demos: mklib
 	@echo "Compiling the demos"
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil.cpp -o $(ST_BIN)/airfoil/airfoil $(METIS_LINK) $(CLOCK_LIB)
-	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil_tiled.cpp -o $(ST_BIN)/airfoil/airfoil_tiled $(LIB)/libst.a $(METIS_LINK) $(CLOCK_LIB)
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(ST_DEMOS)/airfoil/airfoil_tiled.cpp -o $(ST_BIN)/airfoil/airfoil_tiled $(LIB)/libslope.a $(METIS_LINK) $(CLOCK_LIB)
 
 clean:
 	@echo "Removing objects, libraries, executables"

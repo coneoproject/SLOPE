@@ -604,7 +604,7 @@ def get_compile_opts(compiler='gnu'):
 
 def get_lib_name():
     """Return default name of the shared object resulting from compiling SLOPE"""
-    return "st"
+    return "slope"
 
 
 def get_include_dir():
