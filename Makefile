@@ -58,6 +58,10 @@ ifdef MPICXX
   MPICXX := $(MPICXX)
 endif
 
+ifdef SLOPE_OMP
+  CXXFLAGS := $(CXXFLAGS) -DSLOPE_OMP $(SLOPE_OMP)
+endif
+
 ifeq ($(SLOPE_ARCH),linux)
   CLOCK_LIB = -lrt
 endif

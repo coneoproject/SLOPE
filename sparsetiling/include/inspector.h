@@ -59,6 +59,9 @@ typedef struct {
   double totalInspectionTime;
   double partitioningTime;
 
+  /* additional global information */
+  int nThreads;
+
 } inspector_t;
 
 /*
