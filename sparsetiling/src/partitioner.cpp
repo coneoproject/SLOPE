@@ -4,7 +4,9 @@
  * Implement routines for partitioning iteration sets
  */
 
+#ifdef SLOPE_OMP
 #include <omp.h>
+#endif
 
 #ifdef SLOPE_METIS
 #include "metis.h"
@@ -20,12 +22,12 @@
 #include "common.h"
 
 static int* chunk(loop_t* seedLoop, int tileSize,
-                  int* nCore, int* nExec, int* nNonExec);
+                  int* nCore, int* nExec, int* nNonExec, int nThreads);
 static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
-                    int* nCore, int* nExec, int* nNonExec);
+                    int* nCore, int* nExec, int* nNonExec, int nThreads);
 #ifdef SLOPE_METIS
 static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
-                  int* nCore, int* nExec, int* nNonExec);
+                  int* nCore, int* nExec, int* nNonExec, int nThreads);
 #endif
 
 void partition (inspector_t* insp)
@@ -42,22 +44,23 @@ void partition (inspector_t* insp)
   loop_t* seedLoop = insp->loops->at(seed);
   set_t* seedLoopSet = seedLoop->set;
   int setSize = seedLoopSet->size;
+  int nThreads = insp->nThreads;
 
   // partition the seed loop iteration space
   int* indMap = NULL;
   int nCore, nExec, nNonExec;
   if (partitionings) {
-    indMap = inherit (seedLoop, tileSize, partitionings, &nCore, &nExec, &nNonExec);
+    indMap = inherit (seedLoop, tileSize, partitionings, &nCore, &nExec, &nNonExec, nThreads);
     insp->partitioningMode = "inherited";
   }
 #ifdef SLOPE_METIS
   if (! indMap && meshMaps) {
-    indMap = metis (seedLoop, tileSize, meshMaps, &nCore, &nExec, &nNonExec);
+    indMap = metis (seedLoop, tileSize, meshMaps, &nCore, &nExec, &nNonExec, nThreads);
     insp->partitioningMode = "metis";
   }
 #endif
   if (! indMap) {
-    indMap = chunk (seedLoop, tileSize, &nCore, &nExec, &nNonExec);
+    indMap = chunk (seedLoop, tileSize, &nCore, &nExec, &nNonExec, nThreads);
     insp->partitioningMode = "chunk";
   }
 
@@ -88,7 +91,7 @@ void partition (inspector_t* insp)
  * Chunk-partition halo regions
  */
 static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap,
-                       int* nExec, int* nNonExec)
+                       int* nExec, int* nNonExec, int nThreads)
 {
   int setCore = seedLoop->set->core;
   int setExecHalo = seedLoop->set->execHalo;
@@ -98,7 +101,6 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap,
   // partition the exec halo region
   // this region is expected to be much smaller than core, so we first shrunk
   // /tileSize/ in order to have enough parallelism if openmp is used
-  int nThreads = omp_get_max_threads();
   if (nThreads > 1) {
     tileSize = setExecHalo / nThreads;
   }
@@ -130,8 +132,8 @@ static void chunk_halo(loop_t* seedLoop, int tileSize, int tileID, int* indMap,
 /*
  * Assign loop iterations to tiles sequentially as blocks of /tileSize/ elements
  */
-static int* chunk(loop_t* seedLoop, int tileSize,
-                  int* nCore, int* nExec, int* nNonExec)
+static int* chunk(loop_t* seedLoop, int tileSize, int* nCore, int* nExec,
+                  int* nNonExec, int nThreads)
 {
   int setCore = seedLoop->set->core;
   int setExecHalo = seedLoop->set->execHalo;
@@ -154,7 +156,7 @@ static int* chunk(loop_t* seedLoop, int tileSize,
   }
 
   // partition the exec halo region
-  chunk_halo(seedLoop, setExecHalo, tileID, indMap, nExec, nNonExec);
+  chunk_halo(seedLoop, setExecHalo, tileID, indMap, nExec, nNonExec, nThreads);
 
   return indMap;
 }
@@ -164,7 +166,7 @@ static int* chunk(loop_t* seedLoop, int tileSize,
  * provided to the inspector.
  */
 static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
-                    int* nCore, int* nExec, int* nNonExec)
+                    int* nCore, int* nExec, int* nNonExec, int nThreads)
 {
   map_t* partitioning = NULL;
   map_list::const_iterator it, end;
@@ -206,7 +208,7 @@ static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
   *nCore = partitions.size();
 
   // partition the exec halo region
-  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec);
+  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec, nThreads);
 
   return indMap;
 }
@@ -217,7 +219,7 @@ static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
  * the METIS library.
  */
 static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
-                  int* nCore, int* nExec, int* nNonExec)
+                  int* nCore, int* nExec, int* nNonExec, int nThreads)
 {
   int i;
   int setCore = seedLoop->set->core;
@@ -296,7 +298,7 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
   *nCore = partitions.size();
 
   // partition the exec halo region
-  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec);
+  chunk_halo (seedLoop, tileSize, *nCore - 1, indMap, nExec, nNonExec, nThreads);
 
   return indMap;
 }

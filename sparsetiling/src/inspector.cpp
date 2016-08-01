@@ -6,7 +6,9 @@
 
 #include <string>
 
+#ifdef SLOPE_OMP
 #include <omp.h>
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +58,12 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring c
   insp->prefetchHalo = prefetchHalo;
 
   insp->ignoreWAR = ignoreWAR;
+
+#ifdef SLOPE_OMP
+  insp->nThreads = omp_get_max_threads();
+#else
+  insp->nThreads = 1;
+#endif
 
   return insp;
 }
@@ -272,6 +280,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   int nTiles = tiles->size();
   int nLoops = loops->size();
   int itSetSize = loops->at(seed)->set->size;
+  int nThreads = insp->nThreads;
 
   cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
 
@@ -341,7 +350,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
        << "  Partitioning: " << partitioningMode << endl
        << "  Coloring: " << coloringMode << endl;
   cout << "Inspection performance" << endl
-       << "  Number of threads: " << omp_get_max_threads() << endl
+       << "  Number of threads: " << nThreads << endl
        << "  Partitioning time: " << partitioningTime << " s" << endl
        << "  Sweeps required for tiling: " << nSweeps << endl
        << "  Total inspection time: " << totalInspectionTime << " s" << endl;
