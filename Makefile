@@ -42,6 +42,7 @@ endif
 # Compiler settings
 #
 
+OS := $(shell uname)
 CXX := g++
 MPICXX := mpicc
 CXXFLAGS := -std=c++0x -fPIC -O3 $(CXX_OPTS) $(SLOPE_VTK)
@@ -62,8 +63,11 @@ ifdef SLOPE_OMP
   CXXFLAGS := $(CXXFLAGS) -DSLOPE_OMP $(SLOPE_OMP)
 endif
 
-ifeq ($(SLOPE_ARCH),linux)
-  CLOCK_LIB = -lrt
+ifeq ($(OS),Linux)
+  SONAME := -soname
+endif
+ifeq ($(OS),Darwin)
+  SONAME := -install_name
 endif
 
 .PHONY: clean mklib
@@ -93,7 +97,7 @@ sparsetiling: mklib
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
 	ar cru $(LIB)/libslope.a $(ALL_OBJS)
 	ranlib $(LIB)/libslope.a
-	$(CXX) -shared -Wl,-soname,libslope.so -o $(LIB)/libslope.so $(ALL_OBJS) $(METIS_LINK)
+	$(CXX) -shared -Wl,$(SONAME),libslope.so -o $(LIB)/libslope.so $(ALL_OBJS) $(METIS_LINK)
 
 tests: mklib
 	@echo "Compiling the tests"
