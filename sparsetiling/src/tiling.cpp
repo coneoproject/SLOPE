@@ -124,18 +124,21 @@ void project_forward (loop_t* tiledLoop,
 
       // if projecting from a subset, an older projection must be present. This
       // is used to replicate an untouched iteration color and tile.
-      set_t* superset = set_super(tiledLoop->set);
-      set_t* outSuperset = set_super(descMap->outSet);
-      if (superset && (! outSuperset || descMap->outSet->size != superset->size)) {
-        projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
-        ASSERT (oldProjIter2tc != prevLoopProj->end(),
-                "Projecting from subset lacks old projection");
+      projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
+      if (oldProjIter2tc != prevLoopProj->end()) {
+        #pragma omp for schedule(static)
         for (int i = 0; i < projSetSize; i++) {
           if (projIter2tile[i] == -1) {
             projIter2tile[i] = (*oldProjIter2tc)->iter2tile[i];
             projIter2color[i] = (*oldProjIter2tc)->iter2color[i];
           }
         }
+      }
+      else {
+        set_t* superset = set_super(tiledLoop->set);
+        set_t* outSuperset = set_super(descMap->outSet);
+        ASSERT (! (superset && (! outSuperset || descMap->outSet->size != superset->size)),
+                "Need old projection for subsets");
       }
 
       map_free (descMap, true);
@@ -273,18 +276,21 @@ void project_backward (loop_t* tiledLoop,
 
       // if projecting from a subset, an older projection must be present. This
       // is used to replicate an untouched iteration color and tile.
-      set_t* superset = set_super(tiledLoop->set);
-      set_t* outSuperset = set_super(descMap->outSet);
-      if (superset && (! outSuperset || descMap->outSet->size != superset->size)) {
-        projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
-        ASSERT (oldProjIter2tc != prevLoopProj->end(),
-                "Projecting from subset lacks old projection");
+      projection_t::iterator oldProjIter2tc = prevLoopProj->find (projIter2tc);
+      if (oldProjIter2tc != prevLoopProj->end()) {
+        #pragma omp for schedule(static)
         for (int i = 0; i < projSetSize; i++) {
           if (projIter2tile[i] == INT_MAX) {
             projIter2tile[i] = (*oldProjIter2tc)->iter2tile[i];
             projIter2color[i] = (*oldProjIter2tc)->iter2color[i];
           }
         }
+      }
+      else {
+        set_t* superset = set_super(tiledLoop->set);
+        set_t* outSuperset = set_super(descMap->outSet);
+        ASSERT (! (superset && (! outSuperset || descMap->outSet->size != superset->size)),
+                "Need old projection for subsets");
       }
 
       map_free (descMap, true);
