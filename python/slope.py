@@ -3,6 +3,9 @@
 #
 # Author: Fabio Luporini (2015)
 
+from __future__ import absolute_import, print_function, division
+import six
+
 import ctypes
 
 
@@ -162,12 +165,12 @@ void* inspector(slope_set sets[%(n_sets)d],
         """
         # Subsets should come at last to avoid "undefined identifiers" when
         # compiling the generated code
-        sets = sorted(list(sets), key=lambda x: x[4])
+        sets = sorted(list(sets), key=lambda x: id(x[4]))
         # Now extract and format info for each set
         sets = [(_fix_c(n), cs, es, ns, _fix_c(sset)) for n, cs, es, ns, sset in sets]
         ctype = Set*len(sets)
         self._sets = sets
-        return (ctype, ctype(*[Set(n, cs, es, ns) for n, cs, es, ns, sset in sets]))
+        return (ctype, ctype(*[Set(six.b(n), cs, es, ns) for n, cs, es, ns, sset in sets]))
 
     def add_maps(self, maps):
         """Add ``maps`` to this Inspector
@@ -178,7 +181,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         maps = [(_fix_c(n), _fix_c(i), _fix_c(o), v) for n, i, o, v in maps]
         ctype = Map*len(maps)
         self._maps = maps
-        return (ctype, ctype(*[Map(n, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        return (ctype, ctype(*[Map(six.b(n), v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                    v.size) for n, _, _, v in maps]))
 
     def add_loops(self, loops):
@@ -208,7 +211,7 @@ void* inspector(slope_set sets[%(n_sets)d],
                           '%s_partitioning' % _fix_c(s), v) for s, v in partitionings]
         ctype = Part*len(partitionings)
         self._partitionings = partitionings
-        return (ctype, ctype(*[Part(s, v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        return (ctype, ctype(*[Part(six.b(n), v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                     v.size, max(v)) for n, _, _, v in partitionings]))
 
     def set_tile_size(self, tile_size):
@@ -274,7 +277,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         ctype = Dat*1
         if coordinates:
             set, data, arity = coordinates
-            set_size = data.size / arity
+            set_size = data.size // arity
             extra.append((ctype, ctype(Dat(data.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                                            set_size))))
         else:
@@ -284,7 +287,7 @@ void* inspector(slope_set sets[%(n_sets)d],
         mesh_maps = Inspector._globaldata.get('mesh_maps', [])
         ctype = Map*len(mesh_maps)
         self._mesh_maps = mesh_maps
-        extra.append((ctype, ctype(*[Map(n,
+        extra.append((ctype, ctype(*[Map(six.b(n),
                                          v.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                          v.size) for n, _, _, v in mesh_maps])))
 
@@ -327,7 +330,7 @@ void* inspector(slope_set sets[%(n_sets)d],
 
         coloring = "COL_%s" % self._coloring.upper()
 
-        seed_loop = self._seed_loop if self._seed_loop is not None else len(self._loops) / 2
+        seed_loop = self._seed_loop if self._seed_loop is not None else len(self._loops) // 2
 
         debug_mode = Inspector._globaldata.get('debug_mode')
         coordinates = Inspector._globaldata.get('coordinates')
@@ -632,7 +635,7 @@ def set_debug_mode(mode, coordinates=None):
     """
     modes = ['MINIMAL', 'VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
-        print "Warning: debugging set to MINIMAL (%s not in: %s)" % (mode, str(modes))
+        print("Warning: debugging set to MINIMAL (%s not in: %s)" % (mode, str(modes)))
         mode = 'MINIMAL'
     Inspector._globaldata['debug_mode'] = mode
 
