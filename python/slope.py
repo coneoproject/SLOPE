@@ -128,8 +128,10 @@ void* inspector(slope_set sets[%(n_sets)d],
   int seedTilePoint = %(seed)d;
   insp_run (insp, seedTilePoint);
 
-  %(output_insp)s
-  %(output_vtk)s
+  if (rank == 0) {
+    %(output_insp)s
+    %(output_vtk)s
+  }
 
   executor_t* exec = exec_init (insp);
   insp_free (insp);
