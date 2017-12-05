@@ -634,7 +634,7 @@ def set_debug_mode(mode, coordinates=None):
     """
     modes = ['MINIMAL', 'VERY_LOW', 'LOW', 'MEDIUM', 'HIGH']
     if mode not in modes:
-        print "Warning: debugging set to MINIMAL (%s not in: %s)" % (mode, str(modes))
+        print("Warning: debugging set to MINIMAL (%s not in: %s)" % (mode, str(modes)))
         mode = 'MINIMAL'
     Inspector._globaldata['debug_mode'] = mode
 
