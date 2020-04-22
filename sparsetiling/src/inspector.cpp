@@ -516,7 +516,7 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
     int range = MIN(tileLoopSize, verbosityTiles);
     cout << " " << tileInfo << " " << i << "   |    " << tiles->at(i)->color << "    |   "
          << tileLoopSize << " : {";
-    if (tileLoopSize == 0) {
+    if (tileLoopSize <= 0) {
       cout << "No iterations}" << endl;
       continue;
     }
