@@ -168,6 +168,14 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
           int offset, size, element = tile2iter->offsets[*it];
           map_ofs(seedMap, element, &offset, &size);
           mask |= work[seedIndMap[offset + 0]];
+
+          // When the frontier of a tile expands (at most k vertices), the given conflicts
+          // cannot be captured by considering the adjacent tiles in the seed loop's iteration space.
+          // Hence the colors of the conflicting tiles are added to the mask, in case they are not
+          // adjacent in the seed loop's iteration space.
+          if(colors[*it] != -1){
+            mask |= 1 << colors[*it];
+          }
         }
 
         for (int e = prevOffset; e < nextOffset; e++) {
@@ -192,7 +200,7 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
           nColors = MAX(nColors, nColor + color + 1);
           for (int e = prevOffset; e < nextOffset; e++) {
             int offset, size, element = tile2iter->values[e];
-            map_ofs(seedMap, e, &offset, &size);
+            map_ofs(seedMap, element, &offset, &size);
             for (int j = 0; j < size; j++) {
               work[seedIndMap[offset + j]] |= mask;
             }
