@@ -60,7 +60,7 @@ double gam, gm1, cfl, eps, mach, alpha, qinf[4];
 #include "adt_calc.h"
 #include "res_calc.h"
 #include "bres_calc.h"
-#include "update.h"
+#include "update_orig.h"
 
 // main program
 
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 
       // update flow field
       for(int i=0; i<nCells; i++) {
-        update(qold + i*4,
+        update_orig(qold + i*4,
                q + i*4,
                res + i*4,
                adt + i,
