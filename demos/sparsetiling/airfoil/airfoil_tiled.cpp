@@ -68,6 +68,7 @@ double gam, gm1, cfl, eps, mach, alpha, qinf[4];
 #include "res_calc.h"
 #include "bres_calc.h"
 #include "update.h"
+#include "update1.h"
 
 // main program
 
@@ -121,19 +122,25 @@ int main(int argc, char **argv)
   desc_list updateDesc ({desc(DIRECT, READ),
                          desc(DIRECT, WRITE)});
 
+  map_list meshMaps ({c2nMap});
+
+
   // inspector
-  inspector_t* insp = insp_init(avgTileSize, OMP);
+  //inspector_t* insp = insp_init(avgTileSize, OMP);
+  inspector_t* insp = insp_init(avgTileSize, OMP, COL_DEFAULT, &meshMaps);
 
   insp_add_parloop (insp, "adtCalc1", cells, &adtCalcDesc);
   insp_add_parloop (insp, "resCalc1", edges, &resCalcDesc);
-  insp_add_parloop (insp, "bresCalc", bedges, &bresCalcDesc);
-  insp_add_parloop (insp, "update", cells, &updateDesc);
+  insp_add_parloop (insp, "bresCalc1", bedges, &bresCalcDesc);
+  insp_add_parloop (insp, "update1", cells, &updateDesc);
   insp_add_parloop (insp, "adtCalc2", cells, &adtCalcDesc);
   insp_add_parloop (insp, "resCalc2", edges, &resCalcDesc);
+  insp_add_parloop (insp, "bresCalc2", bedges, &bresCalcDesc);
+  insp_add_parloop (insp, "update2", cells, &updateDesc);
 
   insp_run (insp, seedTilePoint);
 
-  insp_print (insp, VERY_LOW);
+  insp_print (insp, LOW);
 
   //
   // plot tiled mesh, for each parallel loop in the loop chain
@@ -157,6 +164,7 @@ int main(int argc, char **argv)
   for(int iter=1; iter<=nIters; iter++) {
 
     // save old flow solution
+    #pragma omp parallel for
     for(int i=0; i<nCells; i++) {
       save_soln(q + 4*i,
                 qold + 4*i);
@@ -184,7 +192,7 @@ int main(int argc, char **argv)
           iterations_list& lc2n_0 = tile_get_local_map (tile, 0, "c2n");
           iterations_list& iterations_0 = tile_get_iterations (tile, 0);
           tileLoopSize = tile_loop_size (tile, 0);
-          #pragma ivdep
+          #pragma omp simd
           for (int k = 0; k < tileLoopSize; k++) {
             adt_calc (x + lc2n_0[k*4 + 0]*2,
                       x + lc2n_0[k*4 + 1]*2,
@@ -231,15 +239,14 @@ int main(int argc, char **argv)
             update    (qold + iterations_3[k]*4,
                        q + iterations_3[k]*4,
                        res + iterations_3[k]*4,
-                       adt + iterations_3[k],
-                       &rms);
+                       adt + iterations_3[k]);
           }
 
           // loop adt_calc (k = 2)
           iterations_list& lc2n_4 = tile_get_local_map (tile, 4, "c2n");
           iterations_list& iterations_4 = tile_get_iterations (tile, 4);
           tileLoopSize = tile_loop_size (tile, 4);
-          #pragma ivdep
+          #pragma omp simd
           for (int k = 0; k < tileLoopSize; k++) {
             adt_calc (x + lc2n_4[k*4 + 0]*2,
                       x + lc2n_4[k*4 + 1]*2,
@@ -265,39 +272,62 @@ int main(int argc, char **argv)
                       res + le2c_5[k*2 + 1]*4);
           }
 
+          // loop bres_calc (k = 2)
+          iterations_list& lbe2n_6 = tile_get_local_map (tile, 6, "be2n");
+          iterations_list& lbe2c_6 = tile_get_local_map (tile, 6, "be2c");
+          iterations_list& iterations_6 = tile_get_iterations (tile, 6);
+          tileLoopSize = tile_loop_size (tile, 6);
+          for (int k = 0; k < tileLoopSize; k++) {
+            bres_calc (x + lbe2n_6[k*2 + 0]*2,
+                       x + lbe2n_6[k*2 + 1]*2,
+                       q + lbe2c_6[k + 0]*4,
+                       adt + lbe2c_6[k + 0]*1,
+                       res + lbe2c_6[k + 0]*4,
+                       bound + iterations_6[k]);
+          }
+
+          // loop update
+          iterations_list& iterations_7 = tile_get_iterations (tile, 7);
+          tileLoopSize = tile_loop_size (tile, 7);
+          for (int k = 0; k < tileLoopSize; k++) {
+            update    (qold + iterations_7[k]*4,
+                       q + iterations_7[k]*4,
+                       res + iterations_7[k]*4,
+                       adt + iterations_7[k]);
+          }
+
         }
       }
-
-      for(int i=0; i<nBedges; i++) {
-        bres_calc(x + be2n[2*i + 0]*2,
-                  x + be2n[2*i + 1]*2,
-                  q + be2c[i + 0]*4,
-                  adt + be2c[i + 0],
-                  res + be2c[i + 0]*4,
-                  bound + i);
-      }
-
-      // update flow field
-
-      rms = 0.0;
-
-      for(int i=0; i<nCells; i++) {
-        update(qold + 4*i,
-               q + 4*i,
-               res + 4*i,
-               adt + i,
-               &rms);
-      }
-
     }
+  }
+  
+  double end = time_stamp(); // end timing 
+  rms = 0.0;
+  
+  #pragma omp parallel for reduction(+:rms)
+  for(int i=0; i<nCells; i++) {
+    update1(qold + 4*i,
+           q + 4*i,
+           res + 4*i,
+           adt + i,
+           &rms);
+  }
+  rms = sqrt(rms/(double) nCells);
 
-    // print iteration history
-    rms = sqrt(rms/(double) nCells);
-    if (iter%100 == 0)
-      printf(" %d  %10.5e \n",iter,rms);
+  if (nIters % 1000 == 0 &&
+    nCells == 720000) { // defailt mesh -- for validation testing
+    printf("Final rms (iter = %d)  %10.5e \n",nIters,rms);
+    float diff = fabs((100.0 * (rms / 0.0001060114637578)) - 100.0);
+    printf("\n\nTest problem with %d cells is within %3.15E %% of the "
+              "expected solution\n",
+              720000, diff);
+    if (diff < 0.00001) {
+      printf("This test is considered PASSED\n");
+    } else {
+      printf("This test is considered FAILED\n");
+    }
   }
 
-  double end = time_stamp();
   printf("Max total runtime = %f\n", end - start);
 
 #ifdef AIRFOIL_DEBUG
