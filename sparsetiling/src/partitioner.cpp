@@ -214,6 +214,57 @@ static int* inherit(loop_t* seedLoop, int tileSize, map_list* partitionings,
 }
 
 #ifdef SLOPE_METIS
+
+void get_adjncy_and_offsets(map_t* map, int** adjncy, int** offsets)
+{
+  // map should be of type e2n. Edges are partitioned after creating a line graph considering
+  // edges as nodes.
+  int nElements = map->inSet->size;
+  int nNodes = map->outSet->size;
+
+  std::set<int>* e2e  = new std::set<int>[nElements];
+  std::set<int>* n2e  = new std::set<int>[nNodes];
+
+  // create line graph
+  for(int i = 0; i < map->size; i++){
+    int node = map->values[i];
+    int edgeID = i / 2;
+    std::set<int>* edgesConnectedToNode = &n2e[node];
+    std::set<int>* edgesConnectedToEdge = &e2e[edgeID];
+
+    for(auto edge : *edgesConnectedToNode){
+      (&e2e[edge])->insert(edgeID);
+      edgesConnectedToEdge->insert(edge);   
+    }
+    edgesConnectedToNode->insert(edgeID);
+  }
+
+  // get adjancy array size
+  int adjncyArraySize = 0;
+  for(int i = 0; i < nElements; i++){
+    adjncyArraySize += (&e2e[i])->size();    
+  }
+
+  *adjncy = new int[adjncyArraySize];
+  *offsets = new int[nElements + 1];
+
+  int index = 0;
+  (*offsets)[0] = 0;
+
+  for(int i = 0; i < nElements; i++){
+    std::set<int>* edges = &e2e[i]; 
+
+    for(auto edge : *edges){
+      (*adjncy)[index++] = edge;    
+    }
+    (*offsets)[i + 1] = index;   
+  }
+
+  delete[] e2e;
+  delete[] n2e;
+
+}
+
 /*
  * Assign loop iterations to tiles carving partitions out of /seedLoop/ using
  * the METIS library.
@@ -250,11 +301,18 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
   // ... data needed for partitioning
   int* indMap = new int[nElements];
   int* indNodesMap = new int[nNodes];
-  int* adjncy = map->values;
-  int* offsets = new int[nElements+1]();
-  for (i = 1; i < nElements+1; i++) {
-    offsets[i] = offsets[i-1] + arity;
+  int* adjncy = nullptr;
+  int* offsets = nullptr;
+  if(arity == 2){
+    get_adjncy_and_offsets(map, &adjncy, &offsets);
+  }else{
+    adjncy = map->values;
+    offsets = new int[nElements+1]();
+    for (i = 1; i < nElements+1; i++) {
+      offsets[i] = offsets[i-1] + arity;
+    }
   }
+  
   // ... options
   int result, objval, ncon = 1;
   int options[METIS_NOPTIONS];
@@ -263,11 +321,12 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
   options[METIS_OPTION_CONTIG] = 1;
   // ... do partition!
   result = (arity == 2) ?
-    METIS_PartGraphKway (&nNodes, &ncon, offsets, adjncy, NULL, NULL, NULL,
+    METIS_PartGraphKway (&nElements, &ncon, offsets, adjncy, NULL, NULL, NULL,
                          &nParts, NULL, NULL, options, &objval, indMap) :
     METIS_PartMeshNodal (&nElements, &nNodes, offsets, adjncy, NULL, NULL,
                          &nParts, NULL, options, &objval, indMap, indNodesMap);
   ASSERT(result == METIS_OK, "Invalid METIS partitioning");
+
 
   // what's the target iteration set ?
   if (set_eq(seedLoop->set, map->inSet)) {
@@ -279,6 +338,10 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
     indMap = indNodesMap;
   }
   delete[] offsets;
+
+  if(arity == 2){
+    delete[] adjncy;
+  }
 
   // restrict partitions to the core region
   std::fill (indMap + setCore, indMap + setSize, 0);
