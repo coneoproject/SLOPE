@@ -27,6 +27,10 @@
 
 #include "inspector.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 #ifndef NDEBUG
 /*
  * This is taken from:
@@ -190,5 +194,7 @@ void generate_vtk (inspector_t* insp,
                    double* coordinates,
                    dimension meshDim,
                    int rank = 0);
-
+#ifdef __cplusplus
+  }
+#endif
 #endif

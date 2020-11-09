@@ -10,6 +10,10 @@
 
 #include "set.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 /*
  * Represent a map between two sets
  */
@@ -43,6 +47,12 @@ typedef std::set<map_t*> map_list;
  * Initialize a map
  */
 map_t* map (std::string name,
+            set_t* inSet,
+            set_t* outSet,
+            int* values,
+            int size);
+
+map_t* map_f (const char* name,
             set_t* inSet,
             set_t* outSet,
             int* values,
@@ -95,4 +105,11 @@ void map_ofs (map_t* map,
 map_t* map_invert (map_t* x2y,
                    int* maxIncidence);
 
+map_list* map_list_f();
+
+map_list* insert_map_to_f(map_list* maps, map_t* map);
+
+#ifdef __cplusplus
+  }
+#endif
 #endif

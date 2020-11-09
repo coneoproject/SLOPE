@@ -25,6 +25,11 @@ map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size
   return map;
 }
 
+map_t* map_f (const char* name, set_t* inSet, set_t* outSet, int* values, int size)
+{
+  return map(std::string(name), inSet, outSet, values, size);
+}
+
 map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* values, int* offsets)
 {
   map_t* map = new map_t;
@@ -135,4 +140,15 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
     *maxIncidence = incidence;
   return imap ("inverse_" + x2y->name, set_cpy(x2y->outSet), set_cpy(x2y->inSet),
                y2xMap, y2xOffset);
+}
+
+map_list* map_list_f()
+{
+    return new map_list;
+}
+
+map_list* insert_map_to_f(map_list* maps, map_t* map)
+{
+    maps->insert(map);
+    return maps;
 }

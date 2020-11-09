@@ -12,6 +12,11 @@
 
 #include "descriptor.h"
 
+
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 /*
  * Represent a parloop
  */
@@ -70,4 +75,7 @@ inline bool loop_eq_itspace (loop_t* loop_a,
   return loop_a && loop_b && set_eq (loop_a->set, loop_b->set);
 }
 
+#ifdef __cplusplus
+  }
+#endif
 #endif

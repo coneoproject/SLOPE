@@ -30,7 +30,7 @@ ST_TESTS = $(TESTS)/sparsetiling
 
 ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile.o \
 		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o \
-		   $(OBJ)/schedule.o
+		   $(OBJ)/schedule.o $(OBJ)/set.o $(OBJ)/descriptor.o
 
 ifdef SLOPE_METIS
   METIS_INC = -I$(SLOPE_METIS)/include
@@ -45,7 +45,7 @@ endif
 OS := $(shell uname)
 CXX := g++
 MPICXX := mpicc
-CXXFLAGS := -std=c++0x -fPIC -O3 $(CXX_OPTS) $(SLOPE_VTK)
+CXXFLAGS := -std=c++0x -fPIC -O3 $(CXX_OPTS) $(SLOPE_VTK) 
 CLOCK_LIB = -lrt
 
 ifeq ($(SLOPE_COMPILER),gnu)
@@ -95,6 +95,8 @@ sparsetiling: mklib
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
 	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/set.cpp -o $(OBJ)/set.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/descriptor.cpp -o $(OBJ)/descriptor.o
 	ar cru $(LIB)/libslope.a $(ALL_OBJS)
 	ranlib $(LIB)/libslope.a
 	$(CXX) -shared -Wl,$(SONAME),libslope.so -o $(LIB)/libslope.so $(ALL_OBJS) $(METIS_LINK)
@@ -120,3 +122,52 @@ clean:
 	-rm -if $(ST_DEMOS)/airfoil/*~
 	-rm -if $(ST_BIN)/airfoil/airfoil_*
 	-rm -if $(ST_BIN)/tests/test_*
+	-rm -if $(FT_MOD)/*.mod
+	-rm -if $(FT_MOD)/*~
+	-rm -if $(FT_LIB)/*.a
+	-rm -if $(FT_LIB)/*.so
+
+
+FT = fortran
+FT_SRC = $(FT)/sparsetiling/src
+FT_INC = $(FT)/sparsetiling/include
+FT_BIN = $(FT)/bin/sparsetiling
+FT_LIB = $(FT)/lib
+FT_OBJ = $(FT)/obj
+FT_MOD = $(FT)/mod
+
+FT_ALL_OBJS = $(FT_OBJ)/sl_for_declarations.o
+
+
+ifeq ($(SLOPE_COMPILER),intel)
+	FT_OPTS = -O3 -fPIC 
+	FT_INC_MOD = $(FT_MOD)
+	FC = ifort
+	FFLAGS = -module $(FT_INC_MOD) $(FT_OPTS) $(SLOPE_VTK)
+endif
+
+ft_all: ft_sparsetiling
+
+ft_mklib:
+	@mkdir -p $(FT_LIB) $(FT_OBJ) $(FT_MOD) $(FT_BIN)/airfoil $(FT_BIN)/tests
+
+ft_sparsetiling: ft_mklib
+	@echo "Compiling the Fortran library"
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/inspector.cpp -o $(OBJ)/inspector.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/executor.cpp -o $(OBJ)/executor.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) $(METIS_INC) -c $(ST_SRC)/partitioner.cpp -o $(OBJ)/partitioner.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/coloring.cpp -o $(OBJ)/coloring.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/map.cpp -o $(OBJ)/map.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/set.cpp -o $(OBJ)/set.o
+	$(CXX) $(CXXFLAGS) -I$(ST_INC) -c $(ST_SRC)/descriptor.cpp -o $(OBJ)/descriptor.o
+	$(FC) $(FFLAGS) -c $(FT_SRC)/sl_for_declarations.F90 -o $(FT_OBJ)/sl_for_declarations.o
+	ar -r $(FT_LIB)/libfslope.a $(ALL_OBJS) $(FT_ALL_OBJS)
+	ranlib $(FT_LIB)/libfslope.a
+	$(CXX) -shared -Wl,$(SONAME),libfslope.so -o $(FT_LIB)/libfslope.so $(ALL_OBJS) $(FT_ALL_OBJS) $(METIS_LINK)
+
+	

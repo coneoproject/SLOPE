@@ -17,6 +17,11 @@
 #include "schedule.h"
 #include "common.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
+
 /* Prototypes and data structures for the tiling and projection functions
  *
  * Notes:
@@ -33,6 +38,7 @@
 /* Tracker: a map from tile IDs to a set of tile IDs */
 typedef std::set<int> index_set;
 typedef std::map<int, index_set> tracker_t;
+
 
 /*
  * Project tiling and coloring of an iteration set to all sets that are
@@ -137,5 +143,7 @@ void assign_loop (loop_t* loop,
                   direction_t direction);
 
 /**************************************************************************/
-
+#ifdef __cplusplus
+  }
+#endif
 #endif
