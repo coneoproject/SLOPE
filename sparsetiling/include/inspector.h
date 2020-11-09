@@ -10,6 +10,10 @@
 #include "parloop.h"
 #include "tile.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 enum insp_strategy {SEQUENTIAL, OMP, ONLY_MPI, OMP_MPI};
 enum insp_coloring {COL_DEFAULT, COL_RAND, COL_MINCOLS};
 enum insp_info {INSP_OK, INSP_ERR};
@@ -107,6 +111,15 @@ inspector_t* insp_init (int tileSize,
                         bool ignoreWAR = false,
                         std::string name = "");
 
+inspector_t* insp_init_f (int tileSize,
+                        insp_strategy strategy,
+                        insp_coloring coloring = COL_DEFAULT,
+                        map_list* meshMaps = NULL,
+                        map_list* partitionings = NULL,
+                        int prefetchHalo = 1,
+                        int ignoreWAR = 0,
+                        const char* name = NULL);
+
 /*
  * Add a parloop to the inspector
  *
@@ -127,6 +140,11 @@ insp_info insp_add_parloop (inspector_t* insp,
                             set_t* set,
                             desc_list* descriptors,
                             int nhalos = 1);
+
+insp_info insp_add_parloop_f (inspector_t* insp,
+                            const char* name,
+                            set_t* set,
+                            desc_list* descriptors);
 
 /*
  * Inspect a sequence of parloops and compute a tiling scheme
@@ -161,5 +179,7 @@ void insp_print (inspector_t* insp,
  * Destroy an inspector
  */
 void insp_free (inspector_t* insp);
-
+#ifdef __cplusplus
+  }
+#endif
 #endif

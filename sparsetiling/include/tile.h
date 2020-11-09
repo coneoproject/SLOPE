@@ -14,6 +14,12 @@
 #include "descriptor.h"
 #include "parloop.h"
 
+
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
+
 typedef std::vector<int> iterations_list;
 typedef std::unordered_map<std::string, iterations_list*> mapname_iterations;
 typedef std::pair<std::string, iterations_list*> mi_pair;
@@ -73,6 +79,11 @@ iterations_list& tile_get_local_map (tile_t* tile,
                                      int loopIndex,
                                      std::string mapName);
 
+
+int*  tile_get_local_map_f (tile_t* tile,
+                                     int loopIndex,
+                                     const char* mapName);
+
 /*
  * Retrieve the iterations list for a given loop
  *
@@ -85,6 +96,9 @@ iterations_list& tile_get_local_map (tile_t* tile,
  */
 iterations_list& tile_get_iterations (tile_t* tile,
                                       int loopIndex);
+
+int* tile_get_iterations_f (tile_t* tile, int loopIndex);
+
 
 /*
  * Retrieve the number of iterations for a given loop
@@ -103,5 +117,7 @@ int tile_loop_size (tile_t* tile,
  * Free resources associated with the tile
  */
 void tile_free (tile_t* tile);
-
+#ifdef __cplusplus
+  }
+#endif
 #endif

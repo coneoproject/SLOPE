@@ -68,6 +68,14 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring c
   return insp;
 }
 
+inspector_t* insp_init_f (int avgTileSize, insp_strategy strategy, insp_coloring coloring,
+                        map_list* meshMaps, map_list* partitionings, int prefetchHalo,
+                        int ignoreWAR, const char* name)
+{
+  return insp_init(avgTileSize, strategy, coloring, meshMaps, partitionings, prefetchHalo,
+  ignoreWAR, std::string(name));
+}
+
 insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
                             desc_list* descriptors, int nhalos)
 {
@@ -86,6 +94,12 @@ insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
   insp->loops->push_back(loop);
 
   return INSP_OK;
+}
+
+insp_info insp_add_parloop_f (inspector_t* insp, const char* name, set_t* set,
+                            desc_list* descriptors)
+{
+  return insp_add_parloop(insp, std::string(name), set, descriptors);
 }
 
 insp_info insp_run (inspector_t* insp, int suggestedSeed)
@@ -118,7 +132,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       loop_load_seed_map (*lIt, loops);
     }
   }
-
+  
   // partition the seed loop iteration set into tiles
   double startPartitioning = time_stamp();
   partition (insp);

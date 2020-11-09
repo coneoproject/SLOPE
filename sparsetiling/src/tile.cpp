@@ -30,9 +30,21 @@ iterations_list& tile_get_local_map (tile_t* tile, int loopIndex, std::string ma
   return *(tile->localMaps[loopIndex]->find(mapName)->second);
 }
 
+int* tile_get_local_map_f (tile_t* tile, int loopIndex, const char* mapName)
+{
+  int* array = &(*(tile->localMaps[loopIndex]->find(mapName)->second))[0];
+  return array;
+}
+
 iterations_list& tile_get_iterations (tile_t* tile, int loopIndex)
 {
   return *(tile->iterations[loopIndex]);
+}
+
+int* tile_get_iterations_f (tile_t* tile, int loopIndex)
+{
+  int* array = &(*(tile->iterations[loopIndex]))[0];
+  return array;
 }
 
 int tile_loop_size (tile_t* tile, int loopIndex)

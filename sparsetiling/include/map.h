@@ -10,6 +10,10 @@
 
 #include "set.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 /*
  * Represent a map between two sets
  */
@@ -55,8 +59,21 @@ map_t* map (std::string name,
             int* values,
             int size,
             int dim);
+
+map_t* map_f (const char* name,
+            set_t* inSet,
+            set_t* outSet,
+            int* values,
+            int size,
+            int dim);
 #else
 map_t* map (std::string name,
+            set_t* inSet,
+            set_t* outSet,
+            int* values,
+            int size);
+
+map_t* map_f (const char* name,
             set_t* inSet,
             set_t* outSet,
             int* values,
@@ -115,4 +132,11 @@ map_t* map_invert (map_t* x2y,
  */
 void convert_map_vals_to_normal(map_t* map);
 
+map_list* map_list_f();
+
+map_list* insert_map_to_f(map_list* maps, map_t* map);
+
+#ifdef __cplusplus
+  }
+#endif
 #endif

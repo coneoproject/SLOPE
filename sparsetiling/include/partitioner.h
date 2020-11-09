@@ -9,6 +9,10 @@
 
 #include "inspector.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 /*
  * Partition the /loop/ iteration set.
  *
@@ -22,5 +26,7 @@ void partition (inspector_t* insp);
 #ifdef SLOPE_METIS
 void get_adjncy_and_offsets(map_t* map, int** adjncy, int** offsets);
 #endif
-
+#ifdef __cplusplus
+  }
+#endif
 #endif

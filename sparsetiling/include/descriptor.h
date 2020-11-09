@@ -16,6 +16,9 @@
 
 #include "map.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
 /* Define the ways a set can be accessed */
 enum am_t {READ, WRITE, RW, INC};
 
@@ -33,25 +36,28 @@ typedef struct {
 
 typedef std::set<descriptor_t*> desc_list;
 
+
+
 /*
  * Initialize an access descriptor
  */
-inline descriptor_t* desc (map_t* map,
-                           am_t mode)
-{
-  descriptor_t* desc = new descriptor_t;
-  desc->map = map;
-  desc->mode = mode;
-  return desc;
-}
+
+descriptor_t* desc (map_t* map,
+                           am_t mode);
+
+descriptor_t* desc_f (map_t* map,
+                           int mode);
+
+desc_list* desc_list_f();
+
+desc_list* insert_descriptor_to_f(desc_list* desc_list, descriptor_t* desc);
 
 /*
  * Destroy an access descriptor
  */
-inline void desc_free (descriptor_t* desc)
-{
-  map_free (desc->map);
-  delete desc;
-}
+void desc_free (descriptor_t* desc);
 
+#ifdef __cplusplus
+  }
+#endif
 #endif

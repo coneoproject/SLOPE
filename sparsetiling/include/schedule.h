@@ -12,6 +12,10 @@
 
 #include "common.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 typedef struct {
   /* set name identifier */
   std::string name;
@@ -72,5 +76,7 @@ projection_t* projection_init();
  * Destroy a loop projection
  */
 void projection_free (projection_t* projection);
-
+#ifdef __cplusplus
+  }
+#endif
 #endif

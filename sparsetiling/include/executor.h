@@ -10,6 +10,9 @@
 #include "inspector.h"
 #include "utils.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
 /*
  * The executor main data structure.
  */
@@ -20,6 +23,7 @@ typedef struct {
   map_t* color2tile;
 
 } executor_t;
+
 
 
 /*
@@ -77,4 +81,7 @@ void exec_free (executor_t* exec);
  */
 void create_mapped_iterations(inspector_t* insp, executor_t* exec);
 
+#ifdef __cplusplus
+  }
+#endif
 #endif

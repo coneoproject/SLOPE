@@ -12,6 +12,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
+
 /*
  * Represent a set
  */
@@ -93,67 +97,45 @@ inline set_t* slop_set (std::string name,
   return set;
 }
 
-inline set_t* set (std::string name,
+set_t* set (std::string name,
                    int core,
                    int execHalo = 0,
                    int nonExecHalo = 0,
-                   set_t* superset = NULL)
-{
-  set_t* set =  new set_t;
-  set->name = name;
-  set->core = core;
-  set->execHalo = execHalo;
-  set->nonExecHalo = nonExecHalo;
-  set->size = core + execHalo + nonExecHalo;
-  set->superset = superset;
-  return set;
-}
+                   set_t* superset = NULL);
+
+set_t* set_f (const char* name,
+                   int core,
+                   int execHalo = 0,
+                   int nonExecHalo = 0,
+                   set_t* superset = NULL);
 
 /*
  * Get the superset, if any
  */
-inline set_t* set_super(set_t* set)
-{
-  return (set_t*)set->superset;
-}
+set_t* set_super(set_t* set);
 
 /*
  * Copy a set
  */
-inline set_t* set_cpy (set_t* toCopy)
-{
-  return set(toCopy->name, toCopy->core, toCopy->execHalo, toCopy->nonExecHalo,
-             set_super(toCopy));
-}
+set_t* set_cpy (set_t* toCopy);
 
 /*
  * Return /true/ if two sets are identical (same identifier), /false/ otherwise
  */
-inline bool set_eq(const set_t* a,
-                   const set_t* b)
-{
-  return a && b && a->name == b->name;
-}
-
+bool set_eq(const set_t* a,
+                   const set_t* b);
  /*
   * Return /true/ if /a/ goes before /b/, /false/ otherwise. This just boils down
   * to compare the name of the two sets
   */
-inline bool set_cmp(const set_t* a,
-                    const set_t* b)
-{
-  return a && b && a->name < b->name;
-}
-
+bool set_cmp(const set_t* a,
+                    const set_t* b);
 /*
  * Destroy a set
  */
-inline void set_free (set_t* set)
-{
-  if (! set) {
-    return;
-  }
-  delete set;
-}
+void set_free (set_t* set);
 
+#ifdef __cplusplus
+  }
+#endif
 #endif

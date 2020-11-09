@@ -30,6 +30,11 @@ map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size
   return map;
 }
 
+map_t* map_f (const char* name, set_t* inSet, set_t* outSet, int* values, int size, int dim)
+{
+  return map(std::string(name), inSet, outSet, values, size, dim);
+}
+
 #else
 map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size)
 {
@@ -44,6 +49,12 @@ map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size
 
   return map;
 }
+
+map_t* map_f (const char* name, set_t* inSet, set_t* outSet, int* values, int size)
+{
+  return map(std::string(name), inSet, outSet, values, size);
+}
+
 #endif
 
 map_t* imap (std::string name, set_t* inSet, set_t* outSet, int* values, int* offsets)
@@ -247,3 +258,13 @@ void convert_map_vals_to_normal(map_t* map){
   map->values = unmappedVals;
 }
 
+map_list* map_list_f()
+{
+    return new map_list;
+}
+
+map_list* insert_map_to_f(map_list* maps, map_t* map)
+{
+    maps->insert(map);
+    return maps;
+}

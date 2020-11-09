@@ -9,6 +9,9 @@
 #include "inspector.h"
 #include "tiling.h"
 
+#ifdef __cplusplus
+  extern"C" {
+#endif
 /*
  * Assign increasing colors to the tiles.
  *
@@ -59,5 +62,9 @@ void color_diff_adj (inspector_t* insp,
                      map_t* seedMap,
                      tracker_t* conflictsTracker,
                      bool onlyCore = false);
+
+#ifdef __cplusplus
+  }
+#endif
 
 #endif
