@@ -14,10 +14,16 @@
 #
 # Set paths for various files
 #
+
 OP2=1
-DEBUG=1
+# DEBUG=1
+# SLOPE_COMPILER = intel
 SLOPE_OMP=-fopenmp
 SLOPE_METIS=/opt/metis/5.1.0
+#SLOPE_VTK = -DSLOPE_VTK
+CXX_OPTS = 
+FT_OPTS = 
+
 ST = sparsetiling
 LIB = lib
 OBJ = obj
@@ -35,12 +41,6 @@ ALL_OBJS = $(OBJ)/inspector.o $(OBJ)/partitioner.o $(OBJ)/coloring.o $(OBJ)/tile
 		   $(OBJ)/parloop.o $(OBJ)/tiling.o $(OBJ)/map.o $(OBJ)/executor.o $(OBJ)/utils.o \
 		   $(OBJ)/schedule.o $(OBJ)/set.o $(OBJ)/descriptor.o
 
-ifdef SLOPE_METIS
-  METIS_INC = -I$(SLOPE_METIS)/include
-  METIS_LIB = $(SLOPE_METIS)/lib
-  METIS_LINK = -L$(METIS_LIB) -lmetis
-endif
-
 #
 # Compiler settings
 #
@@ -48,7 +48,7 @@ endif
 OS := $(shell uname)
 CXX := g++
 MPICXX := mpicc
-CXXFLAGS := -std=c++0x -fPIC -O3 $(CXX_OPTS) $(SLOPE_VTK) 
+CXXFLAGS := $(CXXFLAGS) -std=c++0x -fPIC $(CXX_OPTS) $(SLOPE_VTK) 
 CLOCK_LIB = -lrt
 
 ifeq ($(SLOPE_COMPILER),gnu)
@@ -64,6 +64,24 @@ endif
 
 ifdef SLOPE_OMP
   CXXFLAGS := $(CXXFLAGS) -DSLOPE_OMP $(SLOPE_OMP)
+  FFLAGS := $(FFLAGS) -DSLOPE_OMP $(SLOPE_OMP)
+endif
+
+ifdef SLOPE_METIS
+  METIS_INC = -I$(SLOPE_METIS)/include
+  METIS_LIB = $(SLOPE_METIS)/lib
+  METIS_LINK = -L$(METIS_LIB) -lmetis
+
+  CXXFLAGS := $(CXXFLAGS) -DSLOPE_METIS
+  FFLAGS := $(FFLAGS) -DSLOPE_METIS
+endif
+
+ifdef DEBUG
+  CXXFLAGS := $(CXXFLAGS) -O0 -g
+  FFLAGS := $(FFLAGS) -O0 -g -traceback
+else
+  CXXFLAGS := $(CXXFLAGS) -O3
+  FFLAGS := $(FFLAGS) -O3
 endif
 
 ifdef OP2
@@ -145,12 +163,10 @@ FT_MOD = $(FT)/mod
 
 FT_ALL_OBJS = $(FT_OBJ)/sl_for_declarations.o
 
-
 ifeq ($(SLOPE_COMPILER),intel)
-	FT_OPTS = -O3 -fPIC 
 	FT_INC_MOD = $(FT_MOD)
 	FC = ifort
-	FFLAGS = -module $(FT_INC_MOD) $(FT_OPTS) $(SLOPE_VTK)
+	FFLAGS := $(FFLAGS) -module $(FT_INC_MOD) -fPIC $(FT_OPTS) $(SLOPE_VTK)
 endif
 
 ft_all: ft_sparsetiling
