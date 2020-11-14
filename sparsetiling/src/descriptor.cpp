@@ -25,10 +25,9 @@ desc_list* desc_list_f()
     return new desc_list;
 }
 
-desc_list* insert_descriptor_to_f(desc_list* desc_list, descriptor_t* desc)
+void insert_descriptor_to_f(desc_list* desc_list, descriptor_t* desc)
 {
     desc_list->insert(desc);
-    return desc_list;
 }
 
 void desc_free (descriptor_t* desc)

@@ -147,8 +147,7 @@ map_list* map_list_f()
     return new map_list;
 }
 
-map_list* insert_map_to_f(map_list* maps, map_t* map)
+void insert_map_to_f(map_list* maps, map_t* map)
 {
     maps->insert(map);
-    return maps;
 }

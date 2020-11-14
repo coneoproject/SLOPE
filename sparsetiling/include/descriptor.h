@@ -50,7 +50,7 @@ descriptor_t* desc_f (map_t* map,
 
 desc_list* desc_list_f();
 
-desc_list* insert_descriptor_to_f(desc_list* desc_list, descriptor_t* desc);
+void insert_descriptor_to_f(desc_list* desc_list, descriptor_t* desc);
 
 /*
  * Destroy an access descriptor

@@ -107,7 +107,7 @@ map_t* map_invert (map_t* x2y,
 
 map_list* map_list_f();
 
-map_list* insert_map_to_f(map_list* maps, map_t* map);
+void insert_map_to_f(map_list* maps, map_t* map);
 
 #ifdef __cplusplus
   }
