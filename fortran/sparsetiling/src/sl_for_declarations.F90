@@ -12,9 +12,9 @@ module SLOPE_Fortran_Declarations
     integer(c_int) :: SL_ONLY_MPI = 2
     integer(c_int) :: SL_OMP_MPI = 3
 
-    integer(c_int) :: SL_COL_DEFAULT = 3
-    integer(c_int) :: SL_COL_RAND = 3
-    integer(c_int) :: SL_COL_MINCOLS = 3
+    integer(c_int) :: SL_COL_DEFAULT = 0
+    integer(c_int) :: SL_COL_RAND = 1
+    integer(c_int) :: SL_COL_MINCOLS = 2
 
     integer(c_int) :: SL_MINIMAL = 1
     integer(c_int) :: SL_VERY_LOW = 5
@@ -206,14 +206,14 @@ module SLOPE_Fortran_Declarations
         end function desc_list_c
 
 
-        type(c_ptr) function insert_desc_c (descList, desc) BIND(C,name='insert_descriptor_to_f')
+        subroutine insert_desc_c (descList, desc) BIND(C,name='insert_descriptor_to_f')
 
             use, intrinsic :: ISO_C_BINDING
 
             type(c_ptr), value, intent(in) :: descList
             type(c_ptr), value, intent(in) :: desc
 
-        end function insert_desc_c
+        end subroutine insert_desc_c
 
 
         type(c_ptr) function map_list_c () BIND(C,name='map_list_f')
@@ -223,14 +223,14 @@ module SLOPE_Fortran_Declarations
         end function map_list_c
 
 
-        type(c_ptr) function insert_map_to_c (mapList, map) BIND(C,name='insert_map_to_f')
+        subroutine insert_map_to_c (mapList, map) BIND(C,name='insert_map_to_f')
 
             use, intrinsic :: ISO_C_BINDING
 
             type(c_ptr), value, intent(in) :: mapList
             type(c_ptr), value, intent(in) :: map
 
-        end function insert_map_to_c
+        end subroutine insert_map_to_c
 
 
         type(c_ptr) function insp_init_c (avgTileSize, strategy, coloring, meshMaps, partitionings, &
@@ -250,7 +250,7 @@ module SLOPE_Fortran_Declarations
         end function insp_init_c
 
 
-        type(c_ptr) function insp_add_parloop_c(insp, name, set, descriptors) BIND(C,name='insp_add_parloop_f')
+        integer(kind=c_int) function insp_add_parloop_c(insp, name, set, descriptors) BIND(C,name='insp_add_parloop_f')
 
             use, intrinsic :: ISO_C_BINDING
 
@@ -262,7 +262,7 @@ module SLOPE_Fortran_Declarations
         end function insp_add_parloop_c
 
 
-        type(c_ptr) function insp_run_c(insp, suggestedSeed) BIND(C,name='insp_run')
+        integer(kind=c_int) function insp_run_c(insp, suggestedSeed) BIND(C,name='insp_run')
 
             use, intrinsic :: ISO_C_BINDING
 
@@ -272,7 +272,7 @@ module SLOPE_Fortran_Declarations
         end function insp_run_c
 
 
-        type(c_ptr) function insp_print_c(insp, level, loopIndex) BIND(C,name='insp_print')
+        subroutine insp_print_c(insp, level, loopIndex) BIND(C,name='insp_print')
 
             use, intrinsic :: ISO_C_BINDING
 
@@ -280,7 +280,7 @@ module SLOPE_Fortran_Declarations
             integer(kind=c_int), value, intent(in) :: level
             integer(kind=c_int), value, intent(in) :: loopIndex
   
-        end function insp_print_c
+        end subroutine insp_print_c
 
 
         type(c_ptr) function exec_init_c (insp) BIND(C,name='exec_init')
@@ -354,7 +354,7 @@ module SLOPE_Fortran_Declarations
         end function tile_loop_size_c
 
 
-        type(c_ptr) function generate_vtk_c (insp, level, nodes, coordinates, meshDim, rank) BIND(C,name='generate_vtk')
+        subroutine generate_vtk_c (insp, level, nodes, coordinates, meshDim, rank) BIND(C,name='generate_vtk')
 
             use, intrinsic :: ISO_C_BINDING
 
@@ -365,7 +365,7 @@ module SLOPE_Fortran_Declarations
             integer(kind=c_int), value, intent (in) :: meshDim
             integer(kind=c_int), value, intent (in) :: rank
 
-        end function generate_vtk_c
+        end subroutine generate_vtk_c
 
 
     end interface
@@ -436,9 +436,8 @@ module SLOPE_Fortran_Declarations
 
             type(sl_desc_list) :: descList
             type(sl_descriptor), target :: desc
-            type(c_ptr), target :: dummy
 
-            dummy = insert_desc_c(descList%descListCPtr, desc%descCPtr)
+            call insert_desc_c(descList%descListCPtr, desc%descCPtr)
 
         end subroutine insert_descriptor_to
 
@@ -456,9 +455,8 @@ module SLOPE_Fortran_Declarations
 
             type(sl_map_list) :: mapList
             type(sl_map), target :: map
-            type(c_ptr), target :: dummy
 
-            dummy = insert_map_to_c(mapList%mapListCPtr, map%mapCPtr)
+            call insert_map_to_c(mapList%mapListCPtr, map%mapCPtr)
 
         end subroutine insert_map_to
 
@@ -476,12 +474,21 @@ module SLOPE_Fortran_Declarations
             ! logical(kind=c_bool), value, intent(in), optional :: ignoreWAR
             character(kind=c_char,len=*), intent(in), optional :: name
 
-
-            ! TODO: add logic for optional arguments
             ! TODO: ignoreWAR is bool. Change it too bool from int
-
-            insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, C_NULL_PTR, 1, 0 ,C_NULL_CHAR)
-
+            if(.not.(present(coloring))) then
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, 0, C_NULL_PTR, C_NULL_PTR, 1, 0, C_NULL_CHAR)
+            else if (.not.(present(partitionings))) then
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, C_NULL_PTR, C_NULL_PTR, 1, 0, C_NULL_CHAR)
+            else if(.not.(present(prefetchHalo))) then
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, 1, 0, C_NULL_CHAR)
+            else if(.not.(present(ignoreWAR))) then
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, prefetchHalo, 0, C_NULL_CHAR)
+            else if(.not.(present(name))) then
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, prefetchHalo, ignoreWAR, C_NULL_CHAR)
+            else
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, prefetchHalo, ignoreWAR, name)
+            end if
+           
             call c_f_pointer(insp%inspCPtr, insp%inspPtr)
 
         end subroutine insp_init
@@ -493,10 +500,9 @@ module SLOPE_Fortran_Declarations
             character(kind=c_char,len=*), intent(in) :: name
             type(sl_set), target, intent(in) :: set
             type(sl_desc_list), target, intent(in) :: descriptors
+            integer(kind=c_int) :: result
 
-            type(c_ptr), target :: dummy
-
-            dummy = insp_add_parloop_c(insp%inspCPtr, name, set%setCPtr, descriptors%descListCPtr)
+            result = insp_add_parloop_c(insp%inspCPtr, name, set%setCPtr, descriptors%descListCPtr)
 
         end subroutine insp_add_parloop
 
@@ -505,10 +511,9 @@ module SLOPE_Fortran_Declarations
 
             type(sl_inspector), target :: insp
             integer(kind=c_int), value, intent(in) :: suggestedSeed
+            integer(kind=c_int) :: result
 
-            type(c_ptr), target :: dummy
-
-            dummy = insp_run_c(insp%inspCPtr, suggestedSeed)
+            result = insp_run_c(insp%inspCPtr, suggestedSeed)
 
         end subroutine insp_run
 
@@ -519,21 +524,19 @@ module SLOPE_Fortran_Declarations
             integer(kind=c_int), value, intent(in) :: level
             integer(kind=c_int), value, intent(in), optional :: loopIndex
 
-            type(c_ptr), target :: dummy
-
-            dummy = insp_print_c(insp%inspCPtr, level, -1)
+            call insp_print_c(insp%inspCPtr, level, -1)
 
         end subroutine insp_print
 
 
         subroutine exec_init (exec, insp)
 
-                type(sl_executor) :: exec
-                type(sl_inspector), target, optional :: insp
-    
-                exec%execCPtr = exec_init_c(insp%inspCPtr)
-    
-                call c_f_pointer(exec%execCPtr, exec%execPtr)
+            type(sl_executor) :: exec
+            type(sl_inspector), target, optional :: insp
+
+            exec%execCPtr = exec_init_c(insp%inspCPtr)
+
+            call c_f_pointer(exec%execCPtr, exec%execPtr)
     
         end subroutine exec_init
 
@@ -571,7 +574,7 @@ module SLOPE_Fortran_Declarations
                 tile%tileCPtr = exec_tile_at_c(exec%execCPtr, color, ithTile, region)
             else
                 tile%tileCPtr = exec_tile_at_c(exec%execCPtr, color, ithTile, 0)
-            endif
+            end if
         
         end subroutine exec_tile_at
 
@@ -619,13 +622,12 @@ module SLOPE_Fortran_Declarations
             real(8), dimension(:), target, intent (in) :: coordinates
             integer(4), intent (in) :: meshDim
             integer(4), intent (in), optional :: rank
-            type(c_ptr), target :: dummy
 
             if(present(rank)) then
-                dummy = generate_vtk_c(insp%inspCPtr, level, nodes%setCPtr, c_loc(coordinates), meshDim, rank)
+                call generate_vtk_c(insp%inspCPtr, level, nodes%setCPtr, c_loc(coordinates), meshDim, rank)
             else
-                dummy = generate_vtk_c(insp%inspCPtr, level, nodes%setCPtr, c_loc(coordinates), meshDim, 0)
-            endif
+                call generate_vtk_c(insp%inspCPtr, level, nodes%setCPtr, c_loc(coordinates), meshDim, 0)
+            end if
         
         end subroutine generate_vtk
 
