@@ -411,23 +411,27 @@ module SLOPE_Fortran_Declarations
         end subroutine map
 
 
-        subroutine desc (inDesc, map, mode)
+        type(sl_descriptor) function desc (map, mode) result(inDesc)
 
-            type(sl_descriptor) :: inDesc
             type(sl_map), target :: map
             integer(kind=c_int), value, intent(in) :: mode
 
             inDesc%descCPtr = desc_c(map%mapCPtr, mode)
             call c_f_pointer(inDesc%descCPtr, inDesc%descPtr)
-        
-        end subroutine desc
+        end function desc
 
 
-        subroutine desc_list (inDescList)
+        subroutine desc_list (inDescList, descriptors, size)
 
             type(sl_desc_list) :: inDescList
+            type(sl_descriptor), dimension(*), intent(in), target :: descriptors
+            integer(kind=c_int), value, intent(in) :: size
 
             inDescList%descListCPtr = desc_list_c()
+
+            do j = 1, size                
+                call insert_descriptor_to(inDescList, descriptors(j))      
+            end do
         
         end subroutine desc_list
 
@@ -630,6 +634,7 @@ module SLOPE_Fortran_Declarations
             end if
         
         end subroutine generate_vtk
+
 
 end module SLOPE_Fortran_Declarations
 
