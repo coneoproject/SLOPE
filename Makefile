@@ -75,7 +75,7 @@ ifdef SLOPE_METIS
 endif
 
 ifdef DEBUG
-  CXXFLAGS := $(CXXFLAGS) -O0 -g
+  CXXFLAGS := $(CXXFLAGS) -O0 -g -traceback
   FFLAGS := $(FFLAGS) -O0 -g -traceback
 else
   CXXFLAGS := $(CXXFLAGS) -O3

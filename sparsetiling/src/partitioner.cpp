@@ -30,7 +30,7 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
                   int* nCore, int* nExec, int* nNonExec, int nThreads);
 #endif
 
-void partition (inspector_t* insp)
+void slope_partition (inspector_t* insp)
 {
   // aliases
   insp_strategy strategy = insp->strategy;

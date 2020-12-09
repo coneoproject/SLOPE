@@ -25,8 +25,16 @@ map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size
   return map;
 }
 
-map_t* map_f (const char* name, set_t* inSet, set_t* outSet, int* values, int size)
+map_t* map_f (const char* name, set_t* inSet, set_t* outSet, int* values, int size, int mapBase)
 {
+  if (mapBase == 1)
+  {
+    for (int i = 0; i < size; ++i)
+    {
+      values[i] = values[i] - 1;
+    }
+  }
+  
   return map(std::string(name), inSet, outSet, values, size);
 }
 

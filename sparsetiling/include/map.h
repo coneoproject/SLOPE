@@ -56,7 +56,8 @@ map_t* map_f (const char* name,
             set_t* inSet,
             set_t* outSet,
             int* values,
-            int size);
+            int size,
+            int mapBase);
 
 /*
  * Return a fresh copy of /map/
