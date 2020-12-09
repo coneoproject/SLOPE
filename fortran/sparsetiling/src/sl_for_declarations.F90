@@ -172,7 +172,7 @@ module SLOPE_Fortran_Declarations
         end function set_c
 
 
-        type(c_ptr) function map_c ( name, inSet, outSet, values, size) BIND(C,name='map_f')
+        type(c_ptr) function map_c ( name, inSet, outSet, values, size, mapBase) BIND(C,name='map_f')
 
             use, intrinsic :: ISO_C_BINDING
 
@@ -183,6 +183,7 @@ module SLOPE_Fortran_Declarations
             type(c_ptr), value, intent(in) :: outSet
             type(c_ptr), value, intent(in) :: values
             integer(kind=c_int), value, intent(in) :: size
+            integer(kind=c_int), value, intent(in) :: mapBase
 
         end function map_c
 
@@ -396,7 +397,7 @@ module SLOPE_Fortran_Declarations
         end subroutine set
 
 
-        subroutine map (inMap, name, inSet, outSet, values, size)
+        subroutine map (inMap, name, inSet, outSet, values, size, mapBase)
 
             type(sl_map) :: inMap
             character(kind=c_char,len=*), intent(in) :: name
@@ -404,8 +405,16 @@ module SLOPE_Fortran_Declarations
             type(sl_set), target :: outSet
             integer(4), dimension(*), intent(in), target :: values
             integer(kind=c_int), value, intent(in) :: size
+            integer(kind=c_int), optional, value, intent(in) :: mapBase
 
-            inMap%mapCPtr = map_c(name, inSet%setCPtr, outSet%setCPtr, c_loc(values), size)
+            if (present(mapBase)) then
+                inMap%mapCPtr = map_c(name, inSet%setCPtr, outSet%setCPtr, c_loc(values), size, mapBase)
+            else
+                !mapBase default is set to 1. Change accordingly.
+                inMap%mapCPtr = map_c(name, inSet%setCPtr, outSet%setCPtr, c_loc(values), size, 1) 
+            endif
+
+            
             call c_f_pointer(inMap%mapCPtr, inMap%mapPtr)
         
         end subroutine map
@@ -446,11 +455,17 @@ module SLOPE_Fortran_Declarations
         end subroutine insert_descriptor_to
 
 
-        subroutine map_list (inMapList)
+        subroutine map_list (inMapList, maps, size)
 
             type(sl_map_list) :: inMapList
+            type(sl_map), dimension(*), intent(in), target :: maps
+            integer(kind=c_int), value, intent(in) :: size
 
             inMapList%mapListCPtr = map_list_c()
+
+            do j = 1, size                
+                call insert_map_to(inMapList, maps(j))      
+            end do
         
         end subroutine map_list
 
@@ -481,8 +496,10 @@ module SLOPE_Fortran_Declarations
             ! TODO: ignoreWAR is bool. Change it too bool from int
             if(.not.(present(coloring))) then
                 insp%inspCPtr = insp_init_c(avgTileSize, strategy, 0, C_NULL_PTR, C_NULL_PTR, 1, 0, C_NULL_CHAR)
-            else if (.not.(present(partitionings))) then
+            else if (.not.(present(meshMaps))) then
                 insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, C_NULL_PTR, C_NULL_PTR, 1, 0, C_NULL_CHAR)
+            else if (.not.(present(partitionings))) then
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, C_NULL_PTR, 1, 0, C_NULL_CHAR)
             else if(.not.(present(prefetchHalo))) then
                 insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, 1, 0, C_NULL_CHAR)
             else if(.not.(present(ignoreWAR))) then

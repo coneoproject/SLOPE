@@ -135,7 +135,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   
   // partition the seed loop iteration set into tiles
   double startPartitioning = time_stamp();
-  partition (insp);
+  slope_partition (insp);
   double endPartitioning = time_stamp();
 
   map_t* iter2tile = insp->iter2tile;

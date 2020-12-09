@@ -21,7 +21,7 @@
  * @return
  *   build up the /tiles/ and /iter2tile/ fields in /insp/
  */
-void partition (inspector_t* insp);
+void slope_partition (inspector_t* insp);
 
 #ifdef SLOPE_METIS
 void get_adjncy_and_offsets(map_t* map, int** adjncy, int** offsets);

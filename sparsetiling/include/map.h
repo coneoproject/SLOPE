@@ -40,6 +40,8 @@ typedef struct {
   int mappedSize;
   /* map dimension */
   int dim;
+  /* map base */
+  int mapBase;
 } map_t;
 
 typedef std::set<map_t*> map_list;
@@ -58,14 +60,16 @@ map_t* map (std::string name,
             set_t* outSet,
             int* values,
             int size,
-            int dim);
+            int dim,
+            int mapBase = 0);
 
 map_t* map_f (const char* name,
             set_t* inSet,
             set_t* outSet,
             int* values,
             int size,
-            int dim);
+            int dim,
+            int mapBase = 0);
 #else
 map_t* map (std::string name,
             set_t* inSet,
@@ -77,9 +81,9 @@ map_t* map_f (const char* name,
             set_t* inSet,
             set_t* outSet,
             int* values,
-            int size);
+            int size,
+            int mapBase);
 #endif
-
 /*
  * Return a fresh copy of /map/
  */
