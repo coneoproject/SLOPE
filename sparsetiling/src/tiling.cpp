@@ -73,8 +73,11 @@ void project_forward (loop_t* tiledLoop,
       //   PRINT_INTARR(descMap->values, 0, descMap->size);
       // }
         
-      
+#ifdef OP2
+      descMap = map_invert (descMap, NULL, tiledLoop->nhalos);
+#else
       descMap = map_invert (descMap, NULL);
+#endif
       // if(rank == 1){
       //   printf("descMap inv name=%s\n", descMap->name.c_str());
       //   // PRINT_MAP(descMap);
@@ -85,7 +88,12 @@ void project_forward (loop_t* tiledLoop,
         
       
       // aliases
+// #ifdef OP2
+//       printf("tiledLoop=%s set=%s nhalos=%d size=%d exec=%d\n", tiledLoop->name.c_str(), )
+//       int projSetSize = descMap->inSet->setSize + descMap->inSet->execSizes[tiledLoop->nhalos - 1];
+// #else
       int projSetSize = descMap->inSet->size;
+// #endif
       std::string projSetName = descMap->inSet->name;
       int* indMap = descMap->values;
       int* offsets = descMap->offsets;
@@ -238,10 +246,18 @@ void project_backward (loop_t* tiledLoop,
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
       //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
+#ifdef OP2
+      descMap = map_invert (descMap, NULL, tiledLoop->nhalos);
+#else
       descMap = map_invert (descMap, NULL);
+#endif
 
+// #ifdef OP2
+//       int projSetSize = descMap->inSet->setSize + descMap->inSet->execSizes[tiledLoop->nhalos - 1];
+// #else
       // aliases
       int projSetSize = descMap->inSet->size;
+// #endif
       std::string projSetName = descMap->inSet->name;
       int* indMap = descMap->values;
       int* offsets = descMap->offsets;
@@ -340,7 +356,11 @@ schedule_t* tile_forward (loop_t* curLoop,
 {
   // aliases
   set_t* toTile = curLoop->set;
+#ifdef OP2
+  int toTileSetSize = toTile->setSize + toTile->execSizes[curLoop->nhalos - 1];
+#else
   int toTileSetSize = toTile->size;
+#endif
   std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
   schedule_t *loopIter2tc;
@@ -514,7 +534,11 @@ schedule_t* tile_backward (loop_t* curLoop,
 {
   // aliases
   set_t* toTile = curLoop->set;
+#ifdef OP2
+  int toTileSetSize = toTile->setSize + toTile->execSizes[curLoop->nhalos - 1];
+#else
   int toTileSetSize = toTile->size;
+#endif
   std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
   schedule_t *loopIter2tc;
@@ -657,7 +681,11 @@ void assign_loop (loop_t* loop, loop_list* loops, tile_list* tiles,
 
   // 2) distribute iterations to tiles (note: we do not assign non-exec iterations)
   
+#ifdef OP2
+  int execSize = loopSet->setSize + loopSet->execSizes[loop->nhalos - 1];
+#else
   int execSize = loopSet->core + loopSet->execHalo;
+#endif
   for (int i = 0; i < execSize; i++) {
 
     

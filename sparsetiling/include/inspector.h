@@ -130,7 +130,8 @@ inspector_t* insp_init (int tileSize,
 insp_info insp_add_parloop (inspector_t* insp,
                             std::string name,
                             set_t* set,
-                            desc_list* descriptors);
+                            desc_list* descriptors,
+                            int nhalos = 1);
 
 /*
  * Inspect a sequence of parloops and compute a tiling scheme

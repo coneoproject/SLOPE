@@ -107,7 +107,7 @@ void map_ofs (map_t* map,
  *   maximum incidence degree on a y element
  */
 map_t* map_invert (map_t* x2y,
-                   int* maxIncidence);
+                   int* maxIncidence, int nhalos = -1);
 
 void convert_map_vals_to_normal(map_t* map);
 

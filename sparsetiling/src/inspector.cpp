@@ -70,7 +70,7 @@ inspector_t* insp_init (int avgTileSize, insp_strategy strategy, insp_coloring c
 }
 
 insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
-                            desc_list* descriptors)
+                            desc_list* descriptors, int nhalos)
 {
   ASSERT(insp != NULL, "Invalid NULL pointer to inspector");
 
@@ -82,6 +82,7 @@ insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
   loop->coloring = NULL;
   loop->tiling = NULL;
   loop->seedMap = NULL;
+  loop->nhalos = nhalos;
 
   insp->loops->push_back(loop);
 

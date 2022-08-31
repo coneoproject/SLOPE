@@ -48,7 +48,7 @@ endif
 OS := $(shell uname)
 CXX := g++
 MPICXX := mpicc
-CXXFLAGS := -std=c++0x -fPIC -O0 -g $(CXX_OPTS) $(SLOPE_VTK)
+CXXFLAGS := -std=c++0x -fPIC -O3 -g $(CXX_OPTS) $(SLOPE_VTK)
 CLOCK_LIB = -lrt
 
 ifeq ($(SLOPE_COMPILER),gnu)

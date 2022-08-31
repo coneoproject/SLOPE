@@ -31,6 +31,8 @@ typedef struct {
   /* map used for seed coloring (NULL if the loop is not the tiling seed) */
   map_t* seedMap;
 
+  int nhalos;
+
 } loop_t;
 
 typedef std::vector<loop_t*> loop_list;

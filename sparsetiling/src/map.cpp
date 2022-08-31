@@ -138,13 +138,23 @@ int get_max_value(map_t* x2y){
   // return (maxVal > ySize) ? maxVal : ySize;
 }
 
-map_t* map_invert (map_t* x2y, int* maxIncidence)
+map_t* map_invert (map_t* x2y, int* maxIncidence, int nhalos)
 {
   // aliases
-  int xSize = x2y->inSet->size;
-  int ySize = x2y->outSet->size;
+  int xSize = 0;
+  int ySize = 0;
+  int x2yMapSize = 0;
+
+if(nhalos > 0){
+  xSize = x2y->inSet->setSize + x2y->inSet->execSizes[nhalos - 1];
+  ySize = x2y->outSet->size + x2y->outSet->execSizes[nhalos - 1];
+  x2yMapSize = xSize * x2y->dim;
+}else{
+  xSize = x2y->inSet->size;
+  ySize = x2y->outSet->size;
+  x2yMapSize = x2y->size;
+}
   int* x2yMap = x2y->values;
-  int x2yMapSize = x2y->size;
   int x2yArity = -1;
 #ifdef OP2
   if(x2y->dim < 0){
