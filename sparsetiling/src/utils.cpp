@@ -104,7 +104,11 @@ void generate_vtk (inspector_t* insp,
       map_t* map = itmap->second;
       int toNodesSize = map->inSet->size;
       int toNodesExecSize = map->inSet->core + map->inSet->execHalo;
+#ifdef OP2
+      int arity = (map->dim < 0) ? map->size / toNodesSize : map->dim;
+#else
       int arity = map->size / toNodesSize;
+#endif
       std::string shape = (arity == 2) ? "LINES " : "POLYGONS ";
       stream << shape << toNodesSize << " " << toNodesSize*(arity + 1) << std::endl;
       vtkfile << stream.str();

@@ -30,6 +30,11 @@ typedef struct {
    * is different than NULL only if the map is irregular. The size of this array
    * is inSet->size + 1.*/
   int* offsets;
+
+  int* mappedValues;
+  int mappedSize;
+
+  int dim;  // map dimension
 } map_t;
 
 typedef std::set<map_t*> map_list;
@@ -42,11 +47,20 @@ typedef std::set<map_t*> map_list;
 /*
  * Initialize a map
  */
+#ifdef OP2
+map_t* map (std::string name,
+            set_t* inSet,
+            set_t* outSet,
+            int* values,
+            int size,
+            int dim);
+#else
 map_t* map (std::string name,
             set_t* inSet,
             set_t* outSet,
             int* values,
             int size);
+#endif
 
 /*
  * Return a fresh copy of /map/
@@ -94,5 +108,7 @@ void map_ofs (map_t* map,
  */
 map_t* map_invert (map_t* x2y,
                    int* maxIncidence);
+
+void convert_map_vals_to_normal(map_t* map);
 
 #endif

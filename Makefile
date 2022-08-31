@@ -14,7 +14,10 @@
 #
 # Set paths for various files
 #
-
+OP2=1
+DEBUG=1
+SLOPE_OMP=-fopenmp
+SLOPE_METIS=/opt/metis/5.1.0
 ST = sparsetiling
 LIB = lib
 OBJ = obj
@@ -45,7 +48,7 @@ endif
 OS := $(shell uname)
 CXX := g++
 MPICXX := mpicc
-CXXFLAGS := -std=c++0x -fPIC -O3 $(CXX_OPTS) $(SLOPE_VTK)
+CXXFLAGS := -std=c++0x -fPIC -O0 -g $(CXX_OPTS) $(SLOPE_VTK)
 CLOCK_LIB = -lrt
 
 ifeq ($(SLOPE_COMPILER),gnu)
@@ -61,6 +64,10 @@ endif
 
 ifdef SLOPE_OMP
   CXXFLAGS := $(CXXFLAGS) -DSLOPE_OMP $(SLOPE_OMP)
+endif
+
+ifdef OP2
+  CXXFLAGS := $(CXXFLAGS) -DOP2
 endif
 
 ifeq ($(OS),Linux)

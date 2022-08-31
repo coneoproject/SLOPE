@@ -76,6 +76,8 @@
                 << "    outSet: " << mapping->outSet->name \
                 << ", size: " << mapping->outSet->size \
                 << std::endl; \
+      std::cout << "values: "; \
+      PRINT_INTARR(mapping->values, 0, mapping->size); \
     } while (false)
 
 #   define PRINT_TRACKER(tracker) \

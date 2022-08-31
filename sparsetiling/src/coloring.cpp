@@ -8,16 +8,21 @@
 
 #include "coloring.h"
 #include "utils.h"
+#include <mpi.h>
 
 static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
 {
   // aliases
   int itSetSize = tile2iter->outSet->size;
   int nTiles = tile2iter->inSet->size;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   int* iter2color = new int[itSetSize];
 
-  for (int i = 0; i < nTiles; i++ ) {
+  int nNonExec = 0; //tile2iter->inSet->nonExecHalo;  // we dont have mappings for nonexec
+
+  for (int i = 0; i < nTiles - nNonExec; i++ ) {
     // determine the tile iteration space
     int prevOffset = tile2iter->offsets[i];
     int nextOffset = tile2iter->offsets[i + 1];
@@ -26,6 +31,8 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
       iter2color[tile2iter->values[j]] = colors[i];
     }
     tiles->at(i)->color = colors[i];
+    if(rank == 0)
+      printf("i=%d color=%d\n", i, colors[i]);
   }
 
   return iter2color;
@@ -52,8 +59,12 @@ void color_sequential (inspector_t* insp)
   delete[] colors;
 
   // note we have as many colors as the number of tiles
-  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
-                          iter2color, iter2tile->inSet->size*1);
+#ifdef OP2
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color, iter2tile->inSet->size*1, -1);
+#else
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles), iter2color, iter2tile->inSet->size*1);
+#endif
+  
 }
 
 void color_rand (inspector_t* insp)
@@ -79,8 +90,13 @@ void color_rand (inspector_t* insp)
   delete[] colors;
 
   // note we have as many colors as the number of tiles
+#ifdef OP2
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1, -1);
+#else
   insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
                           iter2color, iter2tile->inSet->size*1);
+#endif
 }
 
 void color_fully_parallel (inspector_t* insp)
@@ -112,8 +128,13 @@ void color_fully_parallel (inspector_t* insp)
   map_free (tile2iter, true);
   delete[] colors;
 
+#ifdef OP2
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
+                          iter2color, iter2tile->inSet->size*1, -1);
+#else
   insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nTiles),
                           iter2color, iter2tile->inSet->size*1);
+#endif
 }
 
 void color_diff_adj (inspector_t* insp, map_t* seedMap,
@@ -126,7 +147,7 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
   int seedSetSize = seedMap->inSet->size;
   int outSetSize = seedMap->outSet->size;
   int* seedIndMap = seedMap->values;
-
+  int nNonExec = insp->tileRegions->nonExecHalo;  // we dont have mappings for nonexec
   map_t* tile2iter = map_invert (iter2tile, NULL);
 
   // init colors
@@ -149,7 +170,8 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
     std::fill_n (work, outSetSize, 0);
 
     // start coloring tiles
-    for (int i = 0; i < nTiles; i++)
+    printf("nTiles=%d nNonExec=%d\n", nTiles, nNonExec);
+    for (int i = 0; i < nTiles - nNonExec; i++)
     {
       // determine the tile iteration space
       int prevOffset = tile2iter->offsets[i];
@@ -208,31 +230,46 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
         }
       }
     }
+
+    //This is to add colors to non exec tiles.
+    //Mappings are not available for non exec elements of the sets
+    for(int i = nTiles - nNonExec; i < nTiles; i++){
+      colors[i] = nColors;
+    }
+    // printf("==nTiles=%d nColors + 1=%d\n", nTiles, nColors + 1);
+    nColors += 1;
+
     // increment base level
     nColor += 32;
   }
 
+  // this shifting of colors needed, if we are not doing latency hiding
+
   // shift up the halo tile colors, since these tiles must be executed after all core tiles
-  int maxExecHaloColor = nColors;
-  set_t* tileRegions = insp->tileRegions;
-  if (onlyCore) {
-    for (int i = 0; i < tileRegions->execHalo; i++) {
-      colors[tileRegions->core + i] = maxExecHaloColor++;
-    }
-    maxExecHaloColor --;
-  }
-  else {
-    for (int i = 0; i < tileRegions->execHalo; i++) {
-      int newHaloColor = colors[tileRegions->core + i] + nColors;
-      maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
-      colors[tileRegions->core + i] = newHaloColor;
-    }
-  }
-  if (tileRegions->nonExecHalo > 0) {
-    maxExecHaloColor += 1;
-    colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor;
-  }
-  nColors = maxExecHaloColor + 1;
+  // int maxExecHaloColor = nColors;
+  // printf("==before nColors=%d maxExecHaloColor=%d\n",nColors, maxExecHaloColor);
+  // set_t* tileRegions = insp->tileRegions;
+  // if (onlyCore) {
+  //   for (int i = 0; i < tileRegions->execHalo; i++) {
+  //     colors[tileRegions->core + i] = maxExecHaloColor++;
+  //   }
+  //   maxExecHaloColor --;
+  // }
+  // else {
+  //   if(tileRegions->core > 0){
+  //     for (int i = 0; i < tileRegions->execHalo; i++) {
+  //       int newHaloColor = colors[tileRegions->core + i] + nColors;
+  //       maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
+  //       colors[tileRegions->core + i] = newHaloColor;
+  //     }
+  //   }
+  // }
+  // if (tileRegions->nonExecHalo > 0) {
+  //   maxExecHaloColor += 1;
+  //   colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor;
+  // }
+  // nColors = maxExecHaloColor + 1;
+  printf("==nColors=%d\n",nColors);
 
   // create the iteration to colors map
   int* iter2color = color_apply(tiles, tile2iter, colors);
@@ -241,6 +278,11 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
   delete[] colors;
   map_free (tile2iter, true);
 
+#ifdef OP2
+  insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors),
+                          iter2color, seedSetSize*1, -1);
+#else
   insp->iter2color = map ("i2c", set_cpy(iter2tile->inSet), set("colors", nColors),
                           iter2color, seedSetSize*1);
+#endif
 }

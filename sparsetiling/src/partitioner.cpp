@@ -20,6 +20,7 @@
 #include "schedule.h"
 #include "tiling.h"
 #include "common.h"
+#include <mpi.h>
 
 static int* chunk(loop_t* seedLoop, int tileSize,
                   int* nCore, int* nExec, int* nNonExec, int nThreads);
@@ -43,7 +44,12 @@ void partition (inspector_t* insp)
   int seed = insp->seed;
   loop_t* seedLoop = insp->loops->at(seed);
   set_t* seedLoopSet = seedLoop->set;
+
+// #ifdef OP2
+//   int setSize = seedLoopSet->totalSize;
+// #else
   int setSize = seedLoopSet->size;
+// #endif
   int nThreads = insp->nThreads;
 
   // partition the seed loop iteration space
@@ -54,12 +60,14 @@ void partition (inspector_t* insp)
     insp->partitioningMode = "inherited";
   }
 #ifdef SLOPE_METIS
+  printf("metis\n");
   if (! indMap && meshMaps) {
     indMap = metis (seedLoop, tileSize, meshMaps, &nCore, &nExec, &nNonExec, nThreads);
     insp->partitioningMode = "metis";
   }
 #endif
   if (! indMap) {
+    printf("chunk\n");
     indMap = chunk (seedLoop, tileSize, &nCore, &nExec, &nNonExec, nThreads);
     insp->partitioningMode = "chunk";
   }
@@ -83,7 +91,18 @@ void partition (inspector_t* insp)
   assign_loop (seedLoop, loops, tiles, indMap, SEED);
 
   insp->tileRegions = tileRegions;
+#ifdef OP2
+  insp->iter2tile = map ("i2t", set_cpy(seedLoopSet), set_cpy(tileRegions), indMap, setSize, -1);  //todo: check the dimension
+
+  int rank, size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if(rank == 1){
+    // printf("seedloop=%s fromsize=%d tosize=%d core=%d exec=%d non=%d setSize=%d\n", seedLoop->name.c_str(), seedLoopSet->size, tileRegions->size, nCore ,nExec, nNonExec, setSize);
+    // PRINT_INTARR(indMap, 0, nCore + nExec + nNonExec);
+  }
+#else
   insp->iter2tile = map ("i2t", set_cpy(seedLoopSet), set_cpy(tileRegions), indMap, setSize);
+#endif
   insp->tiles = tiles;
 }
 
@@ -297,8 +316,13 @@ static int* metis(loop_t* seedLoop, int tileSize, map_list* meshMaps,
   int nElements = map->inSet->size;
   int nNodes = map->outSet->size;
   int nParts = nElements / tileSize;
+#ifdef OP2
+  int arity = (map->dim < 0) ? map->size / nElements : map->dim;
+#else
   int arity = map->size / nElements;
+#endif
   // ... data needed for partitioning
+  printf("nElements >>>map=%s size=%d inset=%s size=%d(core=%d exec=%d nonexec=%d) =%d\n", map->name.c_str(), map->size, map->inSet->name.c_str(), map->inSet->size, map->inSet->core, map->inSet->execHalo, map->inSet->nonExecHalo, nElements);
   int* indMap = new int[nElements];
   int* indNodesMap = new int[nNodes];
   int* adjncy = nullptr;
