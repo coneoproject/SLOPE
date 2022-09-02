@@ -19,7 +19,6 @@
 #include "partitioner.h"
 #include "coloring.h"
 #include "tiling.h"
-#include <mpi.h>
 
 using namespace std;
 
@@ -111,9 +110,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
   string seedLoopSetName = seedLoop->set->name;
   int seedLoopSetSize = seedLoop->set->size;
 
-  // printf("seedloopset=%s seedmap=%s mapsize=%d\n", seedLoopSetName.c_str(), 
-  // seedLoop->seedMap->name.c_str(), seedLoop->seedMap->size);
-
   // try load an indirection map for all loops - especially direct loops - as
   // this may be used for a more sensible tiling when no projections are available
   loop_list::const_iterator lIt, lEnd;
@@ -165,9 +161,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     }
     map_t* iter2color = insp->iter2color;
 
-    // create_mapped_values(seedLoop->seedMap->inSet, insp->iter2tile->values, (insp->iter2tile->mappedValues), 2);
-    // create_mapped_values(seedLoop->seedMap->inSet, insp->iter2color->values, (insp->iter2color->mappedValues), 2);
-
 #ifdef SLOPE_VTK
     // track coloring and tiling of a parloop. These can be used for debugging or
     // visualization purpose, e.g. for generating VTK files.
@@ -176,24 +169,13 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     memcpy (seedLoop->tiling, iter2tile->values, sizeof(int)*seedLoopSetSize);
     memcpy (seedLoop->coloring, iter2color->values, sizeof(int)*seedLoopSetSize);
 #endif
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if(rank == 1){
-      // printf("iter2tile seedLoopSetSize=%d >>>>>>>>>>>\n", seedLoopSetSize);
-      //   // PRINT_MAP(descMap);
-      // PRINT_INTARR(iter2tile->values, 0, seedLoopSetSize);
-
-    }
 
     // create copies of seed tiling and coloring, which will be used for
     // backward tiling (forward tiling uses and modifies the original copies)
-// #ifdef OP2
-// #else
     int* tmpIter2tileMap = new int[seedLoopSetSize];
     int* tmpIter2colorMap = new int[seedLoopSetSize];
     memcpy (tmpIter2tileMap, iter2tile->values, sizeof(int)*seedLoopSetSize);
     memcpy (tmpIter2colorMap, iter2color->values, sizeof(int)*seedLoopSetSize);
-// #endif
 
     // tile the loop chain. First forward, then backward. The algorithm is as follows:
     // 1- start from the seed loop; for each loop in the forward direction
@@ -213,13 +195,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
     schedule_t* seedTilingInfoCpy = schedule_cpy (seedTilingInfo);
 
     // compute forward projection from the seed loop
-    // printf("here1\n");
-     if(rank == 0){
-      // printf("project_forward seedLoopSetSize=%d >>>>>>>>>>>\n", seedLoopSetSize);
-      // //   // PRINT_MAP(descMap);
-      // PRINT_INTARR(seedTilingInfoCpy->iter2tile, 0, seedLoopSetSize);
-
-    }
     project_forward (seedLoop, seedTilingInfoCpy, prevLoopProj, seedLoopProj,
                      &conflicts, ignoreWAR);
 
@@ -228,17 +203,10 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
       loop_t* curLoop = loops->at(i);
 
       // tile loop /i/
-      
       schedule_t* tilingInfo = tile_forward (curLoop, prevLoopProj);
-      if(rank == 0){
-        // printf("just after seedLoopSetSize=%d >>>>>>>>>>>\n", seedLoopSetSize);
-        // //   // PRINT_MAP(descMap);
-        // PRINT_INTARR(tilingInfo->iter2tile, 0, seedLoopSetSize);
-      }
       assign_loop (curLoop, loops, tiles, tilingInfo->iter2tile, tilingInfo->direction);
 
       // compute projection from loop /i-1/ for tiling loop /i/
-      // printf("here2\n");
       project_forward (curLoop, tilingInfo, prevLoopProj, seedLoopProj,
                        &conflicts, ignoreWAR);
     }
@@ -313,8 +281,6 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
   int nTiles = tiles->size();
   int nLoops = loops->size();
   int itSetSize = loops->at(seed)->set->size;
-
-  printf("======itSetSize=%d seed=%d loop=%s set=%s size=%d avg=%d offset=%d\n", itSetSize, seed, loops->at(seed)->name.c_str(), loops->at(seed)->set->name.c_str(), loops->at(seed)->set->size, avgTileSize, itSetSize / avgTileSize);
   int nThreads = insp->nThreads;
 
   cout << endl << "<<<< SLOPE inspection summary >>>>" << endl << endl;
@@ -333,8 +299,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       break;
     case LOW:
       verbosityItSet = MIN(LOW / 4, itSetSize);
-      // printf("LOW=%d itSetSize=%d low/4=%d\n", LOW, itSetSize, LOW/4);
-      // verbosityTiles = (loopIndex == -1) ? MIN(LOW / 3, avgTileSize / 2) : INT_MAX;
+      verbosityTiles = (loopIndex == -1) ? MIN(LOW / 3, avgTileSize / 2) : INT_MAX;
       break;
     case MEDIUM:
       verbosityItSet = MIN(MEDIUM / 2, itSetSize);
@@ -397,14 +362,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       cout << "  Iteration  |  Tile |  Color" << endl;
       for (int i = 0; i < itSetSize / avgTileSize; i++) {
         int offset = i*avgTileSize;
-
-        int range = MIN(itSetSize - offset, verbosityItSet);
-        range = MIN(range, avgTileSize);
-        // if(avgTileSize == 1)
-        //   range = 1;
-
-        for (int j = 0; j < range; j++) {
-          // printf("i=%d j=%d itSetSize=%d avgTileSize=%d it/avg=%d offset=%d off+j=%d verbosityItSet=%d\n", i, j, itSetSize,avgTileSize,  itSetSize / avgTileSize, offset, offset + j, verbosityItSet);
+        for (int j = 0; j < verbosityItSet; j++) {
           cout << "         " << offset + j
                << "   |   " << iter2tile->values[offset + j]
                << "   |   " << iter2color->values[offset + j] << endl;
@@ -414,14 +372,7 @@ void insp_print (inspector_t* insp, insp_verbose level, int loopIndex)
       }
       int itSetReminder = itSetSize % avgTileSize;
       int offset = itSetSize - itSetReminder;
-
-      // printf("offset=%d  itSetReminder=%d verbosityItSet=%d min=%d\n", offset, itSetReminder, verbosityItSet,  MIN(verbosityItSet, itSetReminder));
-
-      
       for (int i = 0; i < MIN(verbosityItSet, itSetReminder); i++) {
-
-        // printf("i=%d  itSetReminder=%d verbosityItSet=%d min=%d\n", i, itSetReminder, verbosityItSet,  MIN(verbosityItSet, itSetReminder));
-
         cout << "         " << offset + i
              << "   |   " << iter2tile->values[offset + i]
              << "   |   " << iter2color->values[offset + i] << endl;
@@ -580,10 +531,11 @@ static void print_tiled_loop (tile_list* tiles, loop_t* loop, int verbosityTiles
     }
     cout << "}" << endl;
   }
-  if (nTiles > tilesRange) {
+  if (nTiles > tilesRange && tilesRange > 0) {
     for (int i = tilesRange; i < nTiles; i++) {
       int tileLoopSize = tile_loop_size (tiles->at(i), loop->index);
-      totalIterationsAssigned += tileLoopSize;
+      // totalIterationsAssigned += tileLoopSize;
+      totalIterationsAssigned += (tileLoopSize > 0) ? tileLoopSize : 0;
     }
     cout << "         ..." << endl;
   }
@@ -660,8 +612,6 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
   // aliases
   int nLoops = loops->size();
   int nTiles = tiles->size();
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   /* For each loop spanned by a tile, take the global maps used in that loop and,
    * for each of them:
@@ -707,69 +657,11 @@ static void compute_local_ind_maps(loop_list* loops, tile_list* tiles)
         for (int e = 0; e < tileLoopSize; e++) {
           int element = (*tIt)->iterations[i]->at(e);
           for (int j = 0; j < arity; j++) {
-            if(rank == 0){
-              // printf("compute_local_ind_maps map=%s e=%d element=%d arity=%d j=%d\n", globalMap->name.c_str(), e, element, arity, j);
-            }
-            
             localMap->at(e*arity + j) = globalIndMap[element*arity + j];
           }
         }
       }
       (*tIt)->localMaps[i] = localMaps;
     }
-  }
-}
-
-void create_mapped_values(set_t* set, int* values, int* mappedValues, int haloID){
-  int size = 0;
-  int offset = 0;
-  int mapValOffset = 0;
-  int nonExecOffset = 0;
-  int execSize = 0;
-
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  size = set->setSize + set->execSizes[haloID - 1];
-  for(int i = 0; i < haloID; i++){
-    size += set->nonExecSizes[i];
-  }
-
-  if(mappedValues == NULL){
-    mappedValues = (int*)malloc(size * sizeof(int));
-    memset(mappedValues, -1, size * sizeof(int));
-  }
-
-  //copy core values
-  memcpy(mappedValues, values, set->setSize * sizeof(int));
-  offset =  mapValOffset = set->setSize; //* sizeof(int);
-
-  //copy exec values
-  for(int i = 0; i < haloID; i++){
-
-    if(i > 0){
-      execSize = set->execSizes[i] - set->execSizes[i - 1];
-    }else{
-      execSize = set->execSizes[i];
-    }
-    
-    memcpy(&mappedValues[mapValOffset], &values[offset], execSize * sizeof(int));
-    if(rank == 0){
-      printf("==== create_mapped_values values set=%s size=%d offset=%d mapoffset=%d nonsize=%d execSize=%d\n", set->name.c_str(), size, offset, mapValOffset, set->nonExecSizes[haloID - 1], execSize);
-    }
-     
-    if(i == haloID - 1){
-      memcpy(&mappedValues[mapValOffset], &values[offset], set->nonExecSizes[haloID - 1] * sizeof(int));
-    }
-    offset = (set->setSize + set->execSizes[i]);
-    nonExecOffset += set->nonExecSizes[i];
-    mapValOffset = (set->setSize + set->execSizes[i] + nonExecOffset);
-  }
-
-  if(rank == 0){
-    // printf("create_mapped_values values set=%s size=%d\n", set->name.c_str(), set->size);
-    // PRINT_INTARR(values, 0, size);
-    // printf("create_mapped_values mappedValues set=%s size=%d\n", set->name.c_str(), size);
-    // PRINT_INTARR(mappedValues, 0, size);
   }
 }

@@ -62,11 +62,6 @@ typedef struct {
   /* additional global information */
   int nThreads;
 
-  /* seed loop partitioning */
-  map_t* iter2tileMapped;
-  /* seed loop coloring */
-  map_t* iter2colorMapped;
-
 } inspector_t;
 
 /*
@@ -166,7 +161,5 @@ void insp_print (inspector_t* insp,
  * Destroy an inspector
  */
 void insp_free (inspector_t* insp);
-
-void create_mapped_values(set_t* set, int* values, int* mappedValues, int haloID);
 
 #endif

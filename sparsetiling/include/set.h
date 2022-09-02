@@ -11,7 +11,6 @@
 #include <string>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 /*
  * Represent a set
@@ -29,11 +28,17 @@ typedef struct {
   int size;
   /* am I a subset? If so (!= NULL), what is my superset? */
   void* superset;
+  /* core and export halos */
   int setSize;
+  /* multiple core sizes for multiple halos */
   int* coreSizes;
+  /* multiple exec sizes for multiple halos */
   int* execSizes;
+  /* multiple nonexec sizes for multiple halos */
   int* nonExecSizes;
+  /* current number of halos */
   int curHaloLevel;
+  /* maximum number of halos */
   int maxHaloLevel;
 } set_t;
 
@@ -120,6 +125,7 @@ inline set_t* set_cpy (set_t* toCopy)
   return set(toCopy->name, toCopy->core, toCopy->execHalo, toCopy->nonExecHalo,
              set_super(toCopy));
 }
+
 /*
  * Return /true/ if two sets are identical (same identifier), /false/ otherwise
  */

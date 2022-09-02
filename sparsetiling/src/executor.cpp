@@ -5,7 +5,6 @@
 
 #include "executor.h"
 #include "utils.h"
-#include <mpi.h>
 
 executor_t* exec_init (inspector_t* insp)
 {
@@ -23,7 +22,7 @@ executor_t* exec_init (inspector_t* insp)
     tile2colorIndMap[i] = tiles->at(i)->color;
   }
 #ifdef OP2
-  map_t* tile2color = map ("t2c", tileSet, colorSet, tile2colorIndMap, nTiles, -1);  //todo: check the dimension
+  map_t* tile2color = map ("t2c", tileSet, colorSet, tile2colorIndMap, nTiles, -1);
 #else
   map_t* tile2color = map ("t2c", tileSet, colorSet, tile2colorIndMap, nTiles);
 #endif
@@ -71,8 +70,6 @@ void exec_free (executor_t* exec)
 
 
 void create_mapped_iterations(inspector_t* insp, executor_t* exec){
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   tile_list* tiles = exec->tiles;
   tile_list::const_iterator tit, tend;
@@ -92,28 +89,21 @@ void create_mapped_iterations(inspector_t* insp, executor_t* exec){
         for (mit = meshMaps->begin(), mend = meshMaps->end(); mit != mend; mit++) {
           if (it->first.compare((*mit)->name) == 0) {
             loopMap = *mit;
-            // printf("test i=%d %s %s\n", c, it->first.c_str(), loopMap->name.c_str());
             break;
           }
         }
 
-      //map found
+        //map found
         if(loopMap){
           iterations_list* itList = it->second;
           if(itList){
             if(itList->size() == 0){
-              // printf("itList zero size=%d\n", itList->size());
               continue;
             }
             // core | size | imp exec 0 | imp nonexec 0 | imp exec 1 | imp nonexec 1 |
             // core | size | imp exec 0 | imp exec 1 | imp nonexec 1 |
             iterations_list* mappedVals = new iterations_list (itList->size());
-            // int* mappedVals = new int[itList->size()];
             for(int i = 0; i < itList->size(); i++){
-
-              if(rank == 0){
-                // printf("====test itsize=%d [%d]=%d\n", itList->size(), i, itList->at(i));
-              }
               set_t* outSet = loopMap->outSet;
               int haloLevel = outSet->curHaloLevel;
               // check for non exec values
@@ -149,16 +139,6 @@ void create_mapped_iterations(inspector_t* insp, executor_t* exec){
                 }
               }
             }
-
-            
-
-            if(rank == 0){
-
-              // for(int i = 0; i < itList->size(); i++){
-              //   printf("map=%s size=%d %d i=%d unmapped=%d mapped=%d\n", loopMap->name.c_str(), itList->size(), mappedVals->size(), i,
-              //   itList->at(i), mappedVals->at(i));
-              // }
-            }
             localMap->find(loopMap->name)->second->clear();
             delete localMap->find(loopMap->name)->second;
             localMap->find(loopMap->name)->second = mappedVals;
@@ -169,11 +149,12 @@ void create_mapped_iterations(inspector_t* insp, executor_t* exec){
       // iterations
       loop_t* loop = loops->at(c);
       set_t* loopSet = loop->set;
-      // printf("loop=%s loopset=%s\n", loop->name.c_str(), loop->set->name.c_str());
       iterations_list* unmappedDirectVals = tile->iterations[c];
+      int nhalos = loop->nhalos;
+      int maxElement = loopSet->setSize + loopSet->execSizes[nhalos - 1];
 
       if(unmappedDirectVals->size() > 0){
-        iterations_list* mappedDirectVals = new iterations_list(unmappedDirectVals->size());
+        iterations_list* mappedDirectVals = new iterations_list();
         mappedDirectVals->clear();
         //up to set size
         for(int i = 0; i < unmappedDirectVals->size(); i++){
@@ -183,10 +164,14 @@ void create_mapped_iterations(inspector_t* insp, executor_t* exec){
           for(int j = 0; j < haloLevel - 1; j++){
             nonExecOffset += loopSet->nonExecSizes[j];
           }
+
           int execOffset = loopSet->execSizes[haloLevel - 1];
           int totalOffset = loopSet->setSize + execOffset;
-
           int mapVal = unmappedDirectVals->at(i);
+
+          if(mapVal > maxElement - 1){
+            continue;
+          }
 
           if(mapVal > totalOffset - 1){
             mappedDirectVals->push_back(mapVal + nonExecOffset);
@@ -211,23 +196,6 @@ void create_mapped_iterations(inspector_t* insp, executor_t* exec){
             }
           }
         }
-        if(rank == 0){
-          // printf("map->values map=%s size=%d out=%s size=%d exec=%d,%d nonexec=%d,%d\n", map->name.c_str(), map->size, outSet->name.c_str(), outSet->setSize, outSet->execSizes[0], outSet->execSizes[1], outSet->nonExecSizes[0], outSet->nonExecSizes[1]);
-
-          // printf("=====unmappedDirectVals map=%s size=%d\n", map->name.c_str(), tile->iterations[c]->size());
-          // PRINT_INTARR(tile->iterations[c], 0, tile->iterations[c]->size());
-
-          // printf("=====mappedDirectVals map=%s size=%d\n", loopMap->name.c_str(), mappedDirectVals->size());
-
-          // PRINT_INTARR(mappedDirectVals, 0, mappedDirectVals->size());
-
-          for(int l = 0; l < mappedDirectVals->size(); l++){
-
-            if(rank == 0){
-              // printf("====<<<<>>> test loop=%s size=%d itsize=%d [%d]=%d,%d\n", loopSet->name.c_str(), loopSet->setSize, mappedDirectVals->size(), l, tile->iterations[c]->at(l), mappedDirectVals->at(l));
-            }
-          }
-        }
         delete tile->iterations[c];
         tile->iterations[c] = NULL;
         tile->iterations[c] = mappedDirectVals;
@@ -235,5 +203,3 @@ void create_mapped_iterations(inspector_t* insp, executor_t* exec){
     } 
   }
 }
-
-// void compute_mapped_vals(map_t* map, )

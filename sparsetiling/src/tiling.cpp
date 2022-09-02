@@ -10,7 +10,6 @@
 #include <limits.h>
 
 #include "tiling.h"
-#include <mpi.h>
 
 
 inline static void derive_dependency_free_tiling (loop_t* curLoop,
@@ -65,35 +64,10 @@ void project_forward (loop_t* tiledLoop,
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
       //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
-      int rank, size;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      // if(rank == 1){
-      //   printf("descMap name=%s inset=%s outset=%s\n", descMap->name.c_str(), descMap->inSet->name.c_str(), descMap->outSet->name.c_str());
-      //   PRINT_MAP(descMap);
-      //   PRINT_INTARR(descMap->values, 0, descMap->size);
-      // }
-        
-#ifdef OP2
-      descMap = map_invert (descMap, NULL, tiledLoop->nhalos);
-#else
       descMap = map_invert (descMap, NULL);
-#endif
-      // if(rank == 1){
-      //   printf("descMap inv name=%s\n", descMap->name.c_str());
-      //   // PRINT_MAP(descMap);
-      //   PRINT_INTARR(descMap->values, 0, descMap->size);
-      //   PRINT_INTARR(descMap->offsets, 0, descMap->inSet->size);
 
-      // }
-        
-      
       // aliases
-// #ifdef OP2
-//       printf("tiledLoop=%s set=%s nhalos=%d size=%d exec=%d\n", tiledLoop->name.c_str(), )
-//       int projSetSize = descMap->inSet->setSize + descMap->inSet->execSizes[tiledLoop->nhalos - 1];
-// #else
       int projSetSize = descMap->inSet->size;
-// #endif
       std::string projSetName = descMap->inSet->name;
       int* indMap = descMap->values;
       int* offsets = descMap->offsets;
@@ -103,7 +77,6 @@ void project_forward (loop_t* tiledLoop,
       projIter2tc = schedule_init (projSetName, projSetSize, projIter2tile,
                                    projIter2color, DOWN);
 
-      
       #pragma omp parallel
       {
         tracker_t localTracker;
@@ -124,9 +97,6 @@ void project_forward (loop_t* tiledLoop,
             int indIter = indMap[j];
             int indTile = iter2tile[indIter];
             int indColor = iter2color[indIter];
-            if(rank == 1){
-            // printf("j=%d prevOffset=%d nextOffset=%d indIter=%d indTile=%d indColor=%d\n", j, prevOffset, nextOffset, indMap[j], iter2tile[indIter], iter2color[indIter]);
-            }
             // may have to change color and tile of the projected iteration
             int maxColor = MAX(projIter2color[i], indColor);
             if (maxColor != projIter2color[i]) {
@@ -246,18 +216,10 @@ void project_backward (loop_t* tiledLoop,
       // - checking conflicts requires to store only O(k) instead of O(kN) memory,
       //   with k the average arity of a projected set iteration and N the size of
       //   the projected iteration set
-#ifdef OP2
-      descMap = map_invert (descMap, NULL, tiledLoop->nhalos);
-#else
       descMap = map_invert (descMap, NULL);
-#endif
 
-// #ifdef OP2
-//       int projSetSize = descMap->inSet->setSize + descMap->inSet->execSizes[tiledLoop->nhalos - 1];
-// #else
       // aliases
       int projSetSize = descMap->inSet->size;
-// #endif
       std::string projSetName = descMap->inSet->name;
       int* indMap = descMap->values;
       int* offsets = descMap->offsets;
@@ -356,11 +318,7 @@ schedule_t* tile_forward (loop_t* curLoop,
 {
   // aliases
   set_t* toTile = curLoop->set;
-#ifdef OP2
-  int toTileSetSize = toTile->setSize + toTile->execSizes[curLoop->nhalos - 1];
-#else
   int toTileSetSize = toTile->size;
-#endif
   std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
   schedule_t *loopIter2tc;
@@ -377,23 +335,12 @@ schedule_t* tile_forward (loop_t* curLoop,
   loopIter2tc = schedule_init (toTileSetName, toTileSetSize, loopIter2tile,
                                loopIter2color, DOWN);
 
-  
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if(rank == 0){
-    // printf("loopIter2tile toTileSetSize=%d <<<<<<>>>>>>\n", toTileSetSize);
-    // PRINT_INTARR(loopIter2tile, 0, toTileSetSize);
-  }
-
   if (toTileSetSize == 0) {
     // no need to tile
     return loopIter2tc;
   }
 
   desc_list::const_iterator it, end;
-  if(rank == 0){
-    printf("============================start ===================\n");
-  }
   for (it = descriptors->begin(), end = descriptors->end(); it != end; it++) {
     // aliases
     map_t* descMap = (*it)->map;
@@ -418,11 +365,6 @@ schedule_t* tile_forward (loop_t* curLoop,
     }
     int* projIter2tile = (*iprojIter2tc)->iter2tile;
     int* projIter2color = (*iprojIter2tc)->iter2color;
-    if(rank == 0){
-      // PRINT_PROJECTION(prevLoopProj, curLoop);
-      // printf("tiling projIter2tile curLoop->set=%s(size=%d) size=%d\n", curLoop->set->name.c_str(), curLoop->set->size, toTileSetSize);
-      // PRINT_INTARR(projIter2tile, 0, toTileSetSize);
-    }
 
     if (touchedSet == toTile) {
       // direct set case
@@ -430,9 +372,6 @@ schedule_t* tile_forward (loop_t* curLoop,
       for (int i = 0; i < toTileSetSize; i++) {
         int iterTile = projIter2tile[i];
         int iterColor = MAX(projIter2color[i], loopIter2color[i]);
-        // if(rank == 0){
-        //   printf("test>>> i=[%d] projiter=%d loopiter=%d\n", i, projIter2tile[i], loopIter2tile[i]);
-        // }
         if (iterColor != loopIter2color[i]) {
           loopIter2tile[i] = iterTile;
           loopIter2color[i] = iterColor;
@@ -452,9 +391,6 @@ schedule_t* tile_forward (loop_t* curLoop,
 #else
       int arity = mapSize / toTileSetSize;
 #endif
-    if(rank == 0){
-      // printf("tiling map=%s in=%s(size=%d) out=%s(size=%d) mapSize=%d toTileSetSize=%d arity=%d dim=%d\n", descMap->name.c_str(), descMap->inSet->name.c_str(), descMap->inSet->size, descMap->outSet->name.c_str(), descMap->outSet->size, mapSize, toTileSetSize, arity, descMap->dim);
-    }
 
       // iterate over the iteration set of the loop we are tiling, and use the map
       // to access the indirectly touched elements
@@ -468,16 +404,8 @@ schedule_t* tile_forward (loop_t* curLoop,
             // off-processor elements are set to -1; ignore them
             continue;
           }
-          
-
           int indTile = projIter2tile[indIter];
-          if(rank == 0){
-            // printf("afterloopIter2tile i=%d toTileSetSize=%d iterTile=%d arity=%d j=%d indMap[%d]=%d indTile=%d\n", i, toTileSetSize, iterTile, arity, i, i*arity + j, indMap[i*arity + j], indTile);
-          }
           int indColor = MAX(iterColor, projIter2color[indIter]);
-          //  if(rank == 0){
-          //   printf("test>>> i=[%d] j=%d projiter=%d loopiter=%d\n", i, j, projIter2tile[i], loopIter2tile[i]);
-          // }
           if (iterColor != indColor) {
             // update color and tile of the loop being tiled
             iterTile = indTile;
@@ -488,9 +416,6 @@ schedule_t* tile_forward (loop_t* curLoop,
         // color found and the corresponding tile
         loopIter2tile[i] = iterTile;
         loopIter2color[i] = iterColor;
-        // if(rank == 0){
-        //   printf("afterloopIter2tile loopIter2tile[%d]=%d\n", i, loopIter2tile[i]);
-        // }
       }
     }
 
@@ -498,15 +423,6 @@ schedule_t* tile_forward (loop_t* curLoop,
     loopIter2tc->computed = true;
 
     checkedSets.insert (touchedSet);
-  }
-
-  if(rank == 0){
-    printf("============================end ===================\n");
-  }
-
-  if(rank == 0){
-    // printf("afterloopIter2tile toTileSetSize=%d <<<<<<>>>>>>\n", toTileSetSize);
-    // PRINT_INTARR(loopIter2tile, 0, toTileSetSize);
   }
 
   // if no schedule could be computed (as, for example, the iteration set of
@@ -534,11 +450,7 @@ schedule_t* tile_backward (loop_t* curLoop,
 {
   // aliases
   set_t* toTile = curLoop->set;
-#ifdef OP2
-  int toTileSetSize = toTile->setSize + toTile->execSizes[curLoop->nhalos - 1];
-#else
   int toTileSetSize = toTile->size;
-#endif
   std::string toTileSetName = toTile->name;
   desc_list* descriptors = curLoop->descriptors;
   schedule_t *loopIter2tc;
@@ -670,8 +582,6 @@ void assign_loop (loop_t* loop, loop_list* loops, tile_list* tiles,
   // aliases
   int loopIndex = loop->index;
   set_t* loopSet = loop->set;
-  int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // 1) remove any previously assigned iteration for loop /loopIndex/
   tile_list::const_iterator tIt, tEnd;
@@ -682,16 +592,11 @@ void assign_loop (loop_t* loop, loop_list* loops, tile_list* tiles,
   // 2) distribute iterations to tiles (note: we do not assign non-exec iterations)
   
 #ifdef OP2
-  int execSize = loopSet->setSize + loopSet->execSizes[loop->nhalos - 1];
+  int execSize = loopSet->setSize + loopSet->execSizes[loop->nhalos - 1]; // todo: check this again
 #else
   int execSize = loopSet->core + loopSet->execHalo;
 #endif
   for (int i = 0; i < execSize; i++) {
-
-    
-    if(rank == 0){
-      // printf("i=%d loopIndex=%d execsize=%d iter2tile[i]=%d\n", i, loopIndex, execSize, iter2tile[i]);
-    }
     tiles->at(iter2tile[i])->iterations[loopIndex]->push_back(i);
   }
 

@@ -72,6 +72,9 @@ tile_t* exec_tile_at (executor_t* exec,
  */
 void exec_free (executor_t* exec);
 
+/*
+ * Renumber mappings to satisfy OP2's data arrangements
+ */
 void create_mapped_iterations(inspector_t* insp, executor_t* exec);
 
 #endif

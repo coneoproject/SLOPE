@@ -8,21 +8,16 @@
 
 #include "coloring.h"
 #include "utils.h"
-#include <mpi.h>
 
 static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
 {
   // aliases
   int itSetSize = tile2iter->outSet->size;
   int nTiles = tile2iter->inSet->size;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   int* iter2color = new int[itSetSize];
 
-  int nNonExec = 0; //tile2iter->inSet->nonExecHalo;  // we dont have mappings for nonexec
-
-  for (int i = 0; i < nTiles - nNonExec; i++ ) {
+  for (int i = 0; i < nTiles; i++ ) {
     // determine the tile iteration space
     int prevOffset = tile2iter->offsets[i];
     int nextOffset = tile2iter->offsets[i + 1];
@@ -31,8 +26,6 @@ static int* color_apply (tile_list* tiles, map_t* tile2iter, int* colors)
       iter2color[tile2iter->values[j]] = colors[i];
     }
     tiles->at(i)->color = colors[i];
-    if(rank == 0)
-      printf("i=%d color=%d\n", i, colors[i]);
   }
 
   return iter2color;
@@ -170,7 +163,6 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
     std::fill_n (work, outSetSize, 0);
 
     // start coloring tiles
-    printf("nTiles=%d nNonExec=%d\n", nTiles, nNonExec);
     for (int i = 0; i < nTiles - nNonExec; i++)
     {
       // determine the tile iteration space
@@ -231,8 +223,8 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
       }
     }
 
-    //This is to add colors to non exec tiles.
-    //Mappings are not available for non exec elements of the sets
+    // This is to add colors to non exec tiles.
+    // Mappings are not available for non exec elements of the sets
     for(int i = nTiles - nNonExec; i < nTiles; i++){
       colors[i] = nColors;
     }
@@ -243,33 +235,29 @@ void color_diff_adj (inspector_t* insp, map_t* seedMap,
     nColor += 32;
   }
 
-  // this shifting of colors needed, if we are not doing latency hiding
-
   // shift up the halo tile colors, since these tiles must be executed after all core tiles
-  // int maxExecHaloColor = nColors;
-  // printf("==before nColors=%d maxExecHaloColor=%d\n",nColors, maxExecHaloColor);
-  // set_t* tileRegions = insp->tileRegions;
-  // if (onlyCore) {
-  //   for (int i = 0; i < tileRegions->execHalo; i++) {
-  //     colors[tileRegions->core + i] = maxExecHaloColor++;
-  //   }
-  //   maxExecHaloColor --;
-  // }
-  // else {
-  //   if(tileRegions->core > 0){
-  //     for (int i = 0; i < tileRegions->execHalo; i++) {
-  //       int newHaloColor = colors[tileRegions->core + i] + nColors;
-  //       maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
-  //       colors[tileRegions->core + i] = newHaloColor;
-  //     }
-  //   }
-  // }
-  // if (tileRegions->nonExecHalo > 0) {
-  //   maxExecHaloColor += 1;
-  //   colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor;
-  // }
-  // nColors = maxExecHaloColor + 1;
-  printf("==nColors=%d\n",nColors);
+  int maxExecHaloColor = nColors;
+  set_t* tileRegions = insp->tileRegions;
+  if (onlyCore) {
+    for (int i = 0; i < tileRegions->execHalo; i++) {
+      colors[tileRegions->core + i] = maxExecHaloColor++;
+    }
+    maxExecHaloColor --;
+  }
+  else {
+    if(tileRegions->core > 0){
+      for (int i = 0; i < tileRegions->execHalo; i++) {
+        int newHaloColor = colors[tileRegions->core + i] + nColors;
+        maxExecHaloColor = MAX(maxExecHaloColor, newHaloColor);
+        colors[tileRegions->core + i] = newHaloColor;
+      }
+    }
+  }
+  if (tileRegions->nonExecHalo > 0) {
+    maxExecHaloColor += 1;
+    colors[tileRegions->core + tileRegions->execHalo] = maxExecHaloColor;
+  }
+  nColors = maxExecHaloColor + 1;
 
   // create the iteration to colors map
   int* iter2color = color_apply(tiles, tile2iter, colors);

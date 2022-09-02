@@ -30,7 +30,7 @@ typedef struct {
   int* tiling;
   /* map used for seed coloring (NULL if the loop is not the tiling seed) */
   map_t* seedMap;
-
+  /* number of halos in the mappings */
   int nhalos;
 
 } loop_t;

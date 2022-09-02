@@ -30,11 +30,12 @@ typedef struct {
    * is different than NULL only if the map is irregular. The size of this array
    * is inSet->size + 1.*/
   int* offsets;
-
+  /* renumbered map values */
   int* mappedValues;
+  /* renumbered map size */
   int mappedSize;
-
-  int dim;  // map dimension
+  /* map dimension */
+  int dim;
 } map_t;
 
 typedef std::set<map_t*> map_list;
@@ -107,8 +108,11 @@ void map_ofs (map_t* map,
  *   maximum incidence degree on a y element
  */
 map_t* map_invert (map_t* x2y,
-                   int* maxIncidence, int nhalos = -1);
+                   int* maxIncidence);
 
+/*
+ * Renumber mappings to satisfy SLOPE's map values arrangement
+ */
 void convert_map_vals_to_normal(map_t* map);
 
 #endif
