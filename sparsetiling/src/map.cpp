@@ -178,35 +178,54 @@ void convert_map_vals_to_normal(map_t* map){
   int haloLevel = outSet->curHaloLevel;
   int* unmappedVals = new int[map->size];
   
-  for(int i = 0; i < map->size; i++){
-    // check for non exec values
-    int nonExecOffset = 0;
-    for(int j = 0; j < haloLevel - 1; j++){
-      nonExecOffset += outSet->nonExecSizes[j];
-    }
-    int execOffset = outSet->execSizes[haloLevel - 1];
-    int totalOffset = outSet->setSize + execOffset + nonExecOffset;
-    int mapVal = map->values[i];
-    if(mapVal > totalOffset - 1){
-      unmappedVals[i] = mapVal - nonExecOffset;
-    }else{
-    // check for exec values
-      int execAvail = 0;
-      for(int j = haloLevel - 1; j > 0; j--){
-        nonExecOffset = 0;
-        for(int k = 0; k < j; k ++){
-          nonExecOffset += outSet->nonExecSizes[k];
-        }
-        execOffset = outSet->execSizes[j - 1];
-        totalOffset = outSet->setSize + execOffset + nonExecOffset;
-        if(mapVal > totalOffset - 1){
-          unmappedVals[i] = mapVal - nonExecOffset;
-          execAvail = 1;
-          break;
-        }
+  int start = 0;
+  int end = 0;
+  int index = 0;
+  for(int hl = 0; hl < haloLevel; hl++){
+
+    int execSize = map->inSet->execSizes[hl];
+    int nonExecSize = 0;
+    int prevNonExecSize = 0;
+    if(hl > 0){
+      for(int sl = 0; sl < hl; sl++){
+        nonExecSize += map->inSet->nonExecSizes[sl];
       }
-      if(execAvail == 0){
-        unmappedVals[i] = mapVal;
+      prevNonExecSize = map->inSet->nonExecSizes[hl - 1];
+    }
+
+    start = end + prevNonExecSize * map->dim;
+    end = (map->inSet->setSize + execSize + nonExecSize) * map->dim;
+    
+    for(int i = start; i < end; i++){
+      // check for non exec values
+      int nonExecOffset = 0;
+      for(int j = 0; j < haloLevel - 1; j++){
+        nonExecOffset += outSet->nonExecSizes[j];
+      }
+      int execOffset = outSet->execSizes[haloLevel - 1];
+      int totalOffset = outSet->setSize + execOffset + nonExecOffset;
+      int mapVal = map->values[i];
+      if(mapVal > totalOffset - 1){
+        unmappedVals[index++] = mapVal - nonExecOffset;
+      }else{
+      // check for exec values
+        int execAvail = 0;
+        for(int j = haloLevel - 1; j > 0; j--){
+          nonExecOffset = 0;
+          for(int k = 0; k < j; k ++){
+            nonExecOffset += outSet->nonExecSizes[k];
+          }
+          execOffset = outSet->execSizes[j - 1];
+          totalOffset = outSet->setSize + execOffset + nonExecOffset;
+          if(mapVal > totalOffset - 1){
+            unmappedVals[index++] = mapVal - nonExecOffset;
+            execAvail = 1;
+            break;
+          }
+        }
+        if(execAvail == 0){
+          unmappedVals[index++] = mapVal;
+        }
       }
     }
   }
