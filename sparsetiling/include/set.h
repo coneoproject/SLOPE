@@ -67,35 +67,23 @@ typedef std::set<set_t*> set_list;
  *    - `nonExecHalo`: read when executing the halo region
  */
 
-inline set_t* slop_set (std::string name,
+set_t* slop_set (std::string name,
                    int setSize,
                    int* coreSizes = NULL,
                    int* execSizes = NULL,
                    int* nonExecSizes = NULL,
                    int maxHaloLevel = 1,
                    int curHaloLevel = 1,
-                   set_t* superset = NULL)
-{
-  set_t* set =  new set_t;
-  set->name = name;
-  set->setSize = setSize;
-  set->maxHaloLevel = maxHaloLevel;
-  set->curHaloLevel = curHaloLevel;
+                   set_t* superset = NULL);
 
-  set->coreSizes = (int*)malloc(maxHaloLevel * sizeof(int));
-  memcpy(set->coreSizes, coreSizes, sizeof(int) * maxHaloLevel);
-  set->execSizes = (int*)malloc(maxHaloLevel * sizeof(int));
-  memcpy(set->execSizes, execSizes, sizeof(int) * maxHaloLevel);
-  set->nonExecSizes = (int*)malloc(maxHaloLevel * sizeof(int));
-  memcpy(set->nonExecSizes, nonExecSizes, sizeof(int) * maxHaloLevel);
-
-  set->core = coreSizes[curHaloLevel - 1];
-  set->execHalo = set->setSize - coreSizes[curHaloLevel - 1] + execSizes[curHaloLevel - 1];
-  set->nonExecHalo = nonExecSizes[curHaloLevel - 1];
-  set->size = set->core + set->execHalo + set->nonExecHalo;
-  set->superset = superset;
-  return set;
-}
+set_t* slop_set_f (const char* name,
+                   int setSize,
+                   int* coreSizes = NULL,
+                   int* execSizes = NULL,
+                   int* nonExecSizes = NULL,
+                   int maxHaloLevel = 1,
+                   int curHaloLevel = 1,
+                   set_t* superset = NULL);
 
 set_t* set (std::string name,
                    int core,

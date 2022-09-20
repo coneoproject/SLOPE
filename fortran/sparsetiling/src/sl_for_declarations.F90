@@ -34,6 +34,12 @@ module SLOPE_Fortran_Declarations
         integer(kind=c_int) :: execHalo
         integer(kind=c_int) :: nonExecHalo
         integer(kind=c_int) :: size
+        integer(kind=c_int) :: setSize
+        type(c_ptr) :: coreSizes
+        type(c_ptr) :: execSizes
+        type(c_ptr) :: nonExecSizes
+        integer(kind=c_int) :: maxHaloLevel
+        integer(kind=c_int) :: curHaloLevel
         type(c_ptr) :: superset
 
     end type set_t
@@ -53,6 +59,10 @@ module SLOPE_Fortran_Declarations
         type(c_ptr) :: values 
         integer(kind=c_int) :: size
         type(c_ptr) :: offsets
+        type(c_ptr) :: mappedValues
+        integer(kind=c_int) :: mappedSize
+        integer(kind=c_int) :: dim
+        integer(kind=c_int) :: mapBase
 
     end type map_t
 
@@ -171,7 +181,41 @@ module SLOPE_Fortran_Declarations
 
         end function set_c
 
+        type(c_ptr) function slop_set_c ( name, setSize, coreSizes, execSizes, nonExecSizes, maxHaloLevel, &
+                                            curHaloLevel, superset ) BIND(C,name='slop_set_f')
 
+            use, intrinsic :: ISO_C_BINDING
+
+            import :: set_t
+
+            character(kind=c_char,len=1), intent(in)    :: name(*)
+            integer(kind=c_int), value, intent(in)      :: setSize
+            type(c_ptr), value, intent(in) :: coreSizes
+            type(c_ptr), value, intent(in) :: execSizes
+            type(c_ptr), value, intent(in) :: nonExecSizes
+            integer(kind=c_int), value, intent(in)      :: maxHaloLevel       
+            integer(kind=c_int), value, intent(in)      :: curHaloLevel
+            type(c_ptr), value, intent(in) :: superset
+
+        end function slop_set_c
+
+#ifdef OP2
+        type(c_ptr) function map_c ( name, inSet, outSet, values, size, dim, mapBase) BIND(C,name='map_f')
+
+            use, intrinsic :: ISO_C_BINDING
+
+            import :: map_t
+
+            character(kind=c_char,len=1), intent(in) :: name(*)
+            type(c_ptr), value, intent(in) :: inSet
+            type(c_ptr), value, intent(in) :: outSet
+            type(c_ptr), value, intent(in) :: values
+            integer(kind=c_int), value, intent(in) :: size
+            integer(kind=c_int), value, intent(in) :: dim
+            integer(kind=c_int), value, intent(in) :: mapBase
+
+        end function map_c
+#else
         type(c_ptr) function map_c ( name, inSet, outSet, values, size, mapBase) BIND(C,name='map_f')
 
             use, intrinsic :: ISO_C_BINDING
@@ -186,7 +230,7 @@ module SLOPE_Fortran_Declarations
             integer(kind=c_int), value, intent(in) :: mapBase
 
         end function map_c
-
+#endif
 
         type(c_ptr) function desc_c (map, mode) BIND(C,name='desc_f')
 
@@ -396,7 +440,66 @@ module SLOPE_Fortran_Declarations
 
         end subroutine set
 
+        subroutine slop_set (inSet, name, setSize, coreSizes, execSizes, nonExecSizes, maxHaloLevel, &
+                                curHaloLevel, superset)
 
+            type(sl_set) :: inSet
+            character(kind=c_char,len=*), intent(in) :: name
+            integer(kind=c_int), value, intent(in) :: setSize
+            integer(4), dimension(*), intent(in), optional, target :: coreSizes
+            integer(4), dimension(*), intent(in), optional, target :: execSizes
+            integer(4), dimension(*), intent(in), optional, target :: nonExecSizes       
+            integer(kind=c_int), optional :: maxHaloLevel
+            integer(kind=c_int), optional :: curHaloLevel
+            type(sl_set), optional, target :: superset
+
+            if(.not.(present(coreSizes))) then
+                inSet%setCPtr = slop_set_c(name, setSize, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, 1, 1, C_NULL_PTR)
+            else if(.not.(present(execSizes))) then
+                inSet%setCPtr = slop_set_c(name, setSize, c_loc(coreSizes), C_NULL_PTR, C_NULL_PTR, 1, 1, &
+                C_NULL_PTR)
+            else if(.not.(present(nonExecSizes))) then
+                inSet%setCPtr = slop_set_c(name, setSize, c_loc(coreSizes), c_loc(execSizes), C_NULL_PTR, 1, 1, &
+                C_NULL_PTR)
+            else if(.not.(present(maxHaloLevel))) then
+                inSet%setCPtr = slop_set_c(name, setSize, c_loc(coreSizes), c_loc(execSizes), c_loc(nonExecSizes), &
+                1, 1, C_NULL_PTR)
+            else if(.not.(present(curHaloLevel))) then
+                inSet%setCPtr = slop_set_c(name, setSize, c_loc(coreSizes), c_loc(execSizes), c_loc(nonExecSizes), &
+                maxHaloLevel, 1, C_NULL_PTR)
+            else
+                inSet%setCPtr = slop_set_c(name, setSize, c_loc(coreSizes), c_loc(execSizes), c_loc(nonExecSizes), &
+                maxHaloLevel, curHaloLevel, c_loc(superset))
+            end if
+
+            call c_f_pointer(inSet%setCPtr, inSet%setPtr)
+
+        end subroutine slop_set
+
+#ifdef OP2
+        subroutine map (inMap, name, inSet, outSet, values, size, dim, mapBase)
+
+            type(sl_map) :: inMap
+            character(kind=c_char,len=*), intent(in) :: name
+            type(sl_set), target :: inSet
+            type(sl_set), target :: outSet
+            integer(4), dimension(*), intent(in), target :: values
+            integer(kind=c_int), value, intent(in) :: size
+            integer(kind=c_int), value, intent(in) :: dim
+            integer(kind=c_int), optional, value, intent(in) :: mapBase
+
+            if (present(mapBase)) then
+                inMap%mapCPtr = map_c(name, inSet%setCPtr, outSet%setCPtr, c_loc(values), size, dim, mapBase)
+            else
+                !mapBase default is set to 1. Change accordingly.
+                inMap%mapCPtr = map_c(name, inSet%setCPtr, outSet%setCPtr, c_loc(values), size, dim, 1) 
+            endif
+
+            
+            call c_f_pointer(inMap%mapCPtr, inMap%mapPtr)
+
+        end subroutine map
+#else
         subroutine map (inMap, name, inSet, outSet, values, size, mapBase)
 
             type(sl_map) :: inMap
@@ -418,7 +521,7 @@ module SLOPE_Fortran_Declarations
             call c_f_pointer(inMap%mapCPtr, inMap%mapPtr)
         
         end subroutine map
-
+#endif
 
         type(sl_descriptor) function desc (map, mode) result(inDesc)
 
@@ -499,15 +602,20 @@ module SLOPE_Fortran_Declarations
             else if (.not.(present(meshMaps))) then
                 insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, C_NULL_PTR, C_NULL_PTR, 1, 0, C_NULL_CHAR)
             else if (.not.(present(partitionings))) then
-                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, C_NULL_PTR, 1, 0, C_NULL_CHAR)
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, C_NULL_PTR, 1, 0, &
+                C_NULL_CHAR)
             else if(.not.(present(prefetchHalo))) then
-                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, 1, 0, C_NULL_CHAR)
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, &
+                1, 0, C_NULL_CHAR)
             else if(.not.(present(ignoreWAR))) then
-                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, prefetchHalo, 0, C_NULL_CHAR)
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, &
+                prefetchHalo, 0, C_NULL_CHAR)
             else if(.not.(present(name))) then
-                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, prefetchHalo, ignoreWAR, C_NULL_CHAR)
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, &
+                prefetchHalo, ignoreWAR, C_NULL_CHAR)
             else
-                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, prefetchHalo, ignoreWAR, name)
+                insp%inspCPtr = insp_init_c(avgTileSize, strategy, coloring, meshMaps%mapListCPtr, partitionings%mapListCPtr, &
+                prefetchHalo, ignoreWAR, name)
             end if
            
             call c_f_pointer(insp%inspCPtr, insp%inspPtr)
