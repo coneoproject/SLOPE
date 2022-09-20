@@ -86,6 +86,7 @@ endif
 
 ifdef OP2
   CXXFLAGS := $(CXXFLAGS) -DOP2
+  FFLAGS := $(FFLAGS) -DOP2
 endif
 
 ifeq ($(OS),Linux)
