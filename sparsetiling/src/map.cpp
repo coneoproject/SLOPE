@@ -53,14 +53,11 @@ map_t* map (std::string name, set_t* inSet, set_t* outSet, int* values, int size
 
 map_t* map_f (const char* name, set_t* inSet, set_t* outSet, int* values, int size, int mapBase)
 {
-  if (mapBase == 1)
-  {
-    for (int i = 0; i < size; ++i)
-    {
+  if (mapBase == 1){
+    for (int i = 0; i < size; ++i){
       values[i] = values[i] - 1;
     }
   }
-  
   return map(std::string(name), inSet, outSet, values, size);
 }
 
@@ -192,7 +189,8 @@ map_t* map_invert (map_t* x2y, int* maxIncidence)
 }
 
 // core | size | imp exec 0 | imp nonexec 0 | imp exec 1 | imp nonexec 1 |
-void convert_map_vals_to_normal(map_t* map){
+void convert_map_vals_to_normal(map_t* map)
+{
 
   set_t* outSet = map->outSet;
   int haloLevel = outSet->curHaloLevel;
@@ -247,6 +245,12 @@ void convert_map_vals_to_normal(map_t* map){
           unmappedVals[index++] = mapVal;
         }
       }
+    }
+  }
+
+  if (map->mapBase == 1){
+    for (int i = 0; i < map->size; ++i){
+      unmappedVals[i] = unmappedVals[i] - 1;
     }
   }
 

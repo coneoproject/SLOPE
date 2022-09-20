@@ -69,7 +69,8 @@ void exec_free (executor_t* exec)
 }
 
 
-void create_mapped_iterations(inspector_t* insp, executor_t* exec){
+void create_mapped_iterations(inspector_t* insp, executor_t* exec)
+{
 
   tile_list* tiles = exec->tiles;
   tile_list::const_iterator tit, tend;
