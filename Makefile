@@ -77,8 +77,13 @@ ifdef SLOPE_METIS
 endif
 
 ifdef DEBUG
-  CXXFLAGS := $(CXXFLAGS) -O0 -g -traceback
-  FFLAGS := $(FFLAGS) -O0 -g -traceback
+	ifeq ($(SLOPE_COMPILER),gnu)
+		CXXFLAGS := $(CXXFLAGS) -O3 -g
+		FFLAGS := $(FFLAGS) -O3 -g
+	else
+		CXXFLAGS := $(CXXFLAGS) -O0 -g -traceback
+		FFLAGS := $(FFLAGS) -O0 -g -traceback
+	endif
 else
   CXXFLAGS := $(CXXFLAGS) -O3
   FFLAGS := $(FFLAGS) -O3
@@ -164,6 +169,11 @@ FT_MOD = $(FT)/mod
 
 FT_ALL_OBJS = $(FT_OBJ)/sl_for_declarations.o
 
+ifeq ($(SLOPE_COMPILER),gnu)
+  FT_INC_MOD = $(FT_MOD)
+  FC = ftn
+  FFLAGS := $(FFLAGS) -J$(FT_INC_MOD) -fPIC $(FT_OPTS) $(SLOPE_VTK)
+endif
 ifeq ($(SLOPE_COMPILER),intel)
 	FT_INC_MOD = $(FT_MOD)
 	FC = ifort

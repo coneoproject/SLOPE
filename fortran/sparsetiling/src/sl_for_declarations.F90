@@ -295,7 +295,7 @@ module SLOPE_Fortran_Declarations
         end function insp_init_c
 
 
-        integer(kind=c_int) function insp_add_parloop_c(insp, name, set, descriptors) BIND(C,name='insp_add_parloop_f')
+        integer(kind=c_int) function insp_add_parloop_c(insp, name, set, descriptors, nhalos) BIND(C,name='insp_add_parloop_f')
 
             use, intrinsic :: ISO_C_BINDING
 
@@ -303,6 +303,7 @@ module SLOPE_Fortran_Declarations
             character(kind=c_char,len=1), intent(in) :: name(*)
             type(c_ptr), value, intent(in) :: set
             type(c_ptr), value, intent(in) :: descriptors
+            integer(kind=c_int), value, intent(in) :: nhalos
   
         end function insp_add_parloop_c
 
@@ -411,6 +412,14 @@ module SLOPE_Fortran_Declarations
             integer(kind=c_int), value, intent (in) :: rank
 
         end subroutine generate_vtk_c
+
+        subroutine convert_map_vals_to_normal_c (map) BIND(C,name='convert_map_vals_to_normal')
+
+            use, intrinsic :: ISO_C_BINDING
+
+            type(c_ptr), value, intent(in) :: map
+
+        end subroutine convert_map_vals_to_normal_c
 
 
     end interface
@@ -623,15 +632,20 @@ module SLOPE_Fortran_Declarations
         end subroutine insp_init
 
 
-        subroutine insp_add_parloop(insp, name, set, descriptors)
+        subroutine insp_add_parloop(insp, name, set, descriptors, nhalos)
 
             type(sl_inspector), target :: insp
             character(kind=c_char,len=*), intent(in) :: name
             type(sl_set), target, intent(in) :: set
             type(sl_desc_list), target, intent(in) :: descriptors
             integer(kind=c_int) :: result
+            integer(kind=c_int), value, intent(in), optional:: nhalos
 
-            result = insp_add_parloop_c(insp%inspCPtr, name, set%setCPtr, descriptors%descListCPtr)
+            if (present(nhalos)) then
+                result = insp_add_parloop_c(insp%inspCPtr, name, set%setCPtr, descriptors%descListCPtr, nhalos)
+            else
+                result = insp_add_parloop_c(insp%inspCPtr, name, set%setCPtr, descriptors%descListCPtr, 1)
+            endif
 
         end subroutine insp_add_parloop
 
@@ -759,6 +773,14 @@ module SLOPE_Fortran_Declarations
             end if
         
         end subroutine generate_vtk
+
+        subroutine convert_map_vals_to_normal (map)
+
+            type(sl_map), target :: map
+
+            call convert_map_vals_to_normal_c(map%mapCPtr)
+
+        end subroutine convert_map_vals_to_normal
 
 
 end module SLOPE_Fortran_Declarations

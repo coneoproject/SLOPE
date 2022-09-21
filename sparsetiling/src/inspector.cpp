@@ -97,9 +97,9 @@ insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
 }
 
 insp_info insp_add_parloop_f (inspector_t* insp, const char* name, set_t* set,
-                            desc_list* descriptors)
+                            desc_list* descriptors, int nhalos)
 {
-  return insp_add_parloop(insp, std::string(name), set, descriptors);
+  return insp_add_parloop(insp, std::string(name), set, descriptors, nhalos);
 }
 
 insp_info insp_run (inspector_t* insp, int suggestedSeed)
@@ -118,6 +118,7 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // establish the seed loop
   int seed = select_seed_loop (strategy, coloring, loops, suggestedSeed);
+  printf("seed=%d >>>>>>>>>>>>>>>\n", seed);
   insp->seed = seed;
   loop_t* seedLoop = loops->at(seed);
   ASSERT(!seedLoop->set->superset || nLoops == 1, "Seed loop cannot be a subset");
@@ -611,7 +612,8 @@ static int select_seed_loop (insp_strategy strategy, insp_coloring coloring,
   // tiling starts from the top of the loop chain so that the halo region can
   // progressively grow over the core tiles (the user must have provided a
   // sufficiently large halo region).
-  int legalSeed = 0;
+  // int legalSeed = 0;
+  int legalSeed = suggestedSeed;  //todo: check whether we need 0 as the legal seed for mpi as well.
   ASSERT (! loops->at(legalSeed)->set->superset || nLoops == 1, "Illegal subset seed loop");
   // ASSERT (loops->at(legalSeed)->set->execHalo != 0, "Invalid HALO region");
   if (strategy == OMP_MPI || coloring == COL_MINCOLS) {

@@ -144,7 +144,8 @@ insp_info insp_add_parloop (inspector_t* insp,
 insp_info insp_add_parloop_f (inspector_t* insp,
                             const char* name,
                             set_t* set,
-                            desc_list* descriptors);
+                            desc_list* descriptors,
+                            int nhalos = 1);
 
 /*
  * Inspect a sequence of parloops and compute a tiling scheme
