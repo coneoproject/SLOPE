@@ -597,7 +597,11 @@ void assign_loop (loop_t* loop, loop_list* loops, tile_list* tiles,
   int execSize = loopSet->core + loopSet->execHalo;
 #endif
   for (int i = 0; i < execSize; i++) {
-    tiles->at(iter2tile[i])->iterations[loopIndex]->push_back(i);
+    if(iter2tile[i] >= 0){
+      tiles->at(iter2tile[i])->iterations[loopIndex]->push_back(i);
+    }else{
+      // printf("Warning: This should not come for an indirect loop. execsize=%d iter2tile[%d]=%d loopIndex=%d\n", execSize, i, iter2tile[i], loopIndex);
+    }
   }
 
   for (tIt = tiles->begin(), tEnd = tiles->end(); tIt != tEnd; tIt++) {

@@ -26,6 +26,11 @@ module SLOPE_Fortran_Declarations
     integer(c_int) :: SL_DIM2 = 2
     integer(c_int) :: SL_DIM3 = 3
 
+    integer(c_int) :: SL_LOCAL = 0
+    integer(c_int) :: SL_EXEC_HALO = 1
+    integer(c_int) :: SL_NON_EXEC_HALO = 2
+    integer(c_int) :: SL_LOCAL_AND_EXEC_HALO = 3
+
 
     type, BIND(C) :: set_t
 
@@ -294,6 +299,15 @@ module SLOPE_Fortran_Declarations
 
         end function insp_init_c
 
+        integer(kind=c_int) function insp_set_mesh_maps_c (insp, meshMaps) BIND(C,name='insp_set_mesh_maps_f')
+
+            use, intrinsic :: ISO_C_BINDING
+
+            type(c_ptr), value, intent(in) :: insp
+            type(c_ptr), value, intent(in) :: meshMaps
+
+        end function insp_set_mesh_maps_c
+
 
         integer(kind=c_int) function insp_add_parloop_c(insp, name, set, descriptors, nhalos) BIND(C,name='insp_add_parloop_f')
 
@@ -420,6 +434,15 @@ module SLOPE_Fortran_Declarations
             type(c_ptr), value, intent(in) :: map
 
         end subroutine convert_map_vals_to_normal_c
+
+        subroutine create_mapped_iterations_c (insp, exec ) BIND(C,name='create_mapped_iterations')
+
+            use, intrinsic :: ISO_C_BINDING
+
+            type(c_ptr), value, intent(in) :: insp
+            type(c_ptr), value, intent(in) :: exec
+            
+        end subroutine create_mapped_iterations_c
 
 
     end interface
@@ -631,6 +654,16 @@ module SLOPE_Fortran_Declarations
 
         end subroutine insp_init
 
+        subroutine insp_set_mesh_maps(insp, meshMaps)
+
+            type(sl_inspector) :: insp
+            type(sl_map_list), target, optional :: meshMaps
+            integer(kind=c_int) :: result
+
+            result = insp_set_mesh_maps_c(insp%inspCPtr, meshMaps%mapListCPtr)
+
+        end subroutine insp_set_mesh_maps 
+
 
         subroutine insp_add_parloop(insp, name, set, descriptors, nhalos)
 
@@ -782,6 +815,14 @@ module SLOPE_Fortran_Declarations
 
         end subroutine convert_map_vals_to_normal
 
+        subroutine create_mapped_iterations (insp, exec)
+
+            type(sl_inspector), target :: insp
+            type(sl_executor), target :: exec
+
+            call create_mapped_iterations_c(insp%inspCPtr, exec%execCPtr)
+
+        end subroutine create_mapped_iterations
+
 
 end module SLOPE_Fortran_Declarations
-

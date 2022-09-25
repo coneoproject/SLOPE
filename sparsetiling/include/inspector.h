@@ -180,6 +180,8 @@ void insp_print (inspector_t* insp,
  * Destroy an inspector
  */
 void insp_free (inspector_t* insp);
+
+int insp_set_mesh_maps_f(inspector_t* insp, map_list* meshMaps);
 #ifdef __cplusplus
   }
 #endif

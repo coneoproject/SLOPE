@@ -76,6 +76,12 @@ inspector_t* insp_init_f (int avgTileSize, insp_strategy strategy, insp_coloring
   ignoreWAR, std::string(name));
 }
 
+int insp_set_mesh_maps_f(inspector_t* insp, map_list* meshMaps)
+{
+    insp->meshMaps = meshMaps;
+    return 1;
+}
+
 insp_info insp_add_parloop (inspector_t* insp, string name, set_t* set,
                             desc_list* descriptors, int nhalos)
 {
