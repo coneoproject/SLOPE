@@ -124,7 +124,6 @@ insp_info insp_run (inspector_t* insp, int suggestedSeed)
 
   // establish the seed loop
   int seed = select_seed_loop (strategy, coloring, loops, suggestedSeed);
-  printf("seed=%d >>>>>>>>>>>>>>>\n", seed);
   insp->seed = seed;
   loop_t* seedLoop = loops->at(seed);
   ASSERT(!seedLoop->set->superset || nLoops == 1, "Seed loop cannot be a subset");
