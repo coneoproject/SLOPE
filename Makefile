@@ -15,7 +15,7 @@
 # Set paths for various files
 #
 
-OP2=1
+# OP2=1
 # DEBUG=1
 # SLOPE_COMPILER = intel
 SLOPE_OMP=-fopenmp
@@ -89,10 +89,10 @@ else
   FFLAGS := $(FFLAGS) -O3
 endif
 
-ifdef OP2
-  CXXFLAGS := $(CXXFLAGS) -DOP2
-  FFLAGS := $(FFLAGS) -DOP2
-endif
+# ifdef OP2
+#   CXXFLAGS := $(CXXFLAGS) -DOP2
+#   FFLAGS := $(FFLAGS) -DOP2
+# endif
 
 ifeq ($(OS),Linux)
   SONAME := -soname
@@ -103,7 +103,7 @@ endif
 
 .PHONY: clean mklib
 
-all: sparsetiling
+all: sparsetiling op2_sparsetiling
 
 full: warning clean mklib sparsetiling tests demos
 
@@ -131,6 +131,24 @@ sparsetiling: mklib
 	ar cru $(LIB)/libslope.a $(ALL_OBJS)
 	ranlib $(LIB)/libslope.a
 	$(CXX) -shared -Wl,$(SONAME),libslope.so -o $(LIB)/libslope.so $(ALL_OBJS) $(METIS_LINK)
+
+op2_sparsetiling: mklib
+	@echo "Compiling the library"
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/inspector.cpp -o $(OBJ)/inspector.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/executor.cpp -o $(OBJ)/executor.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) $(METIS_INC) -c $(ST_SRC)/partitioner.cpp -o $(OBJ)/partitioner.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/coloring.cpp -o $(OBJ)/coloring.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/map.cpp -o $(OBJ)/map.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/set.cpp -o $(OBJ)/set.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/descriptor.cpp -o $(OBJ)/descriptor.o
+	ar cru $(LIB)/libop2slope.a $(ALL_OBJS)
+	ranlib $(LIB)/libop2slope.a
+	$(CXX) -shared -Wl,$(SONAME),libop2slope.so -o $(LIB)/libop2slope.so $(ALL_OBJS) $(METIS_LINK)
 
 tests: mklib
 	@echo "Compiling the tests"
@@ -180,7 +198,7 @@ ifeq ($(SLOPE_COMPILER),intel)
 	FFLAGS := $(FFLAGS) -module $(FT_INC_MOD) -fPIC $(FT_OPTS) $(SLOPE_VTK)
 endif
 
-ft_all: ft_sparsetiling
+ft_all: ft_sparsetiling op2_ft_sparsetiling
 
 ft_mklib:
 	@mkdir -p $(FT_LIB) $(FT_OBJ) $(FT_MOD) $(FT_BIN)/airfoil $(FT_BIN)/tests
@@ -203,5 +221,24 @@ ft_sparsetiling: ft_mklib
 	ar -r $(FT_LIB)/libfslope.a $(ALL_OBJS) $(FT_ALL_OBJS)
 	ranlib $(FT_LIB)/libfslope.a
 	$(CXX) -shared -Wl,$(SONAME),libfslope.so -o $(FT_LIB)/libfslope.so $(ALL_OBJS) $(FT_ALL_OBJS) $(METIS_LINK)
+
+op2_ft_sparsetiling: ft_mklib
+	@echo "Compiling the Fortran library"
+	$(CXX) $(CXXFLAGS) -DOP2  -I$(ST_INC) -c $(ST_SRC)/inspector.cpp -o $(OBJ)/inspector.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/executor.cpp -o $(OBJ)/executor.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) $(METIS_INC) -c $(ST_SRC)/partitioner.cpp -o $(OBJ)/partitioner.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/coloring.cpp -o $(OBJ)/coloring.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/map.cpp -o $(OBJ)/map.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/tile.cpp -o $(OBJ)/tile.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/parloop.cpp -o $(OBJ)/parloop.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/tiling.cpp -o $(OBJ)/tiling.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/schedule.cpp -o $(OBJ)/schedule.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/utils.cpp -o $(OBJ)/utils.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/set.cpp -o $(OBJ)/set.o
+	$(CXX) $(CXXFLAGS) -DOP2 -I$(ST_INC) -c $(ST_SRC)/descriptor.cpp -o $(OBJ)/descriptor.o
+	$(FC) $(FFLAGS) -c $(FT_SRC)/sl_for_declarations.F90 -o $(FT_OBJ)/sl_for_declarations.o
+	ar -r $(FT_LIB)/libfop2slope.a $(ALL_OBJS) $(FT_ALL_OBJS)
+	ranlib $(FT_LIB)/libfop2slope.a
+	$(CXX) -shared -Wl,$(SONAME),libfop2slope.so -o $(FT_LIB)/libfop2slope.so $(ALL_OBJS) $(FT_ALL_OBJS) $(METIS_LINK)
 
 	
